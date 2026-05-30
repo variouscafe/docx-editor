@@ -15,6 +15,15 @@ import {
 } from "../types/lineStartSymbol";
 import type { LineStartSymbol } from "../types/lineStartSymbol";
 
+/** DASH 기호가 사용되면 항상 4칸 선행 공백을 강제하는 규칙 */
+function getEffectiveLeadingSpaces(
+  symbol: LineStartSymbol,
+  configuredSpaces: number
+): number {
+  if (symbol === LineStartSymbol.DASH) return 4;
+  return configuredSpaces;
+}
+
 export async function exportToDocx(
   html: string,
   options: DocxOptions,
@@ -65,7 +74,7 @@ export async function exportToDocx(
         ? `${resolveCounter(symbol, ++counters.h2)}`
         : getSymbolDisplay(symbol);
       const prefix =
-        " ".repeat(options.h2.leadingSpaces) + `${symbolText} `;
+        " ".repeat(getEffectiveLeadingSpaces(options.h2.lineStartSymbol, options.h2.leadingSpaces)) + `${symbolText} `;
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
@@ -91,7 +100,7 @@ export async function exportToDocx(
         ? `${resolveCounter(symbol, ++counters.h3)}`
         : getSymbolDisplay(symbol);
       const prefix =
-        " ".repeat(options.h3.leadingSpaces) + `${symbolText} `;
+        " ".repeat(getEffectiveLeadingSpaces(options.h3.lineStartSymbol, options.h3.leadingSpaces)) + `${symbolText} `;
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_3,
@@ -118,7 +127,7 @@ export async function exportToDocx(
         ? `${resolveCounter(symbol, ++counters.h4)}`
         : getSymbolDisplay(symbol);
       const prefix =
-        " ".repeat(options.h4.leadingSpaces) + `${symbolText} `;
+        " ".repeat(getEffectiveLeadingSpaces(options.h4.lineStartSymbol, options.h4.leadingSpaces)) + `${symbolText} `;
       const textContent = el.textContent || "";
       const isSingleLine = !textContent.includes("\n");
       const spacing = isSingleLine
@@ -150,7 +159,7 @@ export async function exportToDocx(
         ? `${resolveCounter(symbol, ++counters.h5)}`
         : getSymbolDisplay(symbol);
       const prefix =
-        " ".repeat(options.h5.leadingSpaces) + `${symbolText} `;
+        " ".repeat(getEffectiveLeadingSpaces(options.h5.lineStartSymbol, options.h5.leadingSpaces)) + `${symbolText} `;
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_5,
@@ -177,7 +186,7 @@ export async function exportToDocx(
         ? `${resolveCounter(symbol, ++counters.h6)}`
         : getSymbolDisplay(symbol);
       const prefix =
-        " ".repeat(options.h6.leadingSpaces) + `${symbolText} `;
+        " ".repeat(getEffectiveLeadingSpaces(options.h6.lineStartSymbol, options.h6.leadingSpaces)) + `${symbolText} `;
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_6,

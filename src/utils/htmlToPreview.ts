@@ -3,6 +3,7 @@ import {
   resolveCounter,
   getSymbolDisplay,
   isCounterSymbol,
+  LineStartSymbol,
 } from "../types/lineStartSymbol";
 
 type HeadingKey = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -10,6 +11,15 @@ const HEADING_KEYS: HeadingKey[] = ["h1", "h2", "h3", "h4", "h5", "h6"];
 const TAG_TO_KEY: Record<string, HeadingKey> = {
   h1: "h1", h2: "h2", h3: "h3", h4: "h4", h5: "h5", h6: "h6",
 };
+
+/** DASH 기호가 사용되면 항상 4칸 선행 공백을 강제하는 규칙 */
+function getEffectiveLeadingSpaces(
+  symbol: LineStartSymbol,
+  configuredSpaces: number
+): number {
+  if (symbol === LineStartSymbol.DASH) return 4;
+  return configuredSpaces;
+}
 
 export function applyOptionsToHtml(html: string, options: DocxOptions): string {
   const parser = new DOMParser();
@@ -25,7 +35,8 @@ export function applyOptionsToHtml(html: string, options: DocxOptions): string {
     if (key) {
       const headingOpts = options[key];
       const symbol = headingOpts.lineStartSymbol;
-      const leadingSpaces = "leadingSpaces" in headingOpts ? " ".repeat(headingOpts.leadingSpaces) : "";
+      const configuredSpaces = "leadingSpaces" in headingOpts ? headingOpts.leadingSpaces : 0;
+      const leadingSpaces = " ".repeat(getEffectiveLeadingSpaces(symbol, configuredSpaces));
 
       if (isCounterSymbol(symbol)) {
         counters[key]++;
