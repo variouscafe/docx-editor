@@ -38,7 +38,7 @@ export function applyOptionsToHtml(html: string, options: DocxOptions): string {
       const headingOpts = options[key];
       const symbol = headingOpts.lineStartSymbol;
       const configuredSpaces = "leadingSpaces" in headingOpts ? headingOpts.leadingSpaces : 0;
-      const leadingSpaces = " ".repeat(getEffectiveLeadingSpaces(symbol, configuredSpaces));
+      const leadingSpaces = " ".repeat(getEffectiveLeadingSpaces(symbol, configuredSpaces));
 
       if (isCounterSymbol(symbol)) {
         counters[key]++;
