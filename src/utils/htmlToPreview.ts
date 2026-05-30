@@ -2,34 +2,33 @@ import type { DocxOptions } from "../types/options";
 import {
   resolveCounter,
   getSymbolDisplay,
+  isCounterSymbol,
 } from "../types/lineStartSymbol";
+import type { LineStartSymbol } from "../types/lineStartSymbol";
 
 export function applyOptionsToHtml(html: string, options: DocxOptions): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   const body = doc.body;
 
-  let h1Counter = 0;
+  const counters: Record<string, number> = { h1: 0, h2: 0, h3: 0, h4: 0 };
 
   for (const el of Array.from(body.children)) {
     const tag = el.tagName.toLowerCase();
 
-    if (tag === "h1") {
-      h1Counter++;
-      const prefix = resolveCounter(options.h1.lineStartSymbol, h1Counter) + " ";
-      prependText(el, prefix);
-    } else if (tag === "h2") {
-      const spaces = " ".repeat(options.h2.leadingSpaces);
-      const prefix = `${spaces}${getSymbolDisplay(options.h2.lineStartSymbol)} `;
-      prependText(el, prefix);
-    } else if (tag === "h3") {
-      const spaces = " ".repeat(options.h3.leadingSpaces);
-      const prefix = `${spaces}${getSymbolDisplay(options.h3.lineStartSymbol)} `;
-      prependText(el, prefix);
-    } else if (tag === "h4") {
-      const spaces = " ".repeat(options.h4.leadingSpaces);
-      const prefix = `${spaces}${getSymbolDisplay(options.h4.lineStartSymbol)} `;
-      prependText(el, prefix);
+    if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
+      const headingOpts = options[tag as "h1" | "h2" | "h3" | "h4"];
+      const symbol: LineStartSymbol = headingOpts.lineStartSymbol;
+      const leadingSpaces = "leadingSpaces" in headingOpts ? " ".repeat(headingOpts.leadingSpaces) : "";
+
+      if (isCounterSymbol(symbol)) {
+        counters[tag]++;
+        const prefix = `${leadingSpaces}${resolveCounter(symbol, counters[tag])} `;
+        prependText(el, prefix);
+      } else {
+        const prefix = `${leadingSpaces}${getSymbolDisplay(symbol)} `;
+        prependText(el, prefix);
+      }
     }
   }
 

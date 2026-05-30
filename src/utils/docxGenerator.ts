@@ -11,7 +11,9 @@ import type { DocxOptions } from "../types/options";
 import {
   resolveCounter,
   getSymbolDisplay,
+  isCounterSymbol,
 } from "../types/lineStartSymbol";
+import type { LineStartSymbol } from "../types/lineStartSymbol";
 
 export async function exportToDocx(
   html: string,
@@ -22,7 +24,7 @@ export async function exportToDocx(
   const doc = parser.parseFromString(html, "text/html");
   const body = doc.body;
   const children: Paragraph[] = [];
-  let h1Counter = 0;
+  const counters: Record<string, number> = { h1: 0, h2: 0, h3: 0, h4: 0 };
 
   for (const el of Array.from(body.children)) {
     const tag = el.tagName.toLowerCase();
@@ -30,8 +32,8 @@ export async function exportToDocx(
     const font = options.common.fontFamily.split(",")[0].trim().replace(/'/g, "");
 
     if (tag === "h1") {
-      h1Counter++;
-      const symbolText = `${resolveCounter(options.h1.lineStartSymbol, h1Counter)} `;
+      counters.h1++;
+      const symbolText = `${resolveCounter(options.h1.lineStartSymbol, counters.h1)} `;
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_1,
@@ -58,9 +60,12 @@ export async function exportToDocx(
         })
       );
     } else if (tag === "h2") {
+      const symbol: LineStartSymbol = options.h2.lineStartSymbol;
+      const symbolText = isCounterSymbol(symbol)
+        ? `${resolveCounter(symbol, ++counters.h2)}`
+        : getSymbolDisplay(symbol);
       const prefix =
-        " ".repeat(options.h2.leadingSpaces) +
-        `${getSymbolDisplay(options.h2.lineStartSymbol)} `;
+        " ".repeat(options.h2.leadingSpaces) + `${symbolText} `;
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
@@ -81,9 +86,12 @@ export async function exportToDocx(
         })
       );
     } else if (tag === "h3") {
+      const symbol: LineStartSymbol = options.h3.lineStartSymbol;
+      const symbolText = isCounterSymbol(symbol)
+        ? `${resolveCounter(symbol, ++counters.h3)}`
+        : getSymbolDisplay(symbol);
       const prefix =
-        " ".repeat(options.h3.leadingSpaces) +
-        `${getSymbolDisplay(options.h3.lineStartSymbol)} `;
+        " ".repeat(options.h3.leadingSpaces) + `${symbolText} `;
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_3,
@@ -105,9 +113,12 @@ export async function exportToDocx(
         })
       );
     } else if (tag === "h4") {
+      const symbol: LineStartSymbol = options.h4.lineStartSymbol;
+      const symbolText = isCounterSymbol(symbol)
+        ? `${resolveCounter(symbol, ++counters.h4)}`
+        : getSymbolDisplay(symbol);
       const prefix =
-        " ".repeat(options.h4.leadingSpaces) +
-        `${getSymbolDisplay(options.h4.lineStartSymbol)} `;
+        " ".repeat(options.h4.leadingSpaces) + `${symbolText} `;
       const textContent = el.textContent || "";
       const isSingleLine = !textContent.includes("\n");
       const spacing = isSingleLine
