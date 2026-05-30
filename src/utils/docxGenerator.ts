@@ -12,7 +12,7 @@ import {
   getSymbolDisplay,
   isCounterSymbol,
 } from "../types/lineStartSymbol";
-import type { LineStartSymbol } from "../types/lineStartSymbol";
+import { LineStartSymbol } from "../types/lineStartSymbol";
 
 /** 기호별 선행 공백 강제 규칙: □=1칸, -=4칸, •=4칸 */
 function getEffectiveLeadingSpaces(
