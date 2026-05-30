@@ -23,6 +23,19 @@ export const BoxBorder = Mark.create<BoxBorderOptions>({
     };
   },
 
+  addAttributes() {
+    return {
+      "data-border": {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-border"),
+        renderHTML: (attributes) => {
+          if (!attributes["data-border"]) return {};
+          return { "data-border": attributes["data-border"] };
+        },
+      },
+    };
+  },
+
   parseHTML() {
     return [
       {
