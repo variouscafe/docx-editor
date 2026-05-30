@@ -15,7 +15,7 @@ export default function TipTapEditor({ onContentChange }: TipTapEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4] },
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
       }),
       Underline,
       TextAlign.configure({
@@ -34,6 +34,10 @@ export default function TipTapEditor({ onContentChange }: TipTapEditorProps) {
 <p>일반 텍스트 내용입니다.</p>
 <h4>네 번째 제목</h4>
 <p>또 다른 내용입니다.</p>
+<h5>다섯 번째 제목</h5>
+<p>H5 헤딩 내용입니다.</p>
+<h6>여섯 번째 제목</h6>
+<p>H6 헤딩 내용입니다.</p>
 `,
     onUpdate: ({ editor }) => {
       onContentChange(editor.getHTML());

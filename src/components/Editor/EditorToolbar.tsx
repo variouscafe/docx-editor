@@ -109,7 +109,7 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
             editor
               .chain()
               .focus()
-              .toggleHeading({ level: Number(level) as 1 | 2 | 3 | 4 })
+              .toggleHeading({ level: Number(level) as 1 | 2 | 3 | 4 | 5 | 6 })
               .run();
           }
         }}
@@ -119,6 +119,8 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
         <option value="2">Heading 2</option>
         <option value="3">Heading 3</option>
         <option value="4">Heading 4</option>
+        <option value="5">Heading 5</option>
+        <option value="6">Heading 6</option>
       </select>
 
       {tools.map((tool, i) => {
@@ -164,7 +166,7 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
 }
 
 function getCurrentHeading(editor: Editor): string {
-  for (const level of [1, 2, 3, 4] as const) {
+  for (const level of [1, 2, 3, 4, 5, 6] as const) {
     if (editor.isActive("heading", { level })) return String(level);
   }
   return "paragraph";

@@ -61,6 +61,18 @@ body {
   margin: 8px 0 4px;
 }
 
+.tiptap h5 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.tiptap h6 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
 /* Box border marks */
 .tiptap [data-border="solid"] {
   border: 1.5px solid #333;

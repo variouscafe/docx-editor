@@ -24,7 +24,7 @@ export async function exportToDocx(
   const doc = parser.parseFromString(html, "text/html");
   const body = doc.body;
   const children: Paragraph[] = [];
-  const counters: Record<string, number> = { h1: 0, h2: 0, h3: 0, h4: 0 };
+  const counters: Record<string, number> = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
 
   for (const el of Array.from(body.children)) {
     const tag = el.tagName.toLowerCase();
@@ -128,6 +128,60 @@ export async function exportToDocx(
         new Paragraph({
           heading: HeadingLevel.HEADING_4,
           spacing: { after: spacing * 20 },
+          children: [
+            new TextRun({ text: prefix, font }),
+            ...runs.map(
+              (r) =>
+                new TextRun({
+                  text: r.text,
+                  bold: r.bold,
+                  italics: r.italics,
+                  underline: r.underline ? {} : undefined,
+                  border: r.border,
+                  font,
+                })
+            ),
+          ],
+        })
+      );
+    } else if (tag === "h5") {
+      const symbol: LineStartSymbol = options.h5.lineStartSymbol;
+      const symbolText = isCounterSymbol(symbol)
+        ? `${resolveCounter(symbol, ++counters.h5)}`
+        : getSymbolDisplay(symbol);
+      const prefix =
+        " ".repeat(options.h5.leadingSpaces) + `${symbolText} `;
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_5,
+          spacing: { after: options.common.paragraphSpacing * 20 },
+          children: [
+            new TextRun({ text: prefix, font }),
+            ...runs.map(
+              (r) =>
+                new TextRun({
+                  text: r.text,
+                  bold: r.bold,
+                  italics: r.italics,
+                  underline: r.underline ? {} : undefined,
+                  border: r.border,
+                  font,
+                })
+            ),
+          ],
+        })
+      );
+    } else if (tag === "h6") {
+      const symbol: LineStartSymbol = options.h6.lineStartSymbol;
+      const symbolText = isCounterSymbol(symbol)
+        ? `${resolveCounter(symbol, ++counters.h6)}`
+        : getSymbolDisplay(symbol);
+      const prefix =
+        " ".repeat(options.h6.leadingSpaces) + `${symbolText} `;
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_6,
+          spacing: { after: options.common.paragraphSpacing * 20 },
           children: [
             new TextRun({ text: prefix, font }),
             ...runs.map(

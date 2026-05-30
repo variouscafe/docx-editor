@@ -29,7 +29,7 @@ export default function DocxPreview({ html, options }: DocxPreviewProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4] },
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
       }),
       Underline,
       TextAlign.configure({
@@ -139,6 +139,18 @@ function getPreviewStyles(options: DocxOptions): string {
       font-size: ${options.common.fontSize}pt;
       font-weight: 400;
       margin-bottom: ${options.h4.singleLineSpacing}pt;
+    }
+
+    .rm-with-pagination h5 {
+      font-size: ${options.common.fontSize}pt;
+      font-weight: 400;
+      margin-bottom: ${options.common.paragraphSpacing}pt;
+    }
+
+    .rm-with-pagination h6 {
+      font-size: ${options.common.fontSize}pt;
+      font-weight: 400;
+      margin-bottom: ${options.common.paragraphSpacing}pt;
     }
 
     .rm-with-pagination p {

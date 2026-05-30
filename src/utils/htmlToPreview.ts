@@ -4,26 +4,32 @@ import {
   getSymbolDisplay,
   isCounterSymbol,
 } from "../types/lineStartSymbol";
-import type { LineStartSymbol } from "../types/lineStartSymbol";
+
+type HeadingKey = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+const HEADING_KEYS: HeadingKey[] = ["h1", "h2", "h3", "h4", "h5", "h6"];
+const TAG_TO_KEY: Record<string, HeadingKey> = {
+  h1: "h1", h2: "h2", h3: "h3", h4: "h4", h5: "h5", h6: "h6",
+};
 
 export function applyOptionsToHtml(html: string, options: DocxOptions): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   const body = doc.body;
 
-  const counters: Record<string, number> = { h1: 0, h2: 0, h3: 0, h4: 0 };
+  const counters: Record<HeadingKey, number> = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
 
   for (const el of Array.from(body.children)) {
     const tag = el.tagName.toLowerCase();
+    const key = TAG_TO_KEY[tag];
 
-    if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
-      const headingOpts = options[tag as "h1" | "h2" | "h3" | "h4"];
-      const symbol: LineStartSymbol = headingOpts.lineStartSymbol;
+    if (key) {
+      const headingOpts = options[key];
+      const symbol = headingOpts.lineStartSymbol;
       const leadingSpaces = "leadingSpaces" in headingOpts ? " ".repeat(headingOpts.leadingSpaces) : "";
 
       if (isCounterSymbol(symbol)) {
-        counters[tag]++;
-        const prefix = `${leadingSpaces}${resolveCounter(symbol, counters[tag])} `;
+        counters[key]++;
+        const prefix = `${leadingSpaces}${resolveCounter(symbol, counters[key])} `;
         prependText(el, prefix);
       } else {
         const prefix = `${leadingSpaces}${getSymbolDisplay(symbol)} `;

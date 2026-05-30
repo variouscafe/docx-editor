@@ -10,12 +10,14 @@ interface HeadingSymbolSelectorProps {
   onOptionsChange: (options: DocxOptions) => void;
 }
 
-const HEADING_KEYS = ["h1", "h2", "h3", "h4"] as const;
+const HEADING_KEYS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 const HEADING_LABELS: Record<string, string> = {
   h1: "H1",
   h2: "H2",
   h3: "H3",
   h4: "H4",
+  h5: "H5",
+  h6: "H6",
 };
 
 export default function HeadingSymbolSelector({
@@ -34,7 +36,7 @@ export default function HeadingSymbolSelector({
   };
 
   const handleChange = (
-    headingKey: "h1" | "h2" | "h3" | "h4",
+    headingKey: "h1" | "h2" | "h3" | "h4" | "h5" | "h6",
     newSymbol: LineStartSymbol
   ) => {
     onOptionsChange({

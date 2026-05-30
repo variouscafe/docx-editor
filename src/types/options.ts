@@ -31,12 +31,24 @@ export interface H4Options {
   singleLineSpacing: number;
 }
 
+export interface H5Options {
+  lineStartSymbol: LineStartSymbol;
+  leadingSpaces: number;
+}
+
+export interface H6Options {
+  lineStartSymbol: LineStartSymbol;
+  leadingSpaces: number;
+}
+
 export interface DocxOptions {
   common: CommonOptions;
   h1: H1Options;
   h2: H2Options;
   h3: H3Options;
   h4: H4Options;
+  h5: H5Options;
+  h6: H6Options;
 }
 
 export const defaultOptions: DocxOptions = {
@@ -65,5 +77,13 @@ export const defaultOptions: DocxOptions = {
     leadingSpaces: 4,
     secondLineSpacing: 16,
     singleLineSpacing: 16,
+  },
+  h5: {
+    lineStartSymbol: LineStartSymbol.ROMAN,
+    leadingSpaces: 0,
+  },
+  h6: {
+    lineStartSymbol: LineStartSymbol.CIRCLED,
+    leadingSpaces: 0,
   },
 };
