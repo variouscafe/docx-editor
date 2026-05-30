@@ -13,6 +13,7 @@ export default function DocxExporter({ html, options }: DocxExporterProps) {
       await exportToDocx(html, options);
     } catch (err) {
       console.error("DOCX export failed:", err);
+      alert("DOCX 내보내기에 실패했습니다:\n" + (err instanceof Error ? err.message : String(err)));
     }
   };
 
