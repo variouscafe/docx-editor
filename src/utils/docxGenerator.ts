@@ -199,13 +199,14 @@ export async function exportToDocx(
         })
       );
     } else if (tag === "p") {
-      const borderAttr = el.getAttribute("data-border");
-      const paragraphBorder = borderAttr
+      // TextRun 중 border가 있으면 Paragraph 레벨로 승격
+      const borderRun = runs.find((r) => r.border);
+      const paragraphBorder = borderRun?.border
         ? {
-            top: { style: borderAttr === "dashed" ? BorderStyle.DASHED : BorderStyle.SINGLE, size: 1, color: borderAttr === "dashed" ? "666666" : "333333" },
-            bottom: { style: borderAttr === "dashed" ? BorderStyle.DASHED : BorderStyle.SINGLE, size: 1, color: borderAttr === "dashed" ? "666666" : "333333" },
-            left: { style: borderAttr === "dashed" ? BorderStyle.DASHED : BorderStyle.SINGLE, size: 1, color: borderAttr === "dashed" ? "666666" : "333333" },
-            right: { style: borderAttr === "dashed" ? BorderStyle.DASHED : BorderStyle.SINGLE, size: 1, color: borderAttr === "dashed" ? "666666" : "333333" },
+            top: { style: borderRun.border!.style, size: 1, color: borderRun.border!.color },
+            bottom: { style: borderRun.border!.style, size: 1, color: borderRun.border!.color },
+            left: { style: borderRun.border!.style, size: 1, color: borderRun.border!.color },
+            right: { style: borderRun.border!.style, size: 1, color: borderRun.border!.color },
           }
         : undefined;
       children.push(

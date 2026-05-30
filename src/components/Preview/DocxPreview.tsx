@@ -159,6 +159,7 @@ function getPreviewStyles(options: DocxOptions): string {
     }
 
     .rm-with-pagination [data-border="solid"] {
+      display: block;
       border: 1.5px solid #333;
       padding: 12px 16px;
       margin: 8px 0;
@@ -166,6 +167,7 @@ function getPreviewStyles(options: DocxOptions): string {
     }
 
     .rm-with-pagination [data-border="dashed"] {
+      display: block;
       border: 1.5px dashed #666;
       padding: 12px 16px;
       margin: 8px 0;
