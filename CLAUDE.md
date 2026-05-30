@@ -21,10 +21,14 @@ React-based web service supporting DOCX preview and export with TipTap markdown 
 - Editable JSON showing current preview options
 - Changes reflected in preview in real-time
 
-### DASH Leading Space Rule
-- **`-` (DASH) 기호가 line start symbol로 사용되면, 해당 줄 앞에는 항상 4칸의 선행 공백(leading space)이 있어야 한다.**
-- 이 규칙은 미리보기(preview)와 DOCX 내보내기 모두에서 항상 동일하게 적용된다.
-- 어떤 헤딩 레벨(H1~H6)에서 DASH를 선택하든 관계없이 항상 4칸 공백이 강제된다.
+### Line Start Symbol Leading Space Rules
+- 기호에 따른 선행 공백(leading space) 규칙 — 미리보기와 DOCX 내보내기 모두에서 항상 동일하게 적용:
+  | 기호 | Enum Key | 선행 공백 |
+  |------|----------|-----------|
+  | `□`  | `SQUARE` | 1칸       |
+  | `-`  | `DASH`   | 4칸       |
+  | `•`  | `BULLET` | 4칸       |
+- 어떤 헤딩 레벨(H1~H6)에서 해당 기호를 선택하든 관계없이 위 공백이 항상 강제된다.
 
 ### Line Start Symbol Enum
 - 헤딩 레벨별 시작 기호를 enum에서 선택 가능

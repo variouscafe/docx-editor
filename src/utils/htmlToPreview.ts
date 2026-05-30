@@ -12,12 +12,14 @@ const TAG_TO_KEY: Record<string, HeadingKey> = {
   h1: "h1", h2: "h2", h3: "h3", h4: "h4", h5: "h5", h6: "h6",
 };
 
-/** DASH 기호가 사용되면 항상 4칸 선행 공백을 강제하는 규칙 */
+/** 기호별 선행 공백 강제 규칙: □=1칸, -=4칸, •=4칸 */
 function getEffectiveLeadingSpaces(
   symbol: LineStartSymbol,
   configuredSpaces: number
 ): number {
+  if (symbol === LineStartSymbol.SQUARE) return 1;
   if (symbol === LineStartSymbol.DASH) return 4;
+  if (symbol === LineStartSymbol.BULLET) return 4;
   return configuredSpaces;
 }
 
