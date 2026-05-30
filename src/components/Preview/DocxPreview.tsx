@@ -160,13 +160,15 @@ function getPreviewStyles(options: DocxOptions): string {
 
     .rm-with-pagination [data-border="solid"] {
       border: 1.5px solid #333;
-      padding: 2px 4px;
+      padding: 12px 16px;
+      margin: 8px 0;
       border-radius: 2px;
     }
 
     .rm-with-pagination [data-border="dashed"] {
       border: 1.5px dashed #666;
-      padding: 2px 4px;
+      padding: 12px 16px;
+      margin: 8px 0;
       border-radius: 2px;
     }
 

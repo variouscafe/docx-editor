@@ -199,9 +199,19 @@ export async function exportToDocx(
         })
       );
     } else if (tag === "p") {
+      const borderAttr = el.getAttribute("data-border");
+      const paragraphBorder = borderAttr
+        ? {
+            top: { style: borderAttr === "dashed" ? BorderStyle.DASHED : BorderStyle.SINGLE, size: 1, color: borderAttr === "dashed" ? "666666" : "333333" },
+            bottom: { style: borderAttr === "dashed" ? BorderStyle.DASHED : BorderStyle.SINGLE, size: 1, color: borderAttr === "dashed" ? "666666" : "333333" },
+            left: { style: borderAttr === "dashed" ? BorderStyle.DASHED : BorderStyle.SINGLE, size: 1, color: borderAttr === "dashed" ? "666666" : "333333" },
+            right: { style: borderAttr === "dashed" ? BorderStyle.DASHED : BorderStyle.SINGLE, size: 1, color: borderAttr === "dashed" ? "666666" : "333333" },
+          }
+        : undefined;
       children.push(
         new Paragraph({
           spacing: { after: options.common.paragraphSpacing * 20 },
+          border: paragraphBorder,
           children: runs.map(
             (r) =>
               new TextRun({
@@ -209,7 +219,6 @@ export async function exportToDocx(
                 bold: r.bold,
                 italics: r.italics,
                 underline: r.underline ? {} : undefined,
-                border: r.border,
                 font,
               })
           ),
@@ -223,7 +232,6 @@ export async function exportToDocx(
             bold: r.bold,
             italics: r.italics,
             underline: r.underline ? {} : undefined,
-            border: r.border,
             font,
           })
       );
