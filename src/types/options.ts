@@ -55,7 +55,7 @@ export const defaultOptions: DocxOptions = {
   common: {
     fontSize: 14,
     paragraphSpacing: 12,
-    fontFamily: "Batang, 바탕체, 'Batang Che', AppleMyungjo, serif",
+    fontFamily: "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', AppleMyungjo, 'Nanum Myeongjo', serif",
   },
   h1: {
     paragraphSpacing: 24,
