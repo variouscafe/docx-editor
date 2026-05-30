@@ -255,7 +255,7 @@ export async function exportToDocx(
     }
   }
 
-  const document = new Document({
+  const docxDocument = new Document({
     sections: [
       {
         properties: {
@@ -269,16 +269,16 @@ export async function exportToDocx(
     ],
   });
 
-  const blob = await Packer.toBlob(document);
+  const blob = await Packer.toBlob(docxDocument);
 
   // Native download — no dependency on file-saver
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+  const a = window.document.createElement("a");
   a.href = url;
   a.download = filename;
-  document.body.appendChild(a);
+  window.document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  window.document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
