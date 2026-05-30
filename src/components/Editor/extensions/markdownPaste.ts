@@ -17,7 +17,7 @@ export const MarkdownPaste = Extension.create({
             if (!text) return false;
 
             const hasMarkdown =
-              /^[#]{1,4}\s/m.test(text) ||
+              /^[#]{1,6}\s/m.test(text) ||
               /^[-*+]\s/m.test(text) ||
               /^\d+[.)]\s/m.test(text) ||
               /\*\*[^*]+\*\*/.test(text);
