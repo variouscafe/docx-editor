@@ -1,12 +1,14 @@
-export enum LineStartSymbol {
-  NUMBER_DOT = "NUMBER_DOT",
-  NUMBER_PAREN = "NUMBER_PAREN",
-  ROMAN = "ROMAN",
-  CIRCLED = "CIRCLED",
-  SQUARE = "SQUARE",
-  DASH = "DASH",
-  BULLET = "BULLET",
-}
+export const LineStartSymbol = {
+  NUMBER_DOT: "NUMBER_DOT",
+  NUMBER_PAREN: "NUMBER_PAREN",
+  ROMAN: "ROMAN",
+  CIRCLED: "CIRCLED",
+  SQUARE: "SQUARE",
+  DASH: "DASH",
+  BULLET: "BULLET",
+} as const;
+
+export type LineStartSymbol = (typeof LineStartSymbol)[keyof typeof LineStartSymbol];
 
 export const ALL_SYMBOLS: LineStartSymbol[] = [
   LineStartSymbol.NUMBER_DOT,

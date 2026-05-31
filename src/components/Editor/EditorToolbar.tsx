@@ -1,4 +1,4 @@
-import { Editor } from "@tiptap/react";
+import { type RefObject } from "react";
 import {
   Bold,
   Italic,
@@ -14,81 +14,187 @@ import {
 import { highlightColors } from "./extensions/highlightColors";
 
 interface EditorToolbarProps {
-  editor: Editor | null;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  content: string;
+  setContent: (v: string) => void;
 }
 
-export default function EditorToolbar({ editor }: EditorToolbarProps) {
-  if (!editor) return null;
+/** Get the current line's heading level (0 = paragraph) */
+function getCurrentHeadingLevel(text: string, pos: number): number {
+  const before = text.substring(0, pos);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const line = text.substring(lineStart, pos);
+  const match = /^(#{1,6})\s/.exec(line);
+  return match ? match[1].length : 0;
+}
+
+/** Replace or set the heading prefix on the current line */
+function setLinePrefix(
+  textarea: HTMLTextAreaElement,
+  content: string,
+  setContent: (v: string) => void,
+  prefix: string,
+) {
+  const { selectionStart, selectionEnd } = textarea;
+  const before = content.substring(0, selectionStart);
+  const after = content.substring(selectionEnd);
+
+  // Find line boundaries
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const lineEnd = after.indexOf("\n");
+  const lineAfter = lineEnd === -1 ? after : after.substring(0, lineEnd);
+  const fullLine = content.substring(lineStart, lineStart + before.length - lineStart + lineAfter.length);
+
+  // Remove existing heading prefix
+  const strippedLine = fullLine.replace(/^#{1,6}\s/, "");
+
+  const newLine = prefix ? `${prefix} ${strippedLine}` : strippedLine;
+  const newContent =
+    content.substring(0, lineStart) + newLine + content.substring(lineStart + fullLine.length);
+
+  setContent(newContent);
+
+  // Restore cursor position after React re-render
+  requestAnimationFrame(() => {
+    const offset = newLine.length - fullLine.length;
+    textarea.selectionStart = selectionStart + offset;
+    textarea.selectionEnd = selectionEnd + offset;
+    textarea.focus();
+  });
+}
+
+/** Wrap selected text with before/after markers */
+function wrapSelection(
+  textarea: HTMLTextAreaElement,
+  content: string,
+  setContent: (v: string) => void,
+  before: string,
+  after: string,
+) {
+  const { selectionStart, selectionEnd } = textarea;
+  const selected = content.substring(selectionStart, selectionEnd);
+  const hasSelection = selectionStart !== selectionEnd;
+
+  if (hasSelection) {
+    // Check if already wrapped — toggle off
+    const beforeText = content.substring(selectionStart - before.length, selectionStart);
+    const afterText = content.substring(selectionEnd, selectionEnd + after.length);
+    if (beforeText === before && afterText === after) {
+      // Unwrap
+      const newContent =
+        content.substring(0, selectionStart - before.length) +
+        selected +
+        content.substring(selectionEnd + after.length);
+      setContent(newContent);
+      requestAnimationFrame(() => {
+        textarea.selectionStart = selectionStart - before.length;
+        textarea.selectionEnd = selectionEnd - before.length;
+        textarea.focus();
+      });
+      return;
+    }
+
+    // Wrap
+    const newContent =
+      content.substring(0, selectionStart) + before + selected + after + content.substring(selectionEnd);
+    setContent(newContent);
+    requestAnimationFrame(() => {
+      textarea.selectionStart = selectionStart + before.length;
+      textarea.selectionEnd = selectionEnd + before.length;
+      textarea.focus();
+    });
+  } else {
+    // No selection — insert markers with cursor between them
+    const newContent =
+      content.substring(0, selectionStart) + before + after + content.substring(selectionStart);
+    setContent(newContent);
+    requestAnimationFrame(() => {
+      textarea.selectionStart = selectionStart + before.length;
+      textarea.selectionEnd = selectionStart + before.length;
+      textarea.focus();
+    });
+  }
+}
+
+/** Insert text at the start of the current line */
+function insertAtLineStart(
+  textarea: HTMLTextAreaElement,
+  content: string,
+  setContent: (v: string) => void,
+  text: string,
+) {
+  const { selectionStart, selectionEnd } = textarea;
+  const before = content.substring(0, selectionStart);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const newContent = content.substring(0, lineStart) + text + content.substring(lineStart);
+  setContent(newContent);
+  requestAnimationFrame(() => {
+    textarea.selectionStart = selectionStart + text.length;
+    textarea.selectionEnd = selectionEnd + text.length;
+    textarea.focus();
+  });
+}
+
+export default function EditorToolbar({ textareaRef, content, setContent }: EditorToolbarProps) {
+  if (!textareaRef.current) return null;
+
+  const headingValue = getCurrentHeadingLevel(content, textareaRef.current.selectionStart);
+
+  const ta = textareaRef.current;
 
   const tools = [
     {
       icon: <Bold size={16} />,
-      action: () => editor.chain().focus().toggleBold().run(),
-      active: editor.isActive("bold"),
+      action: () => wrapSelection(ta, content, setContent, "**", "**"),
       title: "Bold",
     },
     {
       icon: <Italic size={16} />,
-      action: () => editor.chain().focus().toggleItalic().run(),
-      active: editor.isActive("italic"),
+      action: () => wrapSelection(ta, content, setContent, "*", "*"),
       title: "Italic",
     },
     {
       icon: <Underline size={16} />,
-      action: () => editor.chain().focus().toggleUnderline().run(),
-      active: editor.isActive("underline"),
+      action: () => wrapSelection(ta, content, setContent, "^^", "^^"),
       title: "Underline",
     },
     { divider: true },
     {
       icon: <AlignLeft size={16} />,
-      action: () => editor.chain().focus().setTextAlign("left").run(),
-      active: editor.isActive({ textAlign: "left" }),
+      action: () => insertAtLineStart(ta, content, setContent, ""),
       title: "Align Left",
     },
     {
       icon: <AlignCenter size={16} />,
-      action: () => editor.chain().focus().setTextAlign("center").run(),
-      active: editor.isActive({ textAlign: "center" }),
+      action: () => insertAtLineStart(ta, content, setContent, ""),
       title: "Align Center",
     },
     {
       icon: <AlignRight size={16} />,
-      action: () => editor.chain().focus().setTextAlign("right").run(),
-      active: editor.isActive({ textAlign: "right" }),
+      action: () => insertAtLineStart(ta, content, setContent, ""),
       title: "Align Right",
     },
     { divider: true },
     {
       icon: <List size={16} />,
-      action: () => editor.chain().focus().toggleBulletList().run(),
-      active: editor.isActive("bulletList"),
+      action: () => insertAtLineStart(ta, content, setContent, "- "),
       title: "Bullet List",
     },
     {
       icon: <ListOrdered size={16} />,
-      action: () => editor.chain().focus().toggleOrderedList().run(),
-      active: editor.isActive("orderedList"),
+      action: () => insertAtLineStart(ta, content, setContent, "1. "),
       title: "Ordered List",
     },
     { divider: true },
     {
       icon: <Square size={16} />,
-      action: () => {
-        if (editor.isActive("boxBorder")) {
-          editor.chain().focus().unsetBox().run();
-        } else {
-          editor.chain().focus().setSolidBox().run();
-        }
-      },
-      active: editor.isActive("boxBorder") && editor.getAttributes("boxBorder")["data-border"] === "solid",
+      action: () => wrapSelection(ta, content, setContent, "++", "++"),
       title: "Solid Box",
       variant: "solid" as const,
     },
     {
       icon: <Square size={16} />,
-      action: () => editor.chain().focus().setDashedBox().run(),
-      active: editor.isActive("boxBorder") && editor.getAttributes("boxBorder")["data-border"] === "dashed",
+      action: () => wrapSelection(ta, content, setContent, "~~", "~~"),
       title: "Dashed Box",
       variant: "dashed" as const,
     },
@@ -100,17 +206,13 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
       {/* Heading select */}
       <select
         className="h-8 px-2 text-sm border border-gray-300 rounded bg-white"
-        value={getCurrentHeading(editor)}
+        value={headingValue === 0 ? "paragraph" : String(headingValue)}
         onChange={(e) => {
           const level = e.target.value;
           if (level === "paragraph") {
-            editor.chain().focus().setParagraph().run();
+            setLinePrefix(ta, content, setContent, "");
           } else {
-            editor
-              .chain()
-              .focus()
-              .toggleHeading({ level: Number(level) as 1 | 2 | 3 | 4 | 5 | 6 })
-              .run();
+            setLinePrefix(ta, content, setContent, "#".repeat(Number(level)));
           }
         }}
       >
@@ -132,9 +234,7 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
             key={i}
             onClick={tool.action}
             title={tool.title}
-            className={`p-1.5 rounded hover:bg-gray-100 transition-colors ${
-              tool.active ? "bg-gray-200 text-blue-600" : "text-gray-600"
-            }`}
+            className="p-1.5 rounded hover:bg-gray-100 transition-colors text-gray-600"
             style={
               tool.variant === "dashed"
                 ? { border: "1.5px dashed currentColor", borderRadius: 2 }
@@ -153,7 +253,7 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
           <button
             key={hc.color}
             onClick={() =>
-              editor.chain().focus().toggleHighlight({ color: hc.color }).run()
+              wrapSelection(ta, content, setContent, `==`, `=={${hc.color}}`)
             }
             title={hc.name}
             className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
@@ -163,11 +263,4 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
       </div>
     </div>
   );
-}
-
-function getCurrentHeading(editor: Editor): string {
-  for (const level of [1, 2, 3, 4, 5, 6] as const) {
-    if (editor.isActive("heading", { level })) return String(level);
-  }
-  return "paragraph";
 }

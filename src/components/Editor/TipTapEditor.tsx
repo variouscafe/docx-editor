@@ -1,13 +1,6 @@
-import { useEditor, EditorContent } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
-import { BoxBorder } from "./extensions/boxBorder";
-import { HighlightExtension } from "./extensions/highlightColors";
-import { MarkdownPaste } from "./extensions/markdownPaste";
+import { useState, useRef, useCallback } from "react";
 import EditorToolbar from "./EditorToolbar";
-import HeadingBubbleMenu from "./HeadingBubbleMenu";
+import { markdownToHtml } from "../../utils/markdownToHtml";
 import type { DocxOptions } from "../../types/options";
 
 interface TipTapEditorProps {
@@ -15,59 +8,76 @@ interface TipTapEditorProps {
   options: DocxOptions;
 }
 
-export default function TipTapEditor({ onContentChange, options }: TipTapEditorProps) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4, 5, 6] },
-      }),
-      Underline,
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
-      }),
-      BoxBorder,
-      HighlightExtension,
-      MarkdownPaste,
-    ],
-    content: `
-<h1>DOCX Editor</h1>
-<p>이 에디터에서 문서를 작성하세요. 텍스트를 선택하여 <span data-border="solid">네모 박스</span>나 <span data-border="dashed">점선 박스</span>를 적용할 수 있습니다.</p>
-<h2>형광펜 효과</h2>
-<p>텍스트에 <mark data-color="#fef08a">형광펜</mark>을 적용할 수 있습니다.</p>
-<h3>세 번째 제목</h3>
-<p>일반 텍스트 내용입니다.</p>
-<h4>네 번째 제목</h4>
-<p>또 다른 내용입니다.</p>
-<h5>다섯 번째 제목</h5>
-<p>H5 헤딩 내용입니다.</p>
-<h6>여섯 번째 제목</h6>
-<p>H6 헤딩 내용입니다.</p>
-`,
-    onUpdate: ({ editor }) => {
-      onContentChange(editor.getHTML());
+const INITIAL_MARKDOWN = `# DOCX Editor
+
+이 에디터에서 문서를 작성하세요. 텍스트를 선택하여 ++네모 박스++나 ~~점선 박스~~를 적용할 수 있습니다.
+
+## 형광펜 효과
+
+텍스트에 ==형광펜==을 적용할 수 있습니다.
+
+### 세 번째 제목
+
+일반 텍스트 내용입니다.
+
+#### 네 번째 제목
+
+또 다른 내용입니다.
+
+##### 다섯 번째 제목
+
+H5 헤딩 내용입니다.
+
+###### 여섯 번째 제목
+
+H6 헤딩 내용입니다.
+`;
+
+export default function TipTapEditor({ onContentChange }: TipTapEditorProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [content, setContent] = useState(INITIAL_MARKDOWN);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const md = e.target.value;
+      setContent(md);
+      onContentChange(markdownToHtml(md));
     },
-    onCreate: ({ editor }) => {
-      onContentChange(editor.getHTML());
+    [onContentChange],
+  );
+
+  /** Toolbar-driven content update */
+  const setContentFromToolbar = useCallback(
+    (newContent: string) => {
+      setContent(newContent);
+      onContentChange(markdownToHtml(newContent));
     },
-  });
+    [onContentChange],
+  );
+
+  // Emit initial HTML on mount
+  const initialized = useRef(false);
+  if (!initialized.current) {
+    initialized.current = true;
+    onContentChange(markdownToHtml(INITIAL_MARKDOWN));
+  }
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <EditorToolbar editor={editor} />
+      <EditorToolbar
+        textareaRef={textareaRef}
+        content={content}
+        setContent={setContentFromToolbar}
+      />
       <div className="flex-1 overflow-y-auto">
-        <EditorContent editor={editor} className="h-full" />
-        {editor && (
-          <BubbleMenu
-            editor={editor}
-            tippyOptions={{ duration: 100 }}
-            shouldShow={({ state }) => {
-              // Show on both text selection (drag) and cursor placement (click)
-              return state.selection.from > 0;
-            }}
-          >
-            <HeadingBubbleMenu editor={editor} options={options} />
-          </BubbleMenu>
-        )}
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={handleChange}
+          className="w-full h-full resize-none p-4 font-mono text-sm leading-relaxed text-gray-900 outline-none border-none"
+          spellCheck={false}
+          placeholder="마크다운을 입력하세요..."
+        />
       </div>
     </div>
   );
