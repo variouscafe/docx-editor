@@ -140,20 +140,23 @@ export function markdownToHtml(md: string): string {
  * Pattern: <tag>... MARKER</tag> → <tag style="text-align: ...">...</tag>
  */
 function applyAlignmentMarkers(html: string): string {
+  // Negative lookahead (?!<\/...) prevents [\s\S] from crossing block element boundaries
+  // \1 backreference ensures closing tag matches opening tag
+
   // Right align: content &gt;&gt;</tag>
   html = html.replace(
-    /<(h[1-6]|p)([^>]*)>([\s\S]*?) &gt;&gt;<\/(h[1-6]|p)>/g,
-    '<$1$2 style="text-align: right">$3</$4>'
+    /<(h[1-6]|p)([^>]*)>((?:(?!<\/(?:h[1-6]|p)>)[\s\S])*?) &gt;&gt;<\/\1>/g,
+    '<$1$2 style="text-align: right">$3</$1>'
   );
   // Center align: content &lt;&gt;</tag>
   html = html.replace(
-    /<(h[1-6]|p)([^>]*)>([\s\S]*?) &lt;&gt;<\/(h[1-6]|p)>/g,
-    '<$1$2 style="text-align: center">$3</$4>'
+    /<(h[1-6]|p)([^>]*)>((?:(?!<\/(?:h[1-6]|p)>)[\s\S])*?) &lt;&gt;<\/\1>/g,
+    '<$1$2 style="text-align: center">$3</$1>'
   );
   // Left align: content &lt;&lt;</tag>
   html = html.replace(
-    /<(h[1-6]|p)([^>]*)>([\s\S]*?) &lt;&lt;<\/(h[1-6]|p)>/g,
-    '<$1$2 style="text-align: left">$3</$4>'
+    /<(h[1-6]|p)([^>]*)>((?:(?!<\/(?:h[1-6]|p)>)[\s\S])*?) &lt;&lt;<\/\1>/g,
+    '<$1$2 style="text-align: left">$3</$1>'
   );
   return html;
 }
