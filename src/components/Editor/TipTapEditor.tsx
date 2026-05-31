@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
@@ -6,12 +6,15 @@ import { BoxBorder } from "./extensions/boxBorder";
 import { HighlightExtension } from "./extensions/highlightColors";
 import { MarkdownPaste } from "./extensions/markdownPaste";
 import EditorToolbar from "./EditorToolbar";
+import HeadingBubbleMenu from "./HeadingBubbleMenu";
+import type { DocxOptions } from "../../types/options";
 
 interface TipTapEditorProps {
   onContentChange: (html: string) => void;
+  options: DocxOptions;
 }
 
-export default function TipTapEditor({ onContentChange }: TipTapEditorProps) {
+export default function TipTapEditor({ onContentChange, options }: TipTapEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -52,6 +55,11 @@ export default function TipTapEditor({ onContentChange }: TipTapEditorProps) {
       <EditorToolbar editor={editor} />
       <div className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} className="h-full" />
+        {editor && (
+          <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
+            <HeadingBubbleMenu editor={editor} options={options} />
+          </BubbleMenu>
+        )}
       </div>
     </div>
   );

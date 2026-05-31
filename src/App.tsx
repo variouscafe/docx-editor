@@ -24,7 +24,7 @@ function App() {
         {/* Left panel - Editor */}
         <div className="flex-shrink-0 border-r border-gray-200 overflow-hidden flex flex-col" style={{ width: 420 }}>
           <HeadingSymbolSelector options={options} onOptionsChange={setOptions} />
-          <TipTapEditor onContentChange={setEditorHtml} />
+          <TipTapEditor onContentChange={setEditorHtml} options={options} />
         </div>
 
         {/* Center panel - Preview */}
