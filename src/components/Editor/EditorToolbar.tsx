@@ -116,6 +116,46 @@ function wrapSelection(
   }
 }
 
+/** Wrap the current line with <div style="text-align: ..."> */
+function setLineAlignment(
+  textarea: HTMLTextAreaElement,
+  content: string,
+  setContent: (v: string) => void,
+  align: string,
+) {
+  const { selectionStart, selectionEnd } = textarea;
+  const before = content.substring(0, selectionStart);
+  const after = content.substring(selectionEnd);
+
+  // Find current line boundaries
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const lineEnd = after.indexOf("\n");
+  const lineEndPos = lineEnd === -1 ? content.length : selectionEnd + lineEnd;
+  const lineText = content.substring(lineStart, lineEndPos);
+
+  // Remove existing alignment wrapper if present
+  const stripped = lineText.replace(/^<div style="text-align: [^"]+">/, "").replace(/<\/div>$/, "");
+
+  // Remove existing markdown heading prefix to preserve it
+  const headingMatch = stripped.match(/^(#{1,6}\s)/);
+  const headingPrefix = headingMatch ? headingMatch[1] : "";
+  const bodyText = headingPrefix ? stripped.substring(headingPrefix.length) : stripped;
+
+  const wrappedLine = headingPrefix
+    ? `${headingPrefix}<div style="text-align: ${align}">${bodyText}</div>`
+    : `<div style="text-align: ${align}">${stripped}</div>`;
+
+  const newContent = content.substring(0, lineStart) + wrappedLine + content.substring(lineEndPos);
+  setContent(newContent);
+
+  requestAnimationFrame(() => {
+    const offset = wrappedLine.length - lineText.length;
+    textarea.selectionStart = selectionStart + offset;
+    textarea.selectionEnd = selectionEnd + offset;
+    textarea.focus();
+  });
+}
+
 /** Insert text at the start of the current line */
 function insertAtLineStart(
   textarea: HTMLTextAreaElement,
@@ -161,17 +201,17 @@ export default function EditorToolbar({ textareaRef, content, setContent }: Edit
     { divider: true },
     {
       icon: <AlignLeft size={16} />,
-      action: () => insertAtLineStart(ta, content, setContent, ""),
+      action: () => setLineAlignment(ta, content, setContent, "left"),
       title: "Align Left",
     },
     {
       icon: <AlignCenter size={16} />,
-      action: () => insertAtLineStart(ta, content, setContent, ""),
+      action: () => setLineAlignment(ta, content, setContent, "center"),
       title: "Align Center",
     },
     {
       icon: <AlignRight size={16} />,
-      action: () => insertAtLineStart(ta, content, setContent, ""),
+      action: () => setLineAlignment(ta, content, setContent, "right"),
       title: "Align Right",
     },
     { divider: true },

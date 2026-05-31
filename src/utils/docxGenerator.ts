@@ -28,8 +28,18 @@ function getEffectiveLeadingSpaces(
 
 /** HTML 요소에서 text-align 추출 → docx AlignmentType 매핑 */
 function getAlignment(el: Element): typeof AlignmentType[keyof typeof AlignmentType] | undefined {
+  // Check the element itself first
   const htmlEl = el as HTMLElement;
-  const align = htmlEl.style?.textAlign || htmlEl.getAttribute("align");
+  let align = htmlEl.style?.textAlign || htmlEl.getAttribute("align");
+
+  // Also check nested <div style="text-align: ..."> children
+  if (!align) {
+    const innerDiv = el.querySelector("[style*='text-align']");
+    if (innerDiv) {
+      align = (innerDiv as HTMLElement).style?.textAlign;
+    }
+  }
+
   if (!align) return undefined;
   const map: Record<string, typeof AlignmentType[keyof typeof AlignmentType]> = {
     left: AlignmentType.LEFT,
