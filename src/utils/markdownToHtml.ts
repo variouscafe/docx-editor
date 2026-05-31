@@ -110,6 +110,51 @@ const annotationExtension = {
   },
 };
 
+/** [text] → <span data-core-summary="true">text</span>
+ *  미리보기 CSS에서 [ ] 괄호 형태로 렌더링, DOCX에서는 3셀 테이블로 export
+ *  마크다운 링크 [text](url) 와 구분하기 위해 ] 뒤에 ( 또는 [ 가 없는 경우만 매칭 */
+const coreSummaryExtension = {
+  name: "coreSummary",
+  level: "inline" as const,
+  start(src: string) {
+    return src.indexOf("[");
+  },
+  tokenizer(src: string): Tokens.Generic | undefined {
+    const match = /^\[([^\]]+?)\](?!\(|\[)/.exec(src);
+    if (!match) return undefined;
+    return {
+      type: "coreSummary",
+      raw: match[0],
+      text: match[1],
+    };
+  },
+  renderer(token: Tokens.Generic): string {
+    const content = token.text.replace(/\n/g, "<br>");
+    return `<span data-core-summary="true">${content}</span>`;
+  },
+};
+
+/** ! text → <div data-title="true" style="text-align: center">text</div> */
+const titleExtension = {
+  name: "title",
+  level: "block" as const,
+  start(src: string) {
+    return src.match(/^! /m)?.index ?? -1;
+  },
+  tokenizer(src: string): Tokens.Generic | undefined {
+    const match = /^! (.+)/.exec(src);
+    if (!match) return undefined;
+    return {
+      type: "title",
+      raw: match[0],
+      text: match[1],
+    };
+  },
+  renderer(token: Tokens.Generic): string {
+    return `<div data-title="true" style="text-align: center">${token.text}</div>`;
+  },
+};
+
 // Create a configured Marked instance with custom extensions
 const markedInstance = new Marked({
   gfm: true,
@@ -120,6 +165,8 @@ const markedInstance = new Marked({
     solidBoxExtension,
     dashedBoxExtension,
     underlineExtension,
+    coreSummaryExtension,
+    titleExtension,
   ],
 });
 

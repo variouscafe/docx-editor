@@ -19,11 +19,12 @@ interface EditorToolbarProps {
   setContent: (v: string) => void;
 }
 
-/** Get the current line's heading level (0 = paragraph) */
+/** Get the current line's heading level (0 = paragraph, -1 = title) */
 function getCurrentHeadingLevel(text: string, pos: number): number {
   const before = text.substring(0, pos);
   const lineStart = before.lastIndexOf("\n") + 1;
   const line = text.substring(lineStart, pos);
+  if (/^!\s/.exec(line)) return -1;
   const match = /^(#{1,6})\s/.exec(line);
   return match ? match[1].length : 0;
 }
@@ -45,8 +46,8 @@ function setLinePrefix(
   const lineAfter = lineEnd === -1 ? after : after.substring(0, lineEnd);
   const fullLine = content.substring(lineStart, lineStart + before.length - lineStart + lineAfter.length);
 
-  // Remove existing heading prefix
-  const strippedLine = fullLine.replace(/^#{1,6}\s/, "");
+  // Remove existing heading or title prefix
+  const strippedLine = fullLine.replace(/^#{1,6}\s|^!\s/, "");
 
   const newLine = prefix ? `${prefix} ${strippedLine}` : strippedLine;
   const newContent =
@@ -234,6 +235,11 @@ export default function EditorToolbar({ textareaRef, content, setContent }: Edit
       title: "Dashed Box",
       variant: "dashed" as const,
     },
+    {
+      icon: <span className="text-xs font-bold">[ ]</span>,
+      action: () => wrapSelection(ta, content, setContent, "[", "]"),
+      title: "핵심요약",
+    },
     { divider: true },
   ];
 
@@ -242,16 +248,19 @@ export default function EditorToolbar({ textareaRef, content, setContent }: Edit
       {/* Heading select */}
       <select
         className="h-8 px-2 text-sm border border-gray-300 rounded bg-white"
-        value={headingValue === 0 ? "paragraph" : String(headingValue)}
+        value={headingValue === -1 ? "title" : headingValue === 0 ? "paragraph" : String(headingValue)}
         onChange={(e) => {
           const level = e.target.value;
           if (level === "paragraph") {
             setLinePrefix(ta, content, setContent, "");
+          } else if (level === "title") {
+            setLinePrefix(ta, content, setContent, "!");
           } else {
             setLinePrefix(ta, content, setContent, "#".repeat(Number(level)));
           }
         }}
       >
+        <option value="title">제목</option>
         <option value="paragraph">Paragraph</option>
         <option value="1">Heading 1</option>
         <option value="2">Heading 2</option>

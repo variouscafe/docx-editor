@@ -6,6 +6,10 @@ import {
   HeadingLevel,
   BorderStyle,
   AlignmentType,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
 } from "docx";
 import type { DocxOptions } from "../types/options";
 import {
@@ -99,6 +103,62 @@ export async function exportToDocx(
     return result;
   }
 
+  /** 핵심요약: 1행 3열 테이블 생성 — [ 내용 ] 형태 */
+  function createCoreSummaryTable(text: string): Table {
+    const noBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+    const solidBorder = { style: BorderStyle.SINGLE, size: 1, color: "000000" };
+
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            // 왼쪽 셀: 좁음, [ 역할
+            new TableCell({
+              width: { size: 100, type: WidthType.DXA },
+              borders: {
+                top: solidBorder,
+                bottom: solidBorder,
+                left: solidBorder,
+                right: noBorder,
+              },
+              children: [new Paragraph({ children: [] })],
+            }),
+            // 가운데 셀: 내용, 모든 테두리 투명
+            new TableCell({
+              width: { size: 9400, type: WidthType.DXA },
+              borders: {
+                top: noBorder,
+                bottom: noBorder,
+                left: noBorder,
+                right: noBorder,
+              },
+              children: text.split("\n").map(
+                (line) =>
+                  new Paragraph({
+                    children: [
+                      new TextRun({ text: line, font, size: commonSize, color: "000000" }),
+                    ],
+                  })
+              ),
+            }),
+            // 오른쪽 셀: 좁음, ] 역할
+            new TableCell({
+              width: { size: 100, type: WidthType.DXA },
+              borders: {
+                top: solidBorder,
+                bottom: solidBorder,
+                left: noBorder,
+                right: solidBorder,
+              },
+              children: [new Paragraph({ children: [] })],
+            }),
+          ],
+        }),
+      ],
+    });
+  }
+
   /** Create annotation paragraphs: Mode 1 = TextBox frame, Mode 2 = separate paragraph */
   function createAnnotationParagraphs(runs: RunData[]): Paragraph[] {
     const annotations = runs.filter(r => r.annotation);
@@ -150,7 +210,25 @@ export async function exportToDocx(
     const runs = buildTextRuns(el);
     const alignment = getAlignment(el);
 
-    if (tag === "h1") {
+    // 제목: div[data-title] — 20pt, 굵게, 밑줄, 가운데 정렬
+    if (tag === "div" && el.getAttribute("data-title") === "true") {
+      children.push(
+        new Paragraph({
+          spacing: { after: options.title.paragraphSpacing * 20 },
+          alignment: AlignmentType.CENTER,
+          children: runs.map((r) =>
+            new TextRun({
+              text: r.text,
+              bold: options.title.bold,
+              underline: options.title.underline ? {} : undefined,
+              size: options.title.fontSize * 2,
+              font,
+              color: "000000",
+            })
+          ),
+        })
+      );
+    } else if (tag === "h1") {
       counters.h1++;
       if (isContentBracket(options.h1.lineStartSymbol)) {
         const textContent = el.textContent || "";
@@ -456,7 +534,24 @@ export async function exportToDocx(
       );
       }
     } else if (tag === "p") {
-      const paraChildren = buildAnnotationChildren(runs, font, commonSize);
+      // 핵심요약: [data-core-summary] 감지 시 3셀 테이블로 export
+      const isCoreSummary = runs.some((r) => r.coreSummary);
+      if (isCoreSummary) {
+        const textContent = runs.map((r) => r.text).join("");
+        children.push(createCoreSummaryTable(textContent));
+      } else {
+        const paraChildren = buildAnnotationChildren(runs, font, commonSize);
+        children.push(
+          new Paragraph({
+            spacing: { after: options.common.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: paraChildren,
+          })
+        );
+        // Add annotation paragraphs (TextBox frame for Mode 1, separate para for Mode 2)
+        children.push(...createAnnotationParagraphs(runs));
+      }
       children.push(
         new Paragraph({
           spacing: { after: options.common.paragraphSpacing * 20 },
@@ -576,6 +671,7 @@ interface RunData {
   underline?: boolean;
   border?: { style: typeof BorderStyle.SINGLE | typeof BorderStyle.DASHED; color: string };
   annotation?: string;
+  coreSummary?: boolean;
 }
 
 function buildTextRuns(el: Element): RunData[] {
@@ -611,6 +707,10 @@ function buildTextRuns(el: Element): RunData[] {
     const annotation = htmlEl.getAttribute("data-annotation");
     if (annotation) {
       newStyles.annotation = annotation;
+    }
+
+    if (htmlEl.getAttribute("data-core-summary") !== null) {
+      newStyles.coreSummary = true;
     }
 
     for (const child of Array.from(htmlEl.childNodes)) {

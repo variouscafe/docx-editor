@@ -7,6 +7,8 @@ import { PaginationPlus, PAGE_SIZES } from "tiptap-pagination-plus";
 import { BoxBorder } from "../Editor/extensions/boxBorder";
 import { HighlightExtension } from "../Editor/extensions/highlightColors";
 import { AnnotationExtension } from "../Editor/extensions/annotation";
+import { CoreSummaryExtension } from "../Editor/extensions/coreSummary";
+import { TitleExtension } from "../Editor/extensions/title";
 import { applyOptionsToHtml } from "../../utils/htmlToPreview";
 import type { DocxOptions } from "../../types/options";
 
@@ -39,6 +41,8 @@ export default function DocxPreview({ html, options }: DocxPreviewProps) {
       BoxBorder,
       HighlightExtension,
       AnnotationExtension,
+      CoreSummaryExtension,
+      TitleExtension,
       PaginationPlus.configure({
         pageHeight: A4_HEIGHT,
         pageWidth: A4_WIDTH,
@@ -117,6 +121,15 @@ function getPreviewStyles(options: DocxOptions): string {
 
     .rm-with-pagination .rm-pagination-gap {
       background-color: #d1d5db !important;
+    }
+
+    /* 제목: 20pt, 굵게, 밑줄, 가운데 정렬 */
+    .rm-with-pagination [data-title] {
+      font-size: ${options.title.fontSize}pt;
+      font-weight: ${options.title.bold ? 700 : 400};
+      text-align: ${options.title.align};
+      text-decoration: ${options.title.underline ? "underline" : "none"};
+      margin-bottom: ${options.title.paragraphSpacing}pt;
     }
 
     .rm-with-pagination h1 {
@@ -206,6 +219,36 @@ function getPreviewStyles(options: DocxOptions): string {
       font-family: ${options.common.fontFamily};
       margin-bottom: ${options.annotation2.paragraphSpacing}pt;
       color: ${options.common.fontFamily === options.annotation1.fontFamily ? '#333' : '#333'};
+    }
+
+    /* 핵심요약: [ ] 괄호 형태 — 좌우 보더 + 상하 코너 세그먼트 */
+    .rm-with-pagination [data-core-summary] {
+      display: block;
+      border-left: 2px solid #333;
+      border-right: 2px solid #333;
+      padding: 8px 12px;
+      margin: 8px 0;
+      position: relative;
+    }
+    /* 상단 좌측·우측 코너 ┏ ┓ */
+    .rm-with-pagination [data-core-summary]::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(to right, #333 12px, transparent 12px, transparent calc(100% - 12px), #333 calc(100% - 12px));
+    }
+    /* 하단 좌측·우측 코너 ┗ ┛ */
+    .rm-with-pagination [data-core-summary]::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(to right, #333 12px, transparent 12px, transparent calc(100% - 12px), #333 calc(100% - 12px));
     }
   `;
 }

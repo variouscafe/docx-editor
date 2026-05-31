@@ -41,6 +41,14 @@ export interface H6Options {
   leadingSpaces: number;
 }
 
+export interface TitleOptions {
+  fontSize: number;
+  bold: boolean;
+  underline: boolean;
+  align: string;
+  paragraphSpacing: number;
+}
+
 export interface Annotation1Options {
   fontSize: number;
   fontFamily: string;
@@ -55,6 +63,7 @@ export interface Annotation2Options {
 
 export interface DocxOptions {
   common: CommonOptions;
+  title: TitleOptions;
   h1: H1Options;
   h2: H2Options;
   h3: H3Options;
@@ -71,6 +80,13 @@ export const defaultOptions: DocxOptions = {
     fontSize: 14,
     paragraphSpacing: 12,
     fontFamily: "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', AppleMyungjo, 'Nanum Myeongjo', serif",
+  },
+  title: {
+    fontSize: 20,
+    bold: true,
+    underline: true,
+    align: "center",
+    paragraphSpacing: 24,
   },
   h1: {
     paragraphSpacing: 24,

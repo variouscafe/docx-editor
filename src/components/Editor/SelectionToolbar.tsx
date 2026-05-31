@@ -239,6 +239,14 @@ export default function SelectionToolbar({ textareaRef, content, setContent }: S
         <Type size={14} />
         <span className="text-[10px]">꼬마</span>
       </button>
+      <button
+        onClick={() => wrapSelection(ta, content, setContent, "[", "]")}
+        title="핵심요약"
+        className="p-1.5 rounded hover:bg-gray-100 text-gray-600 flex items-center gap-0.5 text-xs font-medium text-gray-600"
+      >
+        <span className="text-[11px] font-bold">[ ]</span>
+        <span className="text-[10px]">요약</span>
+      </button>
     </div>
   );
 }

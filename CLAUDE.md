@@ -79,6 +79,23 @@ React-based web service supporting DOCX preview and export with TipTap markdown 
 - 선택된 옵션에 따라 미리보기에 다르게 렌더링
 - 우측 옵션 JSON에 꼬마글씨1/꼬마글씨2 설정 포함
 
+### 핵심요약 (Core Summary)
+문서에서 중요 내용을 `[ 내용 ]` 형태로 강조 표시하는 문서 작성법.
+
+#### 마크다운 문법
+- `[핵심요약 내용]` 형태로 작성 (대괄호 안에 내용)
+- 예: `[본 계약은 2026년 1월 1일부터 효력이 발생한다]`
+
+#### 워드 문서 규칙
+- 1행 3열(3개 셀) 표로 렌더링
+- 왼쪽 셀: 매우 좁음, 테두리 표시 (왼쪽/위/아래) → `[` 역할
+- 가운데 셀: 내용, **모든 테두리 투명** → 본문 영역
+- 오른쪽 셀: 매우 좁음, 테두리 표시 (오른쪽/위/아래) → `]` 역할
+- 결과적으로 워드에서 `[ 내용 ]` 형태로 보임 (두 줄 이상 가능)
+
+#### 미리보기
+- CSS로 `[ 내용 ]` 형태 표시
+
 ### DOCX Export
 - All preview formatting must be exported to DOCX (XML generation required)
 - Boxes, highlights, fonts, spacing, line breaks all preserved
