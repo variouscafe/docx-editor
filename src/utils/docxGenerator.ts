@@ -67,6 +67,7 @@ export async function exportToDocx(
   const counters: Record<string, number> = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
 
   const font = options.common.fontFamily.split(",")[0].trim().replace(/'/g, "");
+  const commonSize = options.common.fontSize * 2;
 
   for (const el of Array.from(body.children)) {
     const tag = el.tagName.toLowerCase();
@@ -118,7 +119,7 @@ export async function exportToDocx(
           alignment,
           border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font, color: "000000" }),
+            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
             ...runs.map((r) =>
               new TextRun({
                 text: r.text,
@@ -127,6 +128,7 @@ export async function exportToDocx(
                 underline: r.underline ? {} : undefined,
                 font,
                 color: "000000",
+                size: commonSize,
               })
             ),
           ],
@@ -146,7 +148,7 @@ export async function exportToDocx(
           alignment,
           border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font, color: "000000" }),
+            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
             ...runs.map(
               (r) =>
                 new TextRun({
@@ -156,6 +158,7 @@ export async function exportToDocx(
                   underline: r.underline ? {} : undefined,
                   font,
                   color: "000000",
+                  size: commonSize,
                 })
             ),
           ],
@@ -180,7 +183,7 @@ export async function exportToDocx(
           alignment,
           border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font, color: "000000" }),
+            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
             ...runs.map(
               (r) =>
                 new TextRun({
@@ -190,6 +193,7 @@ export async function exportToDocx(
                   underline: r.underline ? {} : undefined,
                   font,
                   color: "000000",
+                  size: commonSize,
                 })
             ),
           ],
@@ -209,7 +213,7 @@ export async function exportToDocx(
           alignment,
           border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font, color: "000000" }),
+            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
             ...runs.map(
               (r) =>
                 new TextRun({
@@ -219,6 +223,7 @@ export async function exportToDocx(
                   underline: r.underline ? {} : undefined,
                   font,
                   color: "000000",
+                  size: commonSize,
                 })
             ),
           ],
@@ -238,7 +243,7 @@ export async function exportToDocx(
           alignment,
           border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font, color: "000000" }),
+            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
             ...runs.map(
               (r) =>
                 new TextRun({
@@ -248,6 +253,7 @@ export async function exportToDocx(
                   underline: r.underline ? {} : undefined,
                   font,
                   color: "000000",
+                  size: commonSize,
                 })
             ),
           ],
@@ -267,6 +273,7 @@ export async function exportToDocx(
                 italics: r.italics,
                 underline: r.underline ? {} : undefined,
                 font,
+                size: commonSize,
               })
           ),
         })
@@ -280,13 +287,14 @@ export async function exportToDocx(
             italics: r.italics,
             underline: r.underline ? {} : undefined,
             font,
+            size: commonSize,
           })
       );
       children.push(
         new Paragraph({
           spacing: { after: options.common.paragraphSpacing * 20 },
           alignment,
-          children: textRuns.length > 0 ? textRuns : [new TextRun({ text: "", font })],
+          children: textRuns.length > 0 ? textRuns : [new TextRun({ text: "", font, size: commonSize })],
         })
       );
     }
@@ -299,42 +307,49 @@ export async function exportToDocx(
           run: {
             font,
             color: "000000",
+            size: commonSize,
           },
         },
         heading1: {
           run: {
             font,
             color: "000000",
+            size: options.h1.fontSize * 2,
           },
         },
         heading2: {
           run: {
             font,
             color: "000000",
+            size: commonSize,
           },
         },
         heading3: {
           run: {
             font,
             color: "000000",
+            size: commonSize,
           },
         },
         heading4: {
           run: {
             font,
             color: "000000",
+            size: commonSize,
           },
         },
         heading5: {
           run: {
             font,
             color: "000000",
+            size: commonSize,
           },
         },
         heading6: {
           run: {
             font,
             color: "000000",
+            size: commonSize,
           },
         },
       },
