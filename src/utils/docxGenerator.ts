@@ -633,7 +633,12 @@ export async function exportToDocx(
         properties: {
           page: {
             size: { width: 11906, height: 16838 },
-            margin: { top: 1418, right: 1418, bottom: 1418, left: 1418 },
+            margin: {
+              top: options.common.marginTop / 2.54 * 1440,
+              right: options.common.marginRight / 2.54 * 1440,
+              bottom: options.common.marginBottom / 2.54 * 1440,
+              left: options.common.marginLeft / 2.54 * 1440,
+            },
           },
         },
         children,

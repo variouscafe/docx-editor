@@ -4,6 +4,10 @@ export interface CommonOptions {
   fontSize: number;
   paragraphSpacing: number;
   fontFamily: string;
+  marginTop: number;    // cm
+  marginBottom: number; // cm
+  marginLeft: number;   // cm
+  marginRight: number;  // cm
 }
 
 export interface H1Options {
@@ -80,6 +84,10 @@ export const defaultOptions: DocxOptions = {
     fontSize: 14,
     paragraphSpacing: 12,
     fontFamily: "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', AppleMyungjo, 'Nanum Myeongjo', serif",
+    marginTop: 2,
+    marginBottom: 2,
+    marginLeft: 2,
+    marginRight: 2,
   },
   title: {
     fontSize: 20,
