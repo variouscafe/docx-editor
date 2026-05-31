@@ -6,6 +6,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import { PaginationPlus, PAGE_SIZES } from "tiptap-pagination-plus";
 import { BoxBorder } from "../Editor/extensions/boxBorder";
 import { HighlightExtension } from "../Editor/extensions/highlightColors";
+import { AnnotationExtension } from "../Editor/extensions/annotation";
 import { applyOptionsToHtml } from "../../utils/htmlToPreview";
 import type { DocxOptions } from "../../types/options";
 
@@ -37,6 +38,7 @@ export default function DocxPreview({ html, options }: DocxPreviewProps) {
       }),
       BoxBorder,
       HighlightExtension,
+      AnnotationExtension,
       PaginationPlus.configure({
         pageHeight: A4_HEIGHT,
         pageWidth: A4_WIDTH,
@@ -177,6 +179,30 @@ function getPreviewStyles(options: DocxOptions): string {
     .rm-with-pagination mark {
       border-radius: 2px;
       padding: 0 2px;
+    }
+
+    /* 꼬마글씨 Mode 1: inline annotation below text */
+    .rm-with-pagination [data-annotation] {
+      position: relative;
+    }
+    .rm-with-pagination [data-annotation]::after {
+      content: attr(data-annotation);
+      display: block;
+      position: relative;
+      font-size: ${options.annotation1.fontSize}pt;
+      font-family: ${options.annotation1.fontFamily};
+      color: ${options.annotation1.color};
+      line-height: 1.3;
+      margin-top: 1px;
+      white-space: normal;
+    }
+
+    /* 꼬마글씨 Mode 2: block paragraph — handled by htmlToPreview transformation */
+    .rm-with-pagination [data-annotation-paragraph] {
+      font-size: ${options.annotation2.fontSize}pt;
+      font-family: ${options.common.fontFamily};
+      margin-bottom: ${options.annotation2.paragraphSpacing}pt;
+      color: ${options.common.fontFamily === options.annotation1.fontFamily ? '#333' : '#333'};
     }
   `;
 }

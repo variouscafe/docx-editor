@@ -1,6 +1,7 @@
 import { useState } from "react";
 import TipTapEditor from "./components/Editor/TipTapEditor";
 import HeadingSymbolSelector from "./components/Editor/HeadingSymbolSelector";
+import AnnotationModeSelector from "./components/Editor/AnnotationModeSelector";
 import DocxPreview from "./components/Preview/DocxPreview";
 import OptionsPanel from "./components/Options/OptionsPanel";
 import DocxExporter from "./components/Export/DocxExporter";
@@ -24,6 +25,7 @@ function App() {
         {/* Left panel - Editor */}
         <div className="flex-shrink-0 border-r border-gray-200 overflow-hidden flex flex-col" style={{ width: 420 }}>
           <HeadingSymbolSelector options={options} onOptionsChange={setOptions} />
+          <AnnotationModeSelector options={options} onOptionsChange={setOptions} />
           <TipTapEditor onContentChange={setEditorHtml} options={options} />
         </div>
 

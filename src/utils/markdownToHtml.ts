@@ -88,11 +88,34 @@ const underlineExtension = {
   },
 };
 
+/** {{text|annotation}} → <span data-annotation="annotation">text</span> */
+const annotationExtension = {
+  name: "annotation",
+  level: "inline" as const,
+  start(src: string) {
+    return src.indexOf("{{");
+  },
+  tokenizer(src: string): Tokens.Generic | undefined {
+    const match = /^\{\{(.+?)\|(.+?)\}\}/.exec(src);
+    if (!match) return undefined;
+    return {
+      type: "annotation",
+      raw: match[0],
+      text: match[1],
+      annotation: match[2],
+    };
+  },
+  renderer(token: Tokens.Generic): string {
+    return `<span data-annotation="${token.annotation}">${token.text}</span>`;
+  },
+};
+
 // Create a configured Marked instance with custom extensions
 const markedInstance = new Marked({
   gfm: true,
   breaks: false,
   extensions: [
+    annotationExtension,
     highlightExtension,
     solidBoxExtension,
     dashedBoxExtension,

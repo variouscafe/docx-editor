@@ -29,6 +29,34 @@ export function applyOptionsToHtml(html: string, options: DocxOptions): string {
 
   const counters: Record<HeadingKey, number> = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
 
+  // 꼬마글씨 Mode 2: transform inline annotations into separate paragraphs
+  if (options.annotationMode === 2) {
+    const annotations = body.querySelectorAll("[data-annotation]");
+    const insertions: { refNode: Element; newPara: HTMLParagraphElement }[] = [];
+
+    for (const span of Array.from(annotations)) {
+      const annotationText = span.getAttribute("data-annotation") || "";
+      // Find the closest parent that is a direct child of body
+      const parentBlock = span.closest("p, h1, h2, h3, h4, h5, h6");
+      if (!parentBlock || !parentBlock.parentElement?.isSameNode(body)) continue;
+
+      // Create a new paragraph for the annotation
+      const newPara = doc.createElement("p");
+      newPara.setAttribute("data-annotation-paragraph", "true");
+      newPara.textContent = `${options.annotation2.symbol} ${annotationText}`;
+
+      // Remove the annotation attribute so CSS ::after doesn't fire
+      span.removeAttribute("data-annotation");
+
+      insertions.push({ refNode: parentBlock, newPara });
+    }
+
+    // Insert annotation paragraphs after their parent blocks (reverse to keep order)
+    for (const { refNode, newPara } of insertions) {
+      refNode.after(newPara);
+    }
+  }
+
   for (const el of Array.from(body.children)) {
     const tag = el.tagName.toLowerCase();
     const key = TAG_TO_KEY[tag];

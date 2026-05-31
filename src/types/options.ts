@@ -41,6 +41,18 @@ export interface H6Options {
   leadingSpaces: number;
 }
 
+export interface Annotation1Options {
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+}
+
+export interface Annotation2Options {
+  fontSize: number;
+  paragraphSpacing: number;
+  symbol: string;
+}
+
 export interface DocxOptions {
   common: CommonOptions;
   h1: H1Options;
@@ -49,6 +61,9 @@ export interface DocxOptions {
   h4: H4Options;
   h5: H5Options;
   h6: H6Options;
+  annotation1: Annotation1Options;
+  annotation2: Annotation2Options;
+  annotationMode: 1 | 2;
 }
 
 export const defaultOptions: DocxOptions = {
@@ -86,4 +101,15 @@ export const defaultOptions: DocxOptions = {
     lineStartSymbol: LineStartSymbol.CIRCLED,
     leadingSpaces: 0,
   },
+  annotation1: {
+    fontSize: 10,
+    fontFamily: "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', AppleMyungjo, 'Nanum Myeongjo', serif",
+    color: "#0000FF",
+  },
+  annotation2: {
+    fontSize: 12,
+    paragraphSpacing: 16,
+    symbol: "○",
+  },
+  annotationMode: 1,
 };

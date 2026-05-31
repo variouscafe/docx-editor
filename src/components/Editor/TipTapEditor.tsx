@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import EditorToolbar from "./EditorToolbar";
+import SelectionToolbar from "./SelectionToolbar";
 import { markdownToHtml } from "../../utils/markdownToHtml";
 import type { DocxOptions } from "../../types/options";
 
@@ -69,7 +70,12 @@ export default function TipTapEditor({ onContentChange }: TipTapEditorProps) {
         content={content}
         setContent={setContentFromToolbar}
       />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative">
+        <SelectionToolbar
+          textareaRef={textareaRef}
+          content={content}
+          setContent={setContentFromToolbar}
+        />
         <textarea
           ref={textareaRef}
           value={content}

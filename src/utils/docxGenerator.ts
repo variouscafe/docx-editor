@@ -69,6 +69,69 @@ export async function exportToDocx(
   const font = options.common.fontFamily.split(",")[0].trim().replace(/'/g, "");
   const commonSize = options.common.fontSize * 2;
 
+  /** Build annotation paragraphs for 꼬마글씨 Mode 1 (inline) or Mode 2 (block) */
+  function buildAnnotationChildren(runs: RunData[], parentFont: string, parentSize: number): TextRun[] {
+    const result: TextRun[] = [];
+    const hasAnnotation = runs.some(r => r.annotation);
+
+    if (options.annotationMode === 1 && hasAnnotation) {
+      // Mode 1: annotation inline after the word with break + small blue text
+      for (const r of runs) {
+        result.push(new TextRun({
+          text: r.text,
+          bold: r.bold,
+          italics: r.italics,
+          underline: r.underline ? {} : undefined,
+          font: parentFont,
+          size: parentSize,
+          color: "000000",
+        }));
+        if (r.annotation) {
+          result.push(new TextRun({ text: "", break: 1 }));
+          result.push(new TextRun({
+            text: r.annotation,
+            font: options.annotation1.fontFamily.split(",")[0].trim().replace(/'/g, ""),
+            size: options.annotation1.fontSize * 2,
+            color: options.annotation1.color.replace("#", ""),
+          }));
+        }
+      }
+    } else {
+      // Mode 2 or no annotation: normal runs
+      for (const r of runs) {
+        result.push(new TextRun({
+          text: r.text,
+          bold: r.bold,
+          italics: r.italics,
+          underline: r.underline ? {} : undefined,
+          font: parentFont,
+          size: parentSize,
+          color: "000000",
+        }));
+      }
+    }
+    return result;
+  }
+
+  /** For Mode 2, create separate annotation paragraphs after the main paragraph */
+  function createMode2AnnotationParagraphs(runs: RunData[]): Paragraph[] {
+    if (options.annotationMode !== 2) return [];
+    const annotations = runs.filter(r => r.annotation);
+    return annotations.map(r =>
+      new Paragraph({
+        spacing: { after: options.annotation2.paragraphSpacing * 20 },
+        children: [
+          new TextRun({
+            text: `${options.annotation2.symbol} ${r.annotation}`,
+            font: font,
+            size: options.annotation2.fontSize * 2,
+            color: "000000",
+          }),
+        ],
+      })
+    );
+  }
+
   for (const el of Array.from(body.children)) {
     const tag = el.tagName.toLowerCase();
     const runs = buildTextRuns(el);
@@ -260,24 +323,17 @@ export async function exportToDocx(
         })
       );
     } else if (tag === "p") {
+      const paraChildren = buildAnnotationChildren(runs, font, commonSize);
       children.push(
         new Paragraph({
           spacing: { after: options.common.paragraphSpacing * 20 },
           alignment,
           border: buildParagraphBorder(runs),
-          children: runs.map(
-            (r) =>
-              new TextRun({
-                text: r.text,
-                bold: r.bold,
-                italics: r.italics,
-                underline: r.underline ? {} : undefined,
-                font,
-                size: commonSize,
-              })
-          ),
+          children: paraChildren,
         })
       );
+      // Mode 2: add separate annotation paragraphs
+      children.push(...createMode2AnnotationParagraphs(runs));
     } else {
       const textRuns = runs.map(
         (r) =>
@@ -386,6 +442,7 @@ interface RunData {
   italics?: boolean;
   underline?: boolean;
   border?: { style: typeof BorderStyle.SINGLE | typeof BorderStyle.DASHED; color: string };
+  annotation?: string;
 }
 
 function buildTextRuns(el: Element): RunData[] {
@@ -416,6 +473,11 @@ function buildTextRuns(el: Element): RunData[] {
       newStyles.border = { style: BorderStyle.SINGLE, color: "333333" };
     } else if (border === "dashed") {
       newStyles.border = { style: BorderStyle.DASHED, color: "666666" };
+    }
+
+    const annotation = htmlEl.getAttribute("data-annotation");
+    if (annotation) {
+      newStyles.annotation = annotation;
     }
 
     for (const child of Array.from(htmlEl.childNodes)) {

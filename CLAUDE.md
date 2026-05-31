@@ -5,11 +5,11 @@ React-based web service supporting DOCX preview and export with TipTap markdown 
 
 ## Requirements
 
-### Left Panel - TipTap Editor
-- TipTap-based markdown editor with text toolbar at the top
-- Select text to apply solid box or dashed box borders (visible in preview)
-- Highlighter/fluorescent pen effect on text (visible in preview)
-- HTML applied but HTML source code NOT visible in editor
+### Left Panel - Markdown Editor
+- 마크다운 텍스트 에디터 (textarea) — 원문 마크다운 문법 표시 (예: `### 텍스트 레벨 3`)
+- Custom markdown syntax: `++solid box++`, `~~dashed box~~`, `==highlight==`, `^^underline^^`, `{{text|annotation}}`
+- 툴바에서 마크다운 문법 삽입 (헤딩, 볼드, 이탤릭, 박스, 하이라이트 등)
+- 텍스트 드래그 시 선택 도구 팝업 (굵게, 밑줄, 꼬마글씨)
 
 ### Center Panel - DOCX Preview
 - Preview matches left panel editor content
@@ -54,9 +54,35 @@ React-based web service supporting DOCX preview and export with TipTap markdown 
 - **### (H3)**: line start symbol: -, leading space: 4
 - **#### (H4)**: line start symbol: •, leading space: 4, second line onwards: paragraph spacing 16pt, single line: paragraph spacing 16pt
 
+### 꼬마글씨 (Small Annotation Text)
+사내 문서에서 본문에 부연 설명을 추가하는 문서 작성법. 꼬마글씨1과 꼬마글씨2 두 가지 모드 지원.
+
+#### 마크다운 문법
+- `{{본문|부연설명}}` 형태로 작성
+- 예: `{{Claude Code|앤트로픽에서 개발한 코딩 툴}} 사용법에 대해서 설명합니다.`
+- 에디터에서 텍스트 드래그 시 굵게, 밑줄, 꼬마글씨 선택 가능한 텍스트 도구 표시
+
+#### 꼬마글씨1 (인라인 주석)
+- 본문 아래에 파란색 글씨로 부연 설명 표시
+- 스타일: 폰트 10pt, 바탕체(Batang), 파란색(#0000FF)
+- 워드에서 별도 텍스트 박스(TextBox) 사용 — 본문 스타일에 영향 없음
+- DOCX 내보내기 시 TextBox로 export
+
+#### 꼬마글씨2 (단락 주석)
+- 해당 문장이 끝난 후 다음 단락으로 별도 표시
+- 당구장 기호(○)로 시작
+- 스타일: 폰트 12pt, 단락 뒤 16pt
+
+#### 표시 모드 선택
+- 좌측 에디터 상단에서 꼬마글씨 표시 옵션(1, 2) 선택 가능
+- 선택된 옵션에 따라 미리보기에 다르게 렌더링
+- 우측 옵션 JSON에 꼬마글씨1/꼬마글씨2 설정 포함
+
 ### DOCX Export
 - All preview formatting must be exported to DOCX (XML generation required)
 - Boxes, highlights, fonts, spacing, line breaks all preserved
+- 꼬마글씨1: TextBox로 export
+- 꼬마글씨2: 별도 단락으로 export
 
 ## Tech Stack
 - Vite + React + TypeScript
@@ -65,3 +91,4 @@ React-based web service supporting DOCX preview and export with TipTap markdown 
 - docx.js (DOCX generation)
 - file-saver (download)
 - lucide-react (icons)
+- marked (markdown parsing)
