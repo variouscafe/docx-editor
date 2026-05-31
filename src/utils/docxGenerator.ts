@@ -5,6 +5,7 @@ import {
   TextRun,
   HeadingLevel,
   BorderStyle,
+  AlignmentType,
 } from "docx";
 import type { DocxOptions } from "../types/options";
 import {
@@ -25,6 +26,35 @@ function getEffectiveLeadingSpaces(
   return configuredSpaces;
 }
 
+/** HTML 요소에서 text-align 추출 → docx AlignmentType 매핑 */
+function getAlignment(el: Element): typeof AlignmentType[keyof typeof AlignmentType] | undefined {
+  const htmlEl = el as HTMLElement;
+  const align = htmlEl.style?.textAlign || htmlEl.getAttribute("align");
+  if (!align) return undefined;
+  const map: Record<string, typeof AlignmentType[keyof typeof AlignmentType]> = {
+    left: AlignmentType.LEFT,
+    center: AlignmentType.CENTER,
+    right: AlignmentType.RIGHT,
+    justify: AlignmentType.JUSTIFIED,
+    start: AlignmentType.START,
+    end: AlignmentType.END,
+    both: AlignmentType.BOTH,
+  };
+  return map[align.toLowerCase()] ?? undefined;
+}
+
+/** runs 중 border가 있으면 Paragraph 레벨 border로 승격 */
+function buildParagraphBorder(runs: RunData[]) {
+  const borderRun = runs.find((r) => r.border);
+  if (!borderRun?.border) return undefined;
+  return {
+    top: { style: borderRun.border.style, size: 1, color: borderRun.border.color },
+    bottom: { style: borderRun.border.style, size: 1, color: borderRun.border.color },
+    left: { style: borderRun.border.style, size: 1, color: borderRun.border.color },
+    right: { style: borderRun.border.style, size: 1, color: borderRun.border.color },
+  };
+}
+
 export async function exportToDocx(
   html: string,
   options: DocxOptions,
@@ -36,10 +66,12 @@ export async function exportToDocx(
   const children: Paragraph[] = [];
   const counters: Record<string, number> = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
 
+  const font = options.common.fontFamily.split(",")[0].trim().replace(/'/g, "");
+
   for (const el of Array.from(body.children)) {
     const tag = el.tagName.toLowerCase();
     const runs = buildTextRuns(el);
-    const font = options.common.fontFamily.split(",")[0].trim().replace(/'/g, "");
+    const alignment = getAlignment(el);
 
     if (tag === "h1") {
       counters.h1++;
@@ -48,12 +80,15 @@ export async function exportToDocx(
         new Paragraph({
           heading: HeadingLevel.HEADING_1,
           spacing: { after: options.h1.paragraphSpacing * 20 },
+          alignment,
+          border: buildParagraphBorder(runs),
           children: [
             new TextRun({
               text: symbolText,
               size: options.h1.fontSize * 2,
               bold: options.h1.bold,
               font,
+              color: "000000",
             }),
             ...runs.map((r) =>
               new TextRun({
@@ -61,9 +96,9 @@ export async function exportToDocx(
                 bold: options.h1.bold,
                 size: options.h1.fontSize * 2,
                 font,
+                color: "000000",
                 italics: r.italics,
                 underline: r.underline ? {} : undefined,
-                border: r.border,
               })
             ),
           ],
@@ -80,16 +115,18 @@ export async function exportToDocx(
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
           spacing: { after: options.h2.paragraphSpacing * 20 },
+          alignment,
+          border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font }),
+            new TextRun({ text: prefix, font, color: "000000" }),
             ...runs.map((r) =>
               new TextRun({
                 text: r.text,
                 bold: r.bold,
                 italics: r.italics,
                 underline: r.underline ? {} : undefined,
-                border: r.border,
                 font,
+                color: "000000",
               })
             ),
           ],
@@ -106,8 +143,10 @@ export async function exportToDocx(
         new Paragraph({
           heading: HeadingLevel.HEADING_3,
           spacing: { after: options.common.paragraphSpacing * 20 },
+          alignment,
+          border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font }),
+            new TextRun({ text: prefix, font, color: "000000" }),
             ...runs.map(
               (r) =>
                 new TextRun({
@@ -115,8 +154,8 @@ export async function exportToDocx(
                   bold: r.bold,
                   italics: r.italics,
                   underline: r.underline ? {} : undefined,
-                  border: r.border,
                   font,
+                  color: "000000",
                 })
             ),
           ],
@@ -138,8 +177,10 @@ export async function exportToDocx(
         new Paragraph({
           heading: HeadingLevel.HEADING_4,
           spacing: { after: spacing * 20 },
+          alignment,
+          border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font }),
+            new TextRun({ text: prefix, font, color: "000000" }),
             ...runs.map(
               (r) =>
                 new TextRun({
@@ -147,8 +188,8 @@ export async function exportToDocx(
                   bold: r.bold,
                   italics: r.italics,
                   underline: r.underline ? {} : undefined,
-                  border: r.border,
                   font,
+                  color: "000000",
                 })
             ),
           ],
@@ -165,8 +206,10 @@ export async function exportToDocx(
         new Paragraph({
           heading: HeadingLevel.HEADING_5,
           spacing: { after: options.common.paragraphSpacing * 20 },
+          alignment,
+          border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font }),
+            new TextRun({ text: prefix, font, color: "000000" }),
             ...runs.map(
               (r) =>
                 new TextRun({
@@ -174,8 +217,8 @@ export async function exportToDocx(
                   bold: r.bold,
                   italics: r.italics,
                   underline: r.underline ? {} : undefined,
-                  border: r.border,
                   font,
+                  color: "000000",
                 })
             ),
           ],
@@ -192,8 +235,10 @@ export async function exportToDocx(
         new Paragraph({
           heading: HeadingLevel.HEADING_6,
           spacing: { after: options.common.paragraphSpacing * 20 },
+          alignment,
+          border: buildParagraphBorder(runs),
           children: [
-            new TextRun({ text: prefix, font }),
+            new TextRun({ text: prefix, font, color: "000000" }),
             ...runs.map(
               (r) =>
                 new TextRun({
@@ -201,28 +246,19 @@ export async function exportToDocx(
                   bold: r.bold,
                   italics: r.italics,
                   underline: r.underline ? {} : undefined,
-                  border: r.border,
                   font,
+                  color: "000000",
                 })
             ),
           ],
         })
       );
     } else if (tag === "p") {
-      // TextRun 중 border가 있으면 Paragraph 레벨로 승격
-      const borderRun = runs.find((r) => r.border);
-      const paragraphBorder = borderRun?.border
-        ? {
-            top: { style: borderRun.border!.style, size: 1, color: borderRun.border!.color },
-            bottom: { style: borderRun.border!.style, size: 1, color: borderRun.border!.color },
-            left: { style: borderRun.border!.style, size: 1, color: borderRun.border!.color },
-            right: { style: borderRun.border!.style, size: 1, color: borderRun.border!.color },
-          }
-        : undefined;
       children.push(
         new Paragraph({
           spacing: { after: options.common.paragraphSpacing * 20 },
-          border: paragraphBorder,
+          alignment,
+          border: buildParagraphBorder(runs),
           children: runs.map(
             (r) =>
               new TextRun({
@@ -249,6 +285,7 @@ export async function exportToDocx(
       children.push(
         new Paragraph({
           spacing: { after: options.common.paragraphSpacing * 20 },
+          alignment,
           children: textRuns.length > 0 ? textRuns : [new TextRun({ text: "", font })],
         })
       );
@@ -256,6 +293,52 @@ export async function exportToDocx(
   }
 
   const docxDocument = new Document({
+    styles: {
+      default: {
+        document: {
+          run: {
+            font,
+            color: "000000",
+          },
+        },
+        heading1: {
+          run: {
+            font,
+            color: "000000",
+          },
+        },
+        heading2: {
+          run: {
+            font,
+            color: "000000",
+          },
+        },
+        heading3: {
+          run: {
+            font,
+            color: "000000",
+          },
+        },
+        heading4: {
+          run: {
+            font,
+            color: "000000",
+          },
+        },
+        heading5: {
+          run: {
+            font,
+            color: "000000",
+          },
+        },
+        heading6: {
+          run: {
+            font,
+            color: "000000",
+          },
+        },
+      },
+    },
     sections: [
       {
         properties: {
@@ -328,4 +411,3 @@ function buildTextRuns(el: Element): RunData[] {
   walk(el);
   return runs;
 }
-
