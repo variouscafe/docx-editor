@@ -17,6 +17,7 @@ import {
   getSymbolDisplay,
   isCounterSymbol,
   isContentBracket,
+  isBoldSymbol,
 } from "../types/lineStartSymbol";
 import { LineStartSymbol } from "../types/lineStartSymbol";
 
@@ -261,7 +262,7 @@ export async function exportToDocx(
               new TextRun({
                 text: symbolText,
                 size: options.h1.fontSize * 2,
-                bold: options.h1.bold,
+                bold: options.h1.bold || isBoldSymbol(options.h1.lineStartSymbol),
                 font,
                 color: "000000",
               }),
@@ -313,7 +314,7 @@ export async function exportToDocx(
             alignment,
             border: buildParagraphBorder(runs),
             children: [
-              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
               ...runs.map((r) =>
                 new TextRun({
                   text: r.text,
@@ -362,7 +363,7 @@ export async function exportToDocx(
             alignment,
             border: buildParagraphBorder(runs),
             children: [
-              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
               ...runs.map(
                 (r) =>
                   new TextRun({
@@ -416,7 +417,7 @@ export async function exportToDocx(
             alignment,
             border: buildParagraphBorder(runs),
             children: [
-              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
               ...runs.map(
                 (r) =>
                   new TextRun({
@@ -466,7 +467,7 @@ export async function exportToDocx(
             alignment,
             border: buildParagraphBorder(runs),
             children: [
-              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
               ...runs.map(
                 (r) =>
                   new TextRun({
@@ -516,7 +517,7 @@ export async function exportToDocx(
             alignment,
             border: buildParagraphBorder(runs),
             children: [
-              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
               ...runs.map(
                 (r) =>
                   new TextRun({

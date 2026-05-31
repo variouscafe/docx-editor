@@ -4,6 +4,7 @@ import {
   getSymbolDisplay,
   isCounterSymbol,
   isContentBracket,
+  isBoldSymbol,
   LineStartSymbol,
 } from "../types/lineStartSymbol";
 
@@ -74,13 +75,19 @@ export function applyOptionsToHtml(html: string, options: DocxOptions): string {
         el.appendChild(
           el.ownerDocument.createTextNode(`${leadingSpaces}【${text}】`)
         );
-      } else if (isCounterSymbol(symbol)) {
-        counters[key]++;
-        const prefix = `${leadingSpaces}${resolveCounter(symbol, counters[key])} `;
-        prependText(el, prefix);
       } else {
-        const prefix = `${leadingSpaces}${getSymbolDisplay(symbol)} `;
-        prependText(el, prefix);
+        const symbolText = isCounterSymbol(symbol)
+          ? resolveCounter(symbol, ++counters[key])
+          : getSymbolDisplay(symbol);
+        const bold = isBoldSymbol(symbol);
+        const prefix = bold
+          ? `${leadingSpaces}<strong>${symbolText}</strong> `
+          : `${leadingSpaces}${symbolText} `;
+        if (bold) {
+          el.insertAdjacentHTML("afterbegin", prefix);
+        } else {
+          prependText(el, prefix);
+        }
       }
     }
   }

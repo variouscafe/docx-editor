@@ -49,6 +49,14 @@ export function isContentBracket(symbol: LineStartSymbol): boolean {
   return symbol === LineStartSymbol.CONTENT_BRACKET;
 }
 
+/** 항상 굵게 표시할 기호인지 여부 — □, Ⅰ 등 */
+export function isBoldSymbol(symbol: LineStartSymbol): boolean {
+  return (
+    symbol === LineStartSymbol.SQUARE ||
+    symbol === LineStartSymbol.ROMAN
+  );
+}
+
 /** 자동 카운터가 적용되는 기호인지 여부 */
 export function isCounterSymbol(symbol: LineStartSymbol): boolean {
   return (
