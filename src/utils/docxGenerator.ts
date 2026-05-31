@@ -552,16 +552,6 @@ export async function exportToDocx(
         // Add annotation paragraphs (TextBox frame for Mode 1, separate para for Mode 2)
         children.push(...createAnnotationParagraphs(runs));
       }
-      children.push(
-        new Paragraph({
-          spacing: { after: options.common.paragraphSpacing * 20 },
-          alignment,
-          border: buildParagraphBorder(runs),
-          children: paraChildren,
-        })
-      );
-      // Add annotation paragraphs (TextBox frame for Mode 1, separate para for Mode 2)
-      children.push(...createAnnotationParagraphs(runs));
     } else {
       const textRuns = runs.map(
         (r) =>
