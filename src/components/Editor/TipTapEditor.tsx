@@ -57,7 +57,14 @@ export default function TipTapEditor({ onContentChange, options }: TipTapEditorP
       <div className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} className="h-full" />
         {editor && (
-          <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
+          <BubbleMenu
+            editor={editor}
+            tippyOptions={{ duration: 100 }}
+            shouldShow={({ state }) => {
+              // Show on both text selection (drag) and cursor placement (click)
+              return state.selection.from > 0;
+            }}
+          >
             <HeadingBubbleMenu editor={editor} options={options} />
           </BubbleMenu>
         )}
