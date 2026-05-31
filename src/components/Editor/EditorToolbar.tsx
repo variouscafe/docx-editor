@@ -116,7 +116,7 @@ function wrapSelection(
   }
 }
 
-/** Wrap the current line with <div style="text-align: ..."> */
+/** Toggle line-end alignment marker (>>, <>, <<) */
 function setLineAlignment(
   textarea: HTMLTextAreaElement,
   content: string,
@@ -133,23 +133,19 @@ function setLineAlignment(
   const lineEndPos = lineEnd === -1 ? content.length : selectionEnd + lineEnd;
   const lineText = content.substring(lineStart, lineEndPos);
 
-  // Remove existing alignment wrapper if present
-  const stripped = lineText.replace(/^<div style="text-align: [^"]+">/, "").replace(/<\/div>$/, "");
+  // Map alignment to marker
+  const markerMap: Record<string, string> = { left: " <<", center: " <>", right: " >>" };
+  const newMarker = markerMap[align] || "";
 
-  // Remove existing markdown heading prefix to preserve it
-  const headingMatch = stripped.match(/^(#{1,6}\s)/);
-  const headingPrefix = headingMatch ? headingMatch[1] : "";
-  const bodyText = headingPrefix ? stripped.substring(headingPrefix.length) : stripped;
+  // Remove existing alignment marker if present
+  const stripped = lineText.replace(/ (?:<<|<>|>>)$/, "");
 
-  const wrappedLine = headingPrefix
-    ? `${headingPrefix}<div style="text-align: ${align}">${bodyText}</div>`
-    : `<div style="text-align: ${align}">${stripped}</div>`;
-
-  const newContent = content.substring(0, lineStart) + wrappedLine + content.substring(lineEndPos);
+  const newLine = newMarker ? `${stripped}${newMarker}` : stripped;
+  const newContent = content.substring(0, lineStart) + newLine + content.substring(lineEndPos);
   setContent(newContent);
 
   requestAnimationFrame(() => {
-    const offset = wrappedLine.length - lineText.length;
+    const offset = newLine.length - lineText.length;
     textarea.selectionStart = selectionStart + offset;
     textarea.selectionEnd = selectionEnd + offset;
     textarea.focus();

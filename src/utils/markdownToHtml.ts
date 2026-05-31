@@ -125,9 +125,35 @@ const markedInstance = new Marked({
 
 /**
  * Convert markdown text to HTML.
- * Supports custom syntax: ++solid box++, ~~dashed box~~, ==highlight==, ^^underline^^
+ * Supports custom syntax: ++solid box++, ~~dashed box~~, ==highlight==, ^^underline^^, {{text|annotation}}
+ * Line-end alignment: ` >>` = right, ` <>` = center, ` <<` = left
  */
 export function markdownToHtml(md: string): string {
   const result = markedInstance.parse(md, { async: false });
-  return typeof result === "string" ? result : "";
+  const html = typeof result === "string" ? result : "";
+  return applyAlignmentMarkers(html);
+}
+
+/**
+ * Post-process HTML to handle line-end alignment markers.
+ * marked encodes >> as &gt;&gt; and <> as &lt;&gt; in text content.
+ * Pattern: <tag>... MARKER</tag> → <tag style="text-align: ...">...</tag>
+ */
+function applyAlignmentMarkers(html: string): string {
+  // Right align: content &gt;&gt;</tag>
+  html = html.replace(
+    /<(h[1-6]|p)([^>]*)>([\s\S]*?) &gt;&gt;<\/(h[1-6]|p)>/g,
+    '<$1$2 style="text-align: right">$3</$4>'
+  );
+  // Center align: content &lt;&gt;</tag>
+  html = html.replace(
+    /<(h[1-6]|p)([^>]*)>([\s\S]*?) &lt;&gt;<\/(h[1-6]|p)>/g,
+    '<$1$2 style="text-align: center">$3</$4>'
+  );
+  // Left align: content &lt;&lt;</tag>
+  html = html.replace(
+    /<(h[1-6]|p)([^>]*)>([\s\S]*?) &lt;&lt;<\/(h[1-6]|p)>/g,
+    '<$1$2 style="text-align: left">$3</$4>'
+  );
+  return html;
 }
