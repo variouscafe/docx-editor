@@ -79,54 +79,56 @@ export async function exportToDocx(
   const font = options.common.fontFamily.split(",")[0].trim().replace(/'/g, "");
   const commonSize = options.common.fontSize * 2;
 
-  /** Build annotation paragraphs for 꼬마글씨 Mode 1 (inline) or Mode 2 (block) */
+  /** Build annotation children: Mode 1 — plain text (TextBox frame added separately), Mode 2 — normal */
   function buildAnnotationChildren(runs: RunData[], parentFont: string, parentSize: number): TextRun[] {
     const result: TextRun[] = [];
-    const hasAnnotation = runs.some(r => r.annotation);
 
-    if (options.annotationMode === 1 && hasAnnotation) {
-      // Mode 1: annotation as subscript after the word — no break, text flows continuously
-      for (const r of runs) {
-        result.push(new TextRun({
-          text: r.text,
-          bold: r.bold,
-          italics: r.italics,
-          underline: r.underline ? {} : undefined,
-          font: parentFont,
-          size: parentSize,
-          color: "000000",
-        }));
-        if (r.annotation) {
-          result.push(new TextRun({
-            text: r.annotation,
-            font: options.annotation1.fontFamily.split(",")[0].trim().replace(/'/g, ""),
-            size: options.annotation1.fontSize * 2,
-            color: options.annotation1.color.replace("#", ""),
-            subScript: true,
-          }));
-        }
-      }
-    } else {
-      // Mode 2 or no annotation: normal runs
-      for (const r of runs) {
-        result.push(new TextRun({
-          text: r.text,
-          bold: r.bold,
-          italics: r.italics,
-          underline: r.underline ? {} : undefined,
-          font: parentFont,
-          size: parentSize,
-          color: "000000",
-        }));
-      }
+    // Both modes: render main text normally (annotation handled separately)
+    for (const r of runs) {
+      result.push(new TextRun({
+        text: r.text,
+        bold: r.bold,
+        italics: r.italics,
+        underline: r.underline ? {} : undefined,
+        font: parentFont,
+        size: parentSize,
+        color: "000000",
+      }));
     }
     return result;
   }
 
-  /** For Mode 2, create separate annotation paragraphs after the main paragraph */
-  function createMode2AnnotationParagraphs(runs: RunData[]): Paragraph[] {
-    if (options.annotationMode !== 2) return [];
+  /** Create annotation paragraphs: Mode 1 = TextBox frame, Mode 2 = separate paragraph */
+  function createAnnotationParagraphs(runs: RunData[]): Paragraph[] {
     const annotations = runs.filter(r => r.annotation);
+    if (annotations.length === 0) return [];
+
+    if (options.annotationMode === 1) {
+      // Mode 1: floating TextBox frame positioned below the text
+      return annotations.map(r => {
+        const annFont = options.annotation1.fontFamily.split(",")[0].trim().replace(/'/g, "");
+        return new Paragraph({
+          frame: {
+            type: "absolute",
+            position: { x: 0, y: 180 }, // below the text line (twips)
+            width: 4000,
+            height: 300,
+            anchor: { horizontal: "text", vertical: "text" },
+            wrap: "none",
+          },
+          children: [
+            new TextRun({
+              text: r.annotation,
+              font: annFont,
+              size: options.annotation1.fontSize * 2,
+              color: options.annotation1.color.replace("#", ""),
+            }),
+          ],
+        });
+      });
+    }
+
+    // Mode 2: separate paragraph with ○ symbol
     return annotations.map(r =>
       new Paragraph({
         spacing: { after: options.annotation2.paragraphSpacing * 20 },
@@ -342,8 +344,8 @@ export async function exportToDocx(
           children: paraChildren,
         })
       );
-      // Mode 2: add separate annotation paragraphs
-      children.push(...createMode2AnnotationParagraphs(runs));
+      // Add annotation paragraphs (TextBox frame for Mode 1, separate para for Mode 2)
+      children.push(...createAnnotationParagraphs(runs));
     } else {
       const textRuns = runs.map(
         (r) =>
