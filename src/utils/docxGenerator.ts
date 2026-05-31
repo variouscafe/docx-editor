@@ -75,7 +75,7 @@ export async function exportToDocx(
     const hasAnnotation = runs.some(r => r.annotation);
 
     if (options.annotationMode === 1 && hasAnnotation) {
-      // Mode 1: annotation inline after the word with break + small blue text
+      // Mode 1: annotation as subscript after the word — no break, text flows continuously
       for (const r of runs) {
         result.push(new TextRun({
           text: r.text,
@@ -87,12 +87,12 @@ export async function exportToDocx(
           color: "000000",
         }));
         if (r.annotation) {
-          result.push(new TextRun({ text: "", break: 1 }));
           result.push(new TextRun({
             text: r.annotation,
             font: options.annotation1.fontFamily.split(",")[0].trim().replace(/'/g, ""),
             size: options.annotation1.fontSize * 2,
             color: options.annotation1.color.replace("#", ""),
+            subScript: true,
           }));
         }
       }

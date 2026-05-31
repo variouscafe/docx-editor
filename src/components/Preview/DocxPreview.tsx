@@ -181,20 +181,23 @@ function getPreviewStyles(options: DocxOptions): string {
       padding: 0 2px;
     }
 
-    /* 꼬마글씨 Mode 1: inline annotation below text */
+    /* 꼬마글씨 Mode 1: floating annotation layer — no impact on text flow */
     .rm-with-pagination [data-annotation] {
       position: relative;
+      display: inline;
     }
     .rm-with-pagination [data-annotation]::after {
       content: attr(data-annotation);
-      display: block;
-      position: relative;
+      position: absolute;
+      left: 0;
+      top: 100%;
       font-size: ${options.annotation1.fontSize}pt;
       font-family: ${options.annotation1.fontFamily};
       color: ${options.annotation1.color};
       line-height: 1.3;
-      margin-top: 1px;
-      white-space: normal;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 10;
     }
 
     /* 꼬마글씨 Mode 2: block paragraph — handled by htmlToPreview transformation */
