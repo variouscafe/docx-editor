@@ -49,9 +49,11 @@ export function isContentBracket(symbol: LineStartSymbol): boolean {
   return symbol === LineStartSymbol.CONTENT_BRACKET;
 }
 
-/** 항상 굵게 표시할 기호인지 여부 — □, Ⅰ 등 */
+/** 항상 굵게 표시할 기호인지 여부 — 1., 1), □, Ⅰ 등 */
 export function isBoldSymbol(symbol: LineStartSymbol): boolean {
   return (
+    symbol === LineStartSymbol.NUMBER_DOT ||
+    symbol === LineStartSymbol.NUMBER_PAREN ||
     symbol === LineStartSymbol.SQUARE ||
     symbol === LineStartSymbol.ROMAN
   );
