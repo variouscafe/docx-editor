@@ -269,7 +269,7 @@ export async function exportToDocx(
               ...runs.map((r) =>
                 new TextRun({
                   text: r.text,
-                  bold: options.h1.bold,
+                  bold: options.h1.bold || isBoldSymbol(options.h1.lineStartSymbol),
                   size: options.h1.fontSize * 2,
                   font,
                   color: "000000",
@@ -318,7 +318,7 @@ export async function exportToDocx(
               ...runs.map((r) =>
                 new TextRun({
                   text: r.text,
-                  bold: r.bold,
+                  bold: isBoldSymbol(symbol) || r.bold,
                   italics: r.italics,
                   underline: r.underline ? {} : undefined,
                   font,
@@ -368,7 +368,7 @@ export async function exportToDocx(
                 (r) =>
                   new TextRun({
                     text: r.text,
-                    bold: r.bold,
+                    bold: isBoldSymbol(symbol) || r.bold,
                     italics: r.italics,
                     underline: r.underline ? {} : undefined,
                     font,
@@ -422,7 +422,7 @@ export async function exportToDocx(
                 (r) =>
                   new TextRun({
                     text: r.text,
-                    bold: r.bold,
+                    bold: isBoldSymbol(symbol) || r.bold,
                     italics: r.italics,
                     underline: r.underline ? {} : undefined,
                     font,
@@ -472,7 +472,7 @@ export async function exportToDocx(
                 (r) =>
                   new TextRun({
                     text: r.text,
-                    bold: r.bold,
+                    bold: isBoldSymbol(symbol) || r.bold,
                     italics: r.italics,
                     underline: r.underline ? {} : undefined,
                     font,
@@ -522,7 +522,7 @@ export async function exportToDocx(
                 (r) =>
                   new TextRun({
                     text: r.text,
-                    bold: r.bold,
+                    bold: isBoldSymbol(symbol) || r.bold,
                     italics: r.italics,
                   underline: r.underline ? {} : undefined,
                   font,

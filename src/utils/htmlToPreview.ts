@@ -80,12 +80,12 @@ export function applyOptionsToHtml(html: string, options: DocxOptions): string {
           ? resolveCounter(symbol, ++counters[key])
           : getSymbolDisplay(symbol);
         const bold = isBoldSymbol(symbol);
-        const prefix = bold
-          ? `${leadingSpaces}<strong>${symbolText}</strong> `
-          : `${leadingSpaces}${symbolText} `;
         if (bold) {
-          el.insertAdjacentHTML("afterbegin", prefix);
+          // 기호 + 본문 모두 굵게
+          el.insertAdjacentHTML("afterbegin", `${leadingSpaces}${symbolText} `);
+          el.innerHTML = `<strong>${el.innerHTML}</strong>`;
         } else {
+          const prefix = `${leadingSpaces}${symbolText} `;
           prependText(el, prefix);
         }
       }
