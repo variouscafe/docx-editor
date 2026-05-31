@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, type RefObject } from "react";
-import { Bold, Underline, Type } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, type RefObject } from "react";
+import { Bold, Underline, Type, Check, X } from "lucide-react";
 
 interface SelectionToolbarProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -31,6 +31,12 @@ function wrapSelection(
 export default function SelectionToolbar({ textareaRef, content, setContent }: SelectionToolbarProps) {
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  // 꼬마글씨 입력 모드 상태
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [annotationRange, setAnnotationRange] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [annotationText, setAnnotationText] = useState("");
+  const annotationInputRef = useRef<HTMLInputElement>(null);
 
   const updatePosition = useCallback(() => {
     const ta = textareaRef.current;
@@ -94,11 +100,118 @@ export default function SelectionToolbar({ textareaRef, content, setContent }: S
     return () => ta.removeEventListener("scroll", onScroll);
   }, [textareaRef]);
 
-  if (!visible) return null;
+  // 꼬마글씨 모드 진입
+  const handleAnnotationClick = () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    setAnnotationRange({ start: ta.selectionStart, end: ta.selectionEnd });
+    setAnnotationText("");
+    setAnnotationMode(true);
+    // autoFocus after render
+    requestAnimationFrame(() => {
+      annotationInputRef.current?.focus();
+    });
+  };
+
+  // 꼬마글씨 확인
+  const handleAnnotationConfirm = () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const { start, end } = annotationRange;
+    const selected = content.substring(start, end);
+    const before = "{{";
+    const after = `|${annotationText}}}`;
+    const newContent =
+      content.substring(0, start) + before + selected + after + content.substring(end);
+    setContent(newContent);
+
+    setAnnotationMode(false);
+    setVisible(false);
+
+    // 커서를 설명 텍스트 위치에 배치 (선택 상태로)
+    requestAnimationFrame(() => {
+      const annotationStart = start + before.length + selected.length + 1; // +1 for |
+      const annotationEnd = annotationStart + annotationText.length;
+      ta.selectionStart = annotationStart;
+      ta.selectionEnd = annotationEnd;
+      ta.focus();
+    });
+  };
+
+  // 꼬마글씨 취소
+  const handleAnnotationCancel = () => {
+    setAnnotationMode(false);
+    setAnnotationText("");
+  };
+
+  // Enter/Escape 키 처리
+  const handleAnnotationKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAnnotationConfirm();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      handleAnnotationCancel();
+    }
+  };
+
+  if (!visible && !annotationMode) return null;
 
   const ta = textareaRef.current;
   if (!ta) return null;
 
+  // 꼬마글씨 입력 모드 UI
+  if (annotationMode) {
+    const selectedText = content.substring(annotationRange.start, annotationRange.end);
+    return (
+      <div
+        className="absolute z-50 flex items-center gap-2 bg-white rounded-lg shadow-lg border border-gray-300 px-3 py-2"
+        style={{ top: position.top, left: position.left }}
+      >
+        {/* 좌측: 선택된 원문 텍스트 (수정 불가) */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] font-medium text-gray-400 shrink-0">원문</span>
+          <span className="text-sm text-gray-800 bg-gray-100 px-2 py-1 rounded max-w-[160px] truncate font-mono">
+            {selectedText}
+          </span>
+        </div>
+        {/* 구분선 */}
+        <div className="w-px h-6 bg-gray-300 shrink-0" />
+        {/* 우측: 설명 입력창 */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-medium text-gray-400 shrink-0">설명</span>
+          <input
+            ref={annotationInputRef}
+            type="text"
+            value={annotationText}
+            onChange={(e) => setAnnotationText(e.target.value)}
+            onKeyDown={handleAnnotationKeyDown}
+            placeholder="부연 설명 입력..."
+            className="w-40 text-sm px-2 py-1 border border-gray-300 rounded bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+          />
+        </div>
+        {/* 확인/취소 버튼 */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={handleAnnotationConfirm}
+            title="확인"
+            className="p-1.5 rounded hover:bg-green-50 text-green-600"
+          >
+            <Check size={14} />
+          </button>
+          <button
+            onClick={handleAnnotationCancel}
+            title="취소"
+            className="p-1.5 rounded hover:bg-red-50 text-red-500"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 기본 선택 툴바 UI
   return (
     <div
       className="absolute z-50 flex items-center gap-0.5 bg-white rounded-lg shadow-lg border border-gray-200 px-1 py-1"
@@ -119,7 +232,7 @@ export default function SelectionToolbar({ textareaRef, content, setContent }: S
         <Underline size={14} />
       </button>
       <button
-        onClick={() => wrapSelection(ta, content, setContent, "{{", "|설명}}")}
+        onClick={handleAnnotationClick}
         title="꼬마글씨"
         className="p-1.5 rounded hover:bg-gray-100 text-gray-600 flex items-center gap-0.5 text-xs font-medium text-gray-600"
       >
