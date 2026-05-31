@@ -6,6 +6,7 @@ export const LineStartSymbol = {
   SQUARE: "SQUARE",
   DASH: "DASH",
   BULLET: "BULLET",
+  CONTENT_BRACKET: "CONTENT_BRACKET",
 } as const;
 
 export type LineStartSymbol = (typeof LineStartSymbol)[keyof typeof LineStartSymbol];
@@ -18,6 +19,7 @@ export const ALL_SYMBOLS: LineStartSymbol[] = [
   LineStartSymbol.SQUARE,
   LineStartSymbol.DASH,
   LineStartSymbol.BULLET,
+  LineStartSymbol.CONTENT_BRACKET,
 ];
 
 /** 드롭다운 등 UI에 표시할 대표 문자열 */
@@ -37,7 +39,14 @@ export function getSymbolDisplay(symbol: LineStartSymbol): string {
       return "-";
     case LineStartSymbol.BULLET:
       return "•";
+    case LineStartSymbol.CONTENT_BRACKET:
+      return "【】";
   }
+}
+
+/** 【】괄호 기호인지 여부 — 선택 시 헤딩 텍스트가 괄호 안에 들어감 */
+export function isContentBracket(symbol: LineStartSymbol): boolean {
+  return symbol === LineStartSymbol.CONTENT_BRACKET;
 }
 
 /** 자동 카운터가 적용되는 기호인지 여부 */

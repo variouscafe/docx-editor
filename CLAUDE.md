@@ -42,6 +42,7 @@ React-based web service supporting DOCX preview and export with TipTap markdown 
   | `SQUARE` | `□` | X | □ (고정) |
   | `DASH` | `-` | X | - (고정) |
   | `BULLET` | `•` | X | • (고정) |
+  | `CONTENT_BRACKET` | `【내용】` | X | 【내용】 (고정) |
 - 좌측 패널 상단에 각 헤딩(H1~H4)별 드롭다운으로 시작 기호 선택
 - 서로 다른 헤딩에 같은 시작 기호 중복 선택 불가
 - 우측 JSON 패널에 선택된 enum 문자열이 설정되고 실시간 반영

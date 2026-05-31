@@ -23,7 +23,7 @@ function App() {
       {/* Main 3-panel layout */}
       <main className="flex flex-1 overflow-hidden min-w-[1440px]">
         {/* Left panel - Editor */}
-        <div className="flex-shrink-0 border-r border-gray-200 overflow-hidden flex flex-col" style={{ width: 420 }}>
+        <div className="flex-shrink-0 border-r border-gray-200 overflow-hidden flex flex-col" style={{ width: 560 }}>
           <HeadingSymbolSelector options={options} onOptionsChange={setOptions} />
           <AnnotationModeSelector options={options} onOptionsChange={setOptions} />
           <TipTapEditor onContentChange={setEditorHtml} options={options} />

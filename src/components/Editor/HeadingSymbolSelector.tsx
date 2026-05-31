@@ -49,7 +49,7 @@ export default function HeadingSymbolSelector({
   };
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 bg-gray-50">
+    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 border-b border-gray-200 bg-gray-50">
       <span className="text-xs font-medium text-gray-500 mr-1">시작기호</span>
       {HEADING_KEYS.map((key) => {
         const usedSymbols = getUsedSymbols(key);

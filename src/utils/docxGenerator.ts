@@ -12,6 +12,7 @@ import {
   resolveCounter,
   getSymbolDisplay,
   isCounterSymbol,
+  isContentBracket,
 } from "../types/lineStartSymbol";
 import { LineStartSymbol } from "../types/lineStartSymbol";
 
@@ -151,81 +152,91 @@ export async function exportToDocx(
 
     if (tag === "h1") {
       counters.h1++;
-      const symbolText = `${resolveCounter(options.h1.lineStartSymbol, counters.h1)} `;
-      children.push(
-        new Paragraph({
-          heading: HeadingLevel.HEADING_1,
-          spacing: { after: options.h1.paragraphSpacing * 20 },
-          alignment,
-          border: buildParagraphBorder(runs),
-          children: [
-            new TextRun({
-              text: symbolText,
-              size: options.h1.fontSize * 2,
-              bold: options.h1.bold,
-              font,
-              color: "000000",
-            }),
-            ...runs.map((r) =>
+      if (isContentBracket(options.h1.lineStartSymbol)) {
+        const textContent = el.textContent || "";
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            spacing: { after: options.h1.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
               new TextRun({
-                text: r.text,
-                bold: options.h1.bold,
+                text: `【${textContent}】`,
                 size: options.h1.fontSize * 2,
+                bold: options.h1.bold,
                 font,
                 color: "000000",
-                italics: r.italics,
-                underline: r.underline ? {} : undefined,
-              })
-            ),
-          ],
-        })
-      );
+              }),
+            ],
+          })
+        );
+      } else {
+        const symbolText = `${resolveCounter(options.h1.lineStartSymbol, counters.h1)} `;
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            spacing: { after: options.h1.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({
+                text: symbolText,
+                size: options.h1.fontSize * 2,
+                bold: options.h1.bold,
+                font,
+                color: "000000",
+              }),
+              ...runs.map((r) =>
+                new TextRun({
+                  text: r.text,
+                  bold: options.h1.bold,
+                  size: options.h1.fontSize * 2,
+                  font,
+                  color: "000000",
+                  italics: r.italics,
+                  underline: r.underline ? {} : undefined,
+                })
+              ),
+            ],
+          })
+        );
+      }
     } else if (tag === "h2") {
       const symbol: LineStartSymbol = options.h2.lineStartSymbol;
-      const symbolText = isCounterSymbol(symbol)
-        ? `${resolveCounter(symbol, ++counters.h2)}`
-        : getSymbolDisplay(symbol);
-      const prefix =
-        " ".repeat(getEffectiveLeadingSpaces(options.h2.lineStartSymbol, options.h2.leadingSpaces)) + `${symbolText} `;
-      children.push(
-        new Paragraph({
-          heading: HeadingLevel.HEADING_2,
-          spacing: { after: options.h2.paragraphSpacing * 20 },
-          alignment,
-          border: buildParagraphBorder(runs),
-          children: [
-            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
-            ...runs.map((r) =>
+      if (isContentBracket(symbol)) {
+        const textContent = el.textContent || "";
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_2,
+            spacing: { after: options.h2.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
               new TextRun({
-                text: r.text,
-                bold: r.bold,
-                italics: r.italics,
-                underline: r.underline ? {} : undefined,
+                text: `【${textContent}】`,
                 font,
                 color: "000000",
                 size: commonSize,
-              })
-            ),
-          ],
-        })
-      );
-    } else if (tag === "h3") {
-      const symbol: LineStartSymbol = options.h3.lineStartSymbol;
-      const symbolText = isCounterSymbol(symbol)
-        ? `${resolveCounter(symbol, ++counters.h3)}`
-        : getSymbolDisplay(symbol);
-      const prefix =
-        " ".repeat(getEffectiveLeadingSpaces(options.h3.lineStartSymbol, options.h3.leadingSpaces)) + `${symbolText} `;
-      children.push(
-        new Paragraph({
-          heading: HeadingLevel.HEADING_3,
-          spacing: { after: options.common.paragraphSpacing * 20 },
-          alignment,
-          border: buildParagraphBorder(runs),
-          children: [
-            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
-            ...runs.map(
-              (r) =>
+              }),
+            ],
+          })
+        );
+      } else {
+        const symbolText = isCounterSymbol(symbol)
+          ? `${resolveCounter(symbol, ++counters.h2)}`
+          : getSymbolDisplay(symbol);
+        const prefix =
+          " ".repeat(getEffectiveLeadingSpaces(options.h2.lineStartSymbol, options.h2.leadingSpaces)) + `${symbolText} `;
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_2,
+            spacing: { after: options.h2.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              ...runs.map((r) =>
                 new TextRun({
                   text: r.text,
                   bold: r.bold,
@@ -235,96 +246,205 @@ export async function exportToDocx(
                   color: "000000",
                   size: commonSize,
                 })
-            ),
-          ],
-        })
-      );
+              ),
+            ],
+          })
+        );
+      }
+    } else if (tag === "h3") {
+      const symbol: LineStartSymbol = options.h3.lineStartSymbol;
+      if (isContentBracket(symbol)) {
+        const textContent = el.textContent || "";
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: { after: options.common.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({
+                text: `【${textContent}】`,
+                font,
+                color: "000000",
+                size: commonSize,
+              }),
+            ],
+          })
+        );
+      } else {
+        const symbolText = isCounterSymbol(symbol)
+          ? `${resolveCounter(symbol, ++counters.h3)}`
+          : getSymbolDisplay(symbol);
+        const prefix =
+          " ".repeat(getEffectiveLeadingSpaces(options.h3.lineStartSymbol, options.h3.leadingSpaces)) + `${symbolText} `;
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: { after: options.common.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              ...runs.map(
+                (r) =>
+                  new TextRun({
+                    text: r.text,
+                    bold: r.bold,
+                    italics: r.italics,
+                    underline: r.underline ? {} : undefined,
+                    font,
+                    color: "000000",
+                    size: commonSize,
+                  })
+              ),
+            ],
+          })
+        );
+      }
     } else if (tag === "h4") {
       const symbol: LineStartSymbol = options.h4.lineStartSymbol;
-      const symbolText = isCounterSymbol(symbol)
-        ? `${resolveCounter(symbol, ++counters.h4)}`
-        : getSymbolDisplay(symbol);
-      const prefix =
-        " ".repeat(getEffectiveLeadingSpaces(options.h4.lineStartSymbol, options.h4.leadingSpaces)) + `${symbolText} `;
       const textContent = el.textContent || "";
       const isSingleLine = !textContent.includes("\n");
       const spacing = isSingleLine
         ? options.h4.singleLineSpacing
         : options.h4.secondLineSpacing;
-      children.push(
-        new Paragraph({
-          heading: HeadingLevel.HEADING_4,
-          spacing: { after: spacing * 20 },
-          alignment,
-          border: buildParagraphBorder(runs),
-          children: [
-            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
-            ...runs.map(
-              (r) =>
-                new TextRun({
-                  text: r.text,
-                  bold: r.bold,
-                  italics: r.italics,
-                  underline: r.underline ? {} : undefined,
-                  font,
-                  color: "000000",
-                  size: commonSize,
-                })
-            ),
-          ],
-        })
-      );
+      if (isContentBracket(symbol)) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_4,
+            spacing: { after: spacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({
+                text: `【${textContent}】`,
+                font,
+                color: "000000",
+                size: commonSize,
+              }),
+            ],
+          })
+        );
+      } else {
+        const symbolText = isCounterSymbol(symbol)
+          ? `${resolveCounter(symbol, ++counters.h4)}`
+          : getSymbolDisplay(symbol);
+        const prefix =
+          " ".repeat(getEffectiveLeadingSpaces(options.h4.lineStartSymbol, options.h4.leadingSpaces)) + `${symbolText} `;
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_4,
+            spacing: { after: spacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              ...runs.map(
+                (r) =>
+                  new TextRun({
+                    text: r.text,
+                    bold: r.bold,
+                    italics: r.italics,
+                    underline: r.underline ? {} : undefined,
+                    font,
+                    color: "000000",
+                    size: commonSize,
+                  })
+              ),
+            ],
+          })
+        );
+      }
     } else if (tag === "h5") {
       const symbol: LineStartSymbol = options.h5.lineStartSymbol;
-      const symbolText = isCounterSymbol(symbol)
-        ? `${resolveCounter(symbol, ++counters.h5)}`
-        : getSymbolDisplay(symbol);
-      const prefix =
-        " ".repeat(getEffectiveLeadingSpaces(options.h5.lineStartSymbol, options.h5.leadingSpaces)) + `${symbolText} `;
-      children.push(
-        new Paragraph({
-          heading: HeadingLevel.HEADING_5,
-          spacing: { after: options.common.paragraphSpacing * 20 },
-          alignment,
-          border: buildParagraphBorder(runs),
-          children: [
-            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
-            ...runs.map(
-              (r) =>
-                new TextRun({
-                  text: r.text,
-                  bold: r.bold,
-                  italics: r.italics,
-                  underline: r.underline ? {} : undefined,
-                  font,
-                  color: "000000",
-                  size: commonSize,
-                })
-            ),
-          ],
-        })
-      );
+      if (isContentBracket(symbol)) {
+        const textContent = el.textContent || "";
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_5,
+            spacing: { after: options.common.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({
+                text: `【${textContent}】`,
+                font,
+                color: "000000",
+                size: commonSize,
+              }),
+            ],
+          })
+        );
+      } else {
+        const symbolText = isCounterSymbol(symbol)
+          ? `${resolveCounter(symbol, ++counters.h5)}`
+          : getSymbolDisplay(symbol);
+        const prefix =
+          " ".repeat(getEffectiveLeadingSpaces(options.h5.lineStartSymbol, options.h5.leadingSpaces)) + `${symbolText} `;
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_5,
+            spacing: { after: options.common.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              ...runs.map(
+                (r) =>
+                  new TextRun({
+                    text: r.text,
+                    bold: r.bold,
+                    italics: r.italics,
+                    underline: r.underline ? {} : undefined,
+                    font,
+                    color: "000000",
+                    size: commonSize,
+                  })
+              ),
+            ],
+          })
+        );
+      }
     } else if (tag === "h6") {
       const symbol: LineStartSymbol = options.h6.lineStartSymbol;
-      const symbolText = isCounterSymbol(symbol)
-        ? `${resolveCounter(symbol, ++counters.h6)}`
-        : getSymbolDisplay(symbol);
-      const prefix =
-        " ".repeat(getEffectiveLeadingSpaces(options.h6.lineStartSymbol, options.h6.leadingSpaces)) + `${symbolText} `;
-      children.push(
-        new Paragraph({
-          heading: HeadingLevel.HEADING_6,
-          spacing: { after: options.common.paragraphSpacing * 20 },
-          alignment,
-          border: buildParagraphBorder(runs),
-          children: [
-            new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
-            ...runs.map(
-              (r) =>
-                new TextRun({
-                  text: r.text,
-                  bold: r.bold,
-                  italics: r.italics,
+      if (isContentBracket(symbol)) {
+        const textContent = el.textContent || "";
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_6,
+            spacing: { after: options.common.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({
+                text: `【${textContent}】`,
+                font,
+                color: "000000",
+                size: commonSize,
+              }),
+            ],
+          })
+        );
+      } else {
+        const symbolText = isCounterSymbol(symbol)
+          ? `${resolveCounter(symbol, ++counters.h6)}`
+          : getSymbolDisplay(symbol);
+        const prefix =
+          " ".repeat(getEffectiveLeadingSpaces(options.h6.lineStartSymbol, options.h6.leadingSpaces)) + `${symbolText} `;
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_6,
+            spacing: { after: options.common.paragraphSpacing * 20 },
+            alignment,
+            border: buildParagraphBorder(runs),
+            children: [
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize }),
+              ...runs.map(
+                (r) =>
+                  new TextRun({
+                    text: r.text,
+                    bold: r.bold,
+                    italics: r.italics,
                   underline: r.underline ? {} : undefined,
                   font,
                   color: "000000",
@@ -334,6 +454,7 @@ export async function exportToDocx(
           ],
         })
       );
+      }
     } else if (tag === "p") {
       const paraChildren = buildAnnotationChildren(runs, font, commonSize);
       children.push(

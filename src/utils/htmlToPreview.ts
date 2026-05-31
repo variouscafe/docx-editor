@@ -3,6 +3,7 @@ import {
   resolveCounter,
   getSymbolDisplay,
   isCounterSymbol,
+  isContentBracket,
   LineStartSymbol,
 } from "../types/lineStartSymbol";
 
@@ -67,7 +68,13 @@ export function applyOptionsToHtml(html: string, options: DocxOptions): string {
       const configuredSpaces = "leadingSpaces" in headingOpts ? headingOpts.leadingSpaces : 0;
       const leadingSpaces = " ".repeat(getEffectiveLeadingSpaces(symbol, configuredSpaces));
 
-      if (isCounterSymbol(symbol)) {
+      if (isContentBracket(symbol)) {
+        const text = el.textContent || "";
+        while (el.firstChild) el.removeChild(el.firstChild);
+        el.appendChild(
+          el.ownerDocument.createTextNode(`${leadingSpaces}【${text}】`)
+        );
+      } else if (isCounterSymbol(symbol)) {
         counters[key]++;
         const prefix = `${leadingSpaces}${resolveCounter(symbol, counters[key])} `;
         prependText(el, prefix);
