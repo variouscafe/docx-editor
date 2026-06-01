@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useCallback, useRef, type RefObject } from "react";
 import { Bold, Underline, Type, Check, X } from "lucide-react";
 

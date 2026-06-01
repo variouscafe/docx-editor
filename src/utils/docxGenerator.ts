@@ -80,7 +80,7 @@ export async function exportToDocx(
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   const body = doc.body;
-  const children: Paragraph[] = [];
+  const children: (Paragraph | Table)[] = [];
   const counters: Record<string, number> = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
 
   const font = options.common.fontFamily.split(",")[0].trim().replace(/'/g, "");

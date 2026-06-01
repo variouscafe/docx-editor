@@ -1,3 +1,4 @@
+"use client";
 import type { DocxOptions } from "../../types/options";
 
 interface AnnotationModeSelectorProps {

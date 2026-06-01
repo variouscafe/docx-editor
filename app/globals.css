@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 1440px;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f3f4f6;
+  overflow-x: auto;
+}
+
+/* TipTap editor styles */
+.tiptap {
+  outline: none;
+  min-height: 100%;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: Batang, BatangChe, 바탕, 바탕체, 'Batang Che', AppleMyungjo, 'Nanum Myeongjo', serif;
+}
+
+.tiptap p {
+  margin: 0 0 8px;
+}
+
+.tiptap h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 16px 0 8px;
+}
+
+.tiptap h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.tiptap h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.tiptap h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.tiptap h5 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.tiptap h6 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+/* Box border marks */
+.tiptap [data-border="solid"] {
+  display: block;
+  border: 1.5px solid #333;
+  padding: 12px 16px;
+  margin: 8px 0;
+  border-radius: 2px;
+}
+
+.tiptap [data-border="dashed"] {
+  display: block;
+  border: 1.5px dashed #666;
+  padding: 12px 16px;
+  margin: 8px 0;
+  border-radius: 2px;
+}
+
+/* Highlight marks */
+.tiptap mark {
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.tiptap mark[data-color="#fef08a"] {
+  background-color: #fef08a;
+}
+
+.tiptap mark[data-color="#bbf7d0"] {
+  background-color: #bbf7d0;
+}
+
+.tiptap mark[data-color="#bfdbfe"] {
+  background-color: #bfdbfe;
+}
+
+.tiptap mark[data-color="#fecaca"] {
+  background-color: #fecaca;
+}
+
+.tiptap mark[data-color="#e9d5ff"] {
+  background-color: #e9d5ff;
+}

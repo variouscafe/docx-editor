@@ -1,3 +1,4 @@
+"use client";
 import { useState, useRef, useCallback } from "react";
 import EditorToolbar from "./EditorToolbar";
 import SelectionToolbar from "./SelectionToolbar";
