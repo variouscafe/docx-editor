@@ -10,6 +10,7 @@ import {
   TableRow,
   TableCell,
   WidthType,
+  ShadingType,
 } from "docx";
 import type { DocxOptions } from "../types/options";
 import {
@@ -99,6 +100,7 @@ export async function exportToDocx(
         font: parentFont,
         size: parentSize,
         color: "000000",
+        shading: getShading(r),
       }));
     }
     return result;
@@ -275,6 +277,7 @@ export async function exportToDocx(
                   color: "000000",
                   italics: r.italics,
                   underline: r.underline ? {} : undefined,
+                  shading: getShading(r),
                 })
               ),
             ],
@@ -321,6 +324,7 @@ export async function exportToDocx(
                   bold: isBoldSymbol(symbol) || r.bold,
                   italics: r.italics,
                   underline: r.underline ? {} : undefined,
+                  shading: getShading(r),
                   font,
                   color: "000000",
                   size: commonSize,
@@ -371,6 +375,7 @@ export async function exportToDocx(
                     bold: isBoldSymbol(symbol) || r.bold,
                     italics: r.italics,
                     underline: r.underline ? {} : undefined,
+                  shading: getShading(r),
                     font,
                     color: "000000",
                     size: commonSize,
@@ -425,6 +430,7 @@ export async function exportToDocx(
                     bold: isBoldSymbol(symbol) || r.bold,
                     italics: r.italics,
                     underline: r.underline ? {} : undefined,
+                  shading: getShading(r),
                     font,
                     color: "000000",
                     size: commonSize,
@@ -475,6 +481,7 @@ export async function exportToDocx(
                     bold: isBoldSymbol(symbol) || r.bold,
                     italics: r.italics,
                     underline: r.underline ? {} : undefined,
+                  shading: getShading(r),
                     font,
                     color: "000000",
                     size: commonSize,
@@ -525,6 +532,7 @@ export async function exportToDocx(
                     bold: isBoldSymbol(symbol) || r.bold,
                     italics: r.italics,
                   underline: r.underline ? {} : undefined,
+                  shading: getShading(r),
                   font,
                   color: "000000",
                   size: commonSize,
@@ -561,6 +569,7 @@ export async function exportToDocx(
             bold: r.bold,
             italics: r.italics,
             underline: r.underline ? {} : undefined,
+                  shading: getShading(r),
             font,
             size: commonSize,
           })
@@ -668,6 +677,7 @@ interface RunData {
   border?: { style: typeof BorderStyle.SINGLE | typeof BorderStyle.DASHED; color: string };
   annotation?: string;
   coreSummary?: boolean;
+  highlight?: string; // hex color for mark/shading
 }
 
 function buildTextRuns(el: Element): RunData[] {
@@ -692,6 +702,10 @@ function buildTextRuns(el: Element): RunData[] {
     if (tag === "strong" || tag === "b") newStyles.bold = true;
     if (tag === "em" || tag === "i") newStyles.italics = true;
     if (tag === "u") newStyles.underline = true;
+    if (tag === "mark") {
+      const color = htmlEl.getAttribute("data-color") || "#fef08a";
+      newStyles.highlight = color;
+    }
 
     const border = htmlEl.getAttribute("data-border");
     if (border === "solid") {
@@ -716,4 +730,14 @@ function buildTextRuns(el: Element): RunData[] {
 
   walk(el);
   return runs;
+}
+
+/** RunData의 highlight 속성을 docx TextRun용 shading 객체로 변환 */
+function getShading(r: RunData): { type: typeof ShadingType.SOLID; color: string; fill: string } | undefined {
+  if (!r.highlight) return undefined;
+  return {
+    type: ShadingType.SOLID,
+    color: "auto",
+    fill: r.highlight.replace("#", "").toUpperCase(),
+  };
 }
