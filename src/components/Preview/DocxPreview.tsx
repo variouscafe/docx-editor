@@ -36,8 +36,33 @@ export default function DocxPreview({
 }: DocxPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [selectedElement, setSelectedElement] = useState<HTMLElement | null>(null);
   const onContentChangeRef = useRef(onContentChange);
   onContentChangeRef.current = onContentChange;
+
+  // Click handler for paragraph/heading selection
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (editable) return; // Don't interfere with editing
+    const target = e.target as HTMLElement;
+    const block = target.closest('h1, h2, h3, h4, h5, h6, p, div[data-title]');
+    if (block && block.parentElement?.classList.contains('ProseMirror')) {
+      setSelectedElement(block as HTMLElement);
+    } else {
+      setSelectedElement(null);
+    }
+  }, [editable]);
+
+  // Clear selection when clicking outside the preview
+  useEffect(() => {
+    if (editable) return;
+    const handleGlobalClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setSelectedElement(null);
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, [editable]);
 
   const previewHtml = useMemo(
     () => applyOptionsToHtml(html, options),
@@ -113,6 +138,17 @@ export default function DocxPreview({
     return () => window.removeEventListener("resize", calcScale);
   }, [calcScale]);
 
+  // Highlight selected element
+  useEffect(() => {
+    // Remove previous selection highlight
+    const prev = document.querySelector('.preview-block-selected');
+    if (prev) prev.classList.remove('preview-block-selected');
+    // Apply to current selection
+    if (selectedElement) {
+      selectedElement.classList.add('preview-block-selected');
+    }
+  }, [selectedElement]);
+
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar for editable mode */}
@@ -123,6 +159,7 @@ export default function DocxPreview({
       <div
         ref={containerRef}
         className="flex-1 overflow-auto"
+        onClick={handleClick}
         style={{
           backgroundColor: "#9ca3af",
         }}
@@ -306,7 +343,7 @@ function getPreviewStyles(options: DocxOptions): string {
       color: #ffffff;
     }
 
-    /* 문단 호버 시 연한 파란색 배경 */
+    /* 문단 호버 시 연한 파란색 박스 */
     .rm-with-pagination .ProseMirror > h1:hover,
     .rm-with-pagination .ProseMirror > h2:hover,
     .rm-with-pagination .ProseMirror > h3:hover,
@@ -314,8 +351,20 @@ function getPreviewStyles(options: DocxOptions): string {
     .rm-with-pagination .ProseMirror > h5:hover,
     .rm-with-pagination .ProseMirror > h6:hover,
     .rm-with-pagination .ProseMirror > p:hover,
-    .rm-with-pagination .ProseMirror > div:hover {
-      background-color: rgba(59, 130, 246, 0.06);
+    .rm-with-pagination .ProseMirror > div[data-title]:hover {
+      background-color: rgba(59, 130, 246, 0.08);
+      outline: 1px solid rgba(59, 130, 246, 0.2);
+      outline-offset: -1px;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    /* 클릭 선택 시 파란색 박스 */
+    .rm-with-pagination .ProseMirror > .preview-block-selected,
+    .rm-with-pagination .ProseMirror > .preview-block-selected:hover {
+      background-color: rgba(59, 130, 246, 0.12);
+      outline: 2px solid rgba(59, 130, 246, 0.4);
+      outline-offset: -1px;
       border-radius: 2px;
     }
 
