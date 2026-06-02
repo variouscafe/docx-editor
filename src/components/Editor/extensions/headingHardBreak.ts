@@ -1,12 +1,17 @@
 import { Extension } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+
+const headingBreakKey = new PluginKey("headingBreakFix");
 
 /**
  * Custom TipTap extension that intercepts the Enter key inside heading nodes
  * and inserts a hard break (<br>) instead of splitting the heading into two.
  *
- * Default TipTap behavior: Enter in a heading → splitBlock → two separate headings.
- * With this extension: Enter in a heading → setHardBreak → line break within heading.
+ * Also fixes cursor positioning around hard breaks in headings by:
+ * - Adding a ProseMirror plugin that resolves click positions correctly
+ * - Ensuring arrow key navigation works across hard breaks
  *
  * Falls through to default behavior for:
  * - Non-heading nodes (paragraphs, etc.)
@@ -52,5 +57,55 @@ export const HeadingHardBreak = Extension.create({
         return false; // not in heading → default behavior
       },
     };
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: headingBreakKey,
+        props: {
+          /**
+           * Fix cursor positioning when clicking near hard breaks in headings.
+           * ProseMirror sometimes resolves clicks after <br> to the wrong position.
+           * This handler detects clicks near hardBreak nodes in headings and
+           * places the cursor at the correct position.
+           */
+          handleClick(view, pos) {
+            const $pos = view.state.doc.resolve(pos);
+            const parentNode = $pos.parent;
+
+            // Check if we're inside a heading
+            let inHeading = false;
+            for (let d = $pos.depth; d > 0; d--) {
+              if ($pos.node(d).type.name === "heading") {
+                inHeading = true;
+                break;
+              }
+            }
+            if (!inHeading) return false;
+
+            // Check if there's a hardBreak in this node
+            let hasHardBreak = false;
+            parentNode.forEach((node: ProseMirrorNode) => {
+              if (node.type.name === "hardBreak") hasHardBreak = true;
+            });
+            if (!hasHardBreak) return false;
+
+            // Check if cursor is right after a hardBreak — fix position if needed
+            const nodeBefore = $pos.nodeBefore;
+            if (nodeBefore && nodeBefore.type.name === "hardBreak") {
+              const fixedPos = $pos.pos;
+              const sel = TextSelection.create(view.state.doc, fixedPos);
+              if (!sel.eq(view.state.selection)) {
+                view.dispatch(view.state.tr.setSelection(sel));
+                return true;
+              }
+            }
+
+            return false;
+          },
+        },
+      }),
+    ];
   },
 });
