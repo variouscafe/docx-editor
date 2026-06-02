@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -14,6 +14,7 @@ import { CoreSummaryExtension } from "./extensions/coreSummary";
 import { TitleExtension } from "./extensions/title";
 import { HeadingHardBreak } from "./extensions/headingHardBreak";
 import RichTextToolbar from "./RichTextToolbar";
+import { applyOptionsToHtml, stripPreviewTransforms } from "../../utils/htmlToPreview";
 import type { DocxOptions } from "../../types/options";
 
 interface RichTextEditorProps {
@@ -25,9 +26,19 @@ interface RichTextEditorProps {
 export default function RichTextEditor({
   html,
   onHtmlChange,
+  options,
 }: RichTextEditorProps) {
   const onHtmlChangeRef = useRef(onHtmlChange);
   onHtmlChangeRef.current = onHtmlChange;
+
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  // Apply options (line-start symbols, etc.) to HTML before displaying
+  const displayHtml = useMemo(
+    () => applyOptionsToHtml(html, options),
+    [html, options]
+  );
 
   const editor = useEditor({
     extensions: [
@@ -50,18 +61,21 @@ export default function RichTextEditor({
       TableHeader,
     ],
     editable: true,
-    content: html,
+    content: displayHtml,
     onUpdate: ({ editor: e }) => {
-      onHtmlChangeRef.current(e.getHTML());
+      // Strip preview transforms (symbols, bold wrapping) before propagating
+      const editedHtml = e.getHTML();
+      const cleanHtml = stripPreviewTransforms(editedHtml, optionsRef.current);
+      onHtmlChangeRef.current(cleanHtml);
     },
   });
 
   // Sync content when html prop changes externally (e.g., tab switch)
   useEffect(() => {
-    if (editor && html !== editor.getHTML()) {
-      editor.commands.setContent(html);
+    if (editor && displayHtml !== editor.getHTML()) {
+      editor.commands.setContent(displayHtml);
     }
-  }, [editor, html]);
+  }, [editor, displayHtml]);
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -185,6 +199,41 @@ export default function RichTextEditor({
         }
         .tiptap-editor-content .ProseMirror li {
           margin-bottom: 4px;
+        }
+        .tiptap-editor-content .ProseMirror table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 8px 0;
+        }
+        .tiptap-editor-content .ProseMirror table td,
+        .tiptap-editor-content .ProseMirror table th {
+          border: 1px solid #333;
+          padding: 6px 10px;
+          text-align: left;
+          vertical-align: top;
+          min-width: 50px;
+          position: relative;
+        }
+        .tiptap-editor-content .ProseMirror table th {
+          background-color: #f3f4f6;
+          font-weight: 600;
+        }
+        .tiptap-editor-content .ProseMirror table .selectedCell::after {
+          z-index: 2;
+          position: absolute;
+          content: "";
+          left: 0; right: 0; top: 0; bottom: 0;
+          background: rgba(59, 130, 246, 0.15);
+          pointer-events: none;
+        }
+        .tiptap-editor-content .ProseMirror table .column-resize-handle {
+          position: absolute;
+          right: -2px;
+          top: 0;
+          bottom: -2px;
+          width: 4px;
+          background-color: #3b82f6;
+          pointer-events: none;
         }
       `}</style>
     </div>
