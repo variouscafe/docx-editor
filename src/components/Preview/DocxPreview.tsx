@@ -10,7 +10,8 @@ import { HighlightExtension } from "../Editor/extensions/highlightColors";
 import { AnnotationExtension } from "../Editor/extensions/annotation";
 import { CoreSummaryExtension } from "../Editor/extensions/coreSummary";
 import { TitleExtension } from "../Editor/extensions/title";
-import { applyOptionsToHtml } from "../../utils/htmlToPreview";
+import RichTextToolbar from "../Editor/RichTextToolbar";
+import { applyOptionsToHtml, stripPreviewTransforms } from "../../utils/htmlToPreview";
 import type { DocxOptions } from "../../types/options";
 
 const A4_WIDTH = PAGE_SIZES.A4.pageWidth;
@@ -19,15 +20,24 @@ const A4_HEIGHT = PAGE_SIZES.A4.pageHeight;
 interface DocxPreviewProps {
   html: string;
   options: DocxOptions;
+  editable?: boolean;
+  onContentChange?: (cleanHtml: string) => void;
 }
 
-export default function DocxPreview({ html, options }: DocxPreviewProps) {
+export default function DocxPreview({
+  html,
+  options,
+  editable = false,
+  onContentChange,
+}: DocxPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const onContentChangeRef = useRef(onContentChange);
+  onContentChangeRef.current = onContentChange;
 
   const previewHtml = useMemo(
     () => applyOptionsToHtml(html, options),
-    [html, options]
+    [html, options],
   );
 
   const editor = useEditor({
@@ -57,9 +67,23 @@ export default function DocxPreview({ html, options }: DocxPreviewProps) {
         footerRight: "{page}",
       }),
     ],
-    editable: false,
+    editable,
     content: previewHtml,
+    onUpdate: ({ editor: e }) => {
+      if (onContentChangeRef.current) {
+        const editedHtml = e.getHTML();
+        const cleanHtml = stripPreviewTransforms(editedHtml, options);
+        onContentChangeRef.current(cleanHtml);
+      }
+    },
   });
+
+  // Update editable state dynamically
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(editable);
+    }
+  }, [editor, editable]);
 
   useEffect(() => {
     if (editor && previewHtml !== editor.getHTML()) {
@@ -81,26 +105,33 @@ export default function DocxPreview({ html, options }: DocxPreviewProps) {
   }, [calcScale]);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full overflow-auto"
-      style={{
-        backgroundColor: "#9ca3af",
-      }}
-    >
-      <style>{getPreviewStyles(options)}</style>
+    <div className="h-full flex flex-col">
+      {/* Toolbar for editable mode */}
+      {editable && (
+        <RichTextToolbar editor={editor} />
+      )}
+      {/* Preview area */}
       <div
+        ref={containerRef}
+        className="flex-1 overflow-auto"
         style={{
-          transform: `scale(${scale})`,
-          transformOrigin: "top center",
-          minHeight: "100%",
-          display: "flex",
-          justifyContent: "center",
-          paddingTop: 20,
-          paddingBottom: 20,
+          backgroundColor: "#9ca3af",
         }}
       >
-        <EditorContent editor={editor} />
+        <style>{getPreviewStyles(options)}</style>
+        <div
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: "top center",
+            minHeight: "100%",
+            display: "flex",
+            justifyContent: "center",
+            paddingTop: 20,
+            paddingBottom: 20,
+          }}
+        >
+          <EditorContent editor={editor} />
+        </div>
       </div>
     </div>
   );
@@ -118,6 +149,10 @@ function getPreviewStyles(options: DocxOptions): string {
       overflow-wrap: break-word;
       line-height: 1.6;
       font-family: ${options.common.fontFamily};
+    }
+
+    .rm-with-pagination .ProseMirror:focus {
+      outline: none;
     }
 
     .rm-with-pagination .rm-pagination-gap {

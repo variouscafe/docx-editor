@@ -1,16 +1,16 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import EditorToolbar from "./EditorToolbar";
 import SelectionToolbar from "./SelectionToolbar";
-import { markdownToHtml } from "../../utils/markdownToHtml";
 import type { DocxOptions } from "../../types/options";
 
 interface TipTapEditorProps {
-  onContentChange: (html: string) => void;
+  value: string;
+  onChange: (md: string) => void;
   options: DocxOptions;
 }
 
-const INITIAL_MARKDOWN = `# DOCX Editor
+export const INITIAL_MARKDOWN = `# DOCX Editor
 
 이 에디터에서 문서를 작성하세요. 텍스트를 선택하여 ++네모 박스++나 ~~점선 박스~~를 적용할 수 있습니다.
 
@@ -37,51 +37,40 @@ H5 헤딩 내용입니다.
 H6 헤딩 내용입니다.
 `;
 
-export default function TipTapEditor({ onContentChange }: TipTapEditorProps) {
+export default function TipTapEditor({ value, onChange }: TipTapEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [content, setContent] = useState(INITIAL_MARKDOWN);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const md = e.target.value;
-      setContent(md);
-      onContentChange(markdownToHtml(md));
+      onChange(e.target.value);
     },
-    [onContentChange],
+    [onChange],
   );
 
   /** Toolbar-driven content update */
   const setContentFromToolbar = useCallback(
     (newContent: string) => {
-      setContent(newContent);
-      onContentChange(markdownToHtml(newContent));
+      onChange(newContent);
     },
-    [onContentChange],
+    [onChange],
   );
-
-  // Emit initial HTML on mount
-  const initialized = useRef(false);
-  if (!initialized.current) {
-    initialized.current = true;
-    onContentChange(markdownToHtml(INITIAL_MARKDOWN));
-  }
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200 overflow-hidden">
       <EditorToolbar
         textareaRef={textareaRef}
-        content={content}
+        content={value}
         setContent={setContentFromToolbar}
       />
       <div className="flex-1 overflow-y-auto relative">
         <SelectionToolbar
           textareaRef={textareaRef}
-          content={content}
+          content={value}
           setContent={setContentFromToolbar}
         />
         <textarea
           ref={textareaRef}
-          value={content}
+          value={value}
           onChange={handleChange}
           className="w-full h-full resize-none p-4 font-mono text-sm leading-relaxed text-gray-900 outline-none border-none"
           spellCheck={false}

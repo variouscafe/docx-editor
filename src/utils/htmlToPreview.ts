@@ -105,3 +105,118 @@ function prependText(el: Element, text: string) {
     el.insertBefore(textNode, firstChild);
   }
 }
+
+/**
+ * Reverse the transforms applied by applyOptionsToHtml.
+ * Strips line-start symbols, bold wrapping, content brackets, and annotation mode 2 paragraphs
+ * so that the HTML can be used as clean editorHtml again.
+ */
+export function stripPreviewTransforms(html: string, options: DocxOptions): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  const body = doc.body;
+
+  // 1. Reverse annotation mode 2: remove annotation paragraphs
+  //    (We can't restore the inline position, so we just remove them)
+  if (options.annotationMode === 2) {
+    const paras = body.querySelectorAll("[data-annotation-paragraph]");
+    for (const p of Array.from(paras)) {
+      p.remove();
+    }
+  }
+
+  // 2. Strip line-start symbols from headings
+  for (const el of Array.from(body.children)) {
+    const tag = el.tagName.toLowerCase();
+    const key = TAG_TO_KEY[tag];
+    if (!key) continue;
+
+    const headingOpts = options[key];
+    const symbol = headingOpts.lineStartSymbol;
+
+    if (isContentBracket(symbol)) {
+      // Reverse: 【text】 → text
+      const text = el.textContent || "";
+      const stripped = text.replace(/^[·\s]*【(.+)】$/, "$1").trim();
+      while (el.firstChild) el.removeChild(el.firstChild);
+      el.appendChild(el.ownerDocument.createTextNode(stripped));
+    } else {
+      const configuredSpaces = "leadingSpaces" in headingOpts ? headingOpts.leadingSpaces : 0;
+      const leadingCount = getEffectiveLeadingSpaces(symbol, configuredSpaces);
+
+      if (isBoldSymbol(symbol)) {
+        // Reverse: unwrap <strong> first, then strip symbol prefix
+        const strongs = el.querySelectorAll("strong");
+        for (const s of Array.from(strongs)) {
+          const parent = s.parentNode;
+          if (!parent) continue;
+          while (s.firstChild) parent.insertBefore(s.firstChild, s);
+          parent.removeChild(s);
+        }
+      }
+
+      // Strip leading NBSP + symbol text + space
+      stripSymbolPrefix(el, symbol, leadingCount);
+    }
+  }
+
+  return body.innerHTML;
+}
+
+/**
+ * Strip the symbol prefix from a heading element.
+ * Handles patterns like: "    1. " or " □ " etc.
+ */
+function stripSymbolPrefix(el: Element, symbol: LineStartSymbol, leadingCount: number): void {
+  // Get the leading text (NBSPs + symbol + space)
+  const leadingNbsp = " ".repeat(leadingCount);
+
+  let pattern: RegExp;
+  switch (symbol) {
+    case LineStartSymbol.NUMBER_DOT:
+      pattern = new RegExp(`^${escapeRegExp(leadingNbsp)}\\d+\\.\\s*`);
+      break;
+    case LineStartSymbol.NUMBER_PAREN:
+      pattern = new RegExp(`^${escapeRegExp(leadingNbsp)}\\d+\\)\\s*`);
+      break;
+    case LineStartSymbol.ROMAN:
+      // Unicode roman Ⅰ-Ⅻ or ASCII I, II, III, IV, etc.
+      pattern = new RegExp(`^${escapeRegExp(leadingNbsp)}[\\u2160-\\u216BIVX]+\\s*`);
+      break;
+    case LineStartSymbol.CIRCLED:
+      // Unicode ①-⑳ or (n)
+      pattern = new RegExp(`^${escapeRegExp(leadingNbsp)}[\\u2460-\\u2473\\(\\d\\)]+\\s*`);
+      break;
+    case LineStartSymbol.SQUARE:
+      pattern = new RegExp(`^${escapeRegExp(leadingNbsp)}□\\s*`);
+      break;
+    case LineStartSymbol.DASH:
+      pattern = new RegExp(`^${escapeRegExp(leadingNbsp)}-\\s*`);
+      break;
+    case LineStartSymbol.BULLET:
+      pattern = new RegExp(`^${escapeRegExp(leadingNbsp)}•\\s*`);
+      break;
+    default:
+      return;
+  }
+
+  // Try to strip from the first text node
+  const firstChild = el.firstChild;
+  if (firstChild && firstChild.nodeType === Node.TEXT_NODE) {
+    const text = firstChild.textContent || "";
+    firstChild.textContent = text.replace(pattern, "");
+  } else if (firstChild) {
+    // Symbol might be inside the first child element
+    // Try walking to find the first text node
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const firstTextNode = walker.nextNode() as Text | null;
+    if (firstTextNode) {
+      const text = firstTextNode.textContent || "";
+      firstTextNode.textContent = text.replace(pattern, "");
+    }
+  }
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
