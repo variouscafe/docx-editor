@@ -6,12 +6,31 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 const headingBreakKey = new PluginKey("headingBreakFix");
 
 /**
+ * Insert a hard break at the given position and place the cursor after it.
+ * Uses a raw transaction for full control over cursor positioning.
+ */
+function insertHardBreakWithCursor(editor: any, from: number): boolean {
+  const { tr, schema } = editor.state;
+  const hardBreak = schema.nodes.hardBreak;
+  if (!hardBreak) return false;
+
+  const brNode = hardBreak.create();
+  tr.insert(from, brNode);
+
+  // Cursor goes right after the hardBreak node
+  const cursorPos = from + brNode.nodeSize;
+  tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+  tr.scrollIntoView();
+  editor.view.dispatch(tr);
+  return true;
+}
+
+/**
  * Custom TipTap extension that intercepts the Enter key inside heading nodes
  * and inserts a hard break (<br>) instead of splitting the heading into two.
  *
- * Also fixes cursor positioning around hard breaks in headings by:
- * - Adding a ProseMirror plugin that resolves click positions correctly
- * - Ensuring arrow key navigation works across hard breaks
+ * All cases use raw transactions with explicit cursor positioning to prevent
+ * the cursor from jumping to unexpected positions.
  *
  * Falls through to default behavior for:
  * - Non-heading nodes (paragraphs, etc.)
@@ -33,25 +52,8 @@ export const HeadingHardBreak = Extension.create({
             if (headingNode.content.size === 0) {
               return false;
             }
-            // Cursor at the very start of heading text:
-            // Use a raw transaction to insert hard break and explicitly control
-            // cursor position, preventing the cursor from jumping to the bottom.
-            if ($from.parentOffset === 0) {
-              const { tr, schema } = editor.state;
-              const hardBreak = schema.nodes.hardBreak;
-              if (!hardBreak) return false;
-              const pos = $from.pos;
-              const brNode = hardBreak.create();
-              tr.insert(pos, brNode);
-              tr.setSelection(
-                TextSelection.create(tr.doc, pos + brNode.nodeSize)
-              );
-              tr.scrollIntoView();
-              editor.view.dispatch(tr);
-              return true;
-            }
-            // Cursor in the middle or at the end of heading text
-            return editor.commands.setHardBreak();
+            // All positions: insert hardBreak via raw transaction with explicit cursor
+            return insertHardBreakWithCursor(editor, $from.pos);
           }
         }
         return false; // not in heading → default behavior
