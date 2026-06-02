@@ -9,6 +9,7 @@ import { HighlightExtension } from "./extensions/highlightColors";
 import { AnnotationExtension } from "./extensions/annotation";
 import { CoreSummaryExtension } from "./extensions/coreSummary";
 import { TitleExtension } from "./extensions/title";
+import { HeadingHardBreak } from "./extensions/headingHardBreak";
 import RichTextToolbar from "./RichTextToolbar";
 import type { DocxOptions } from "../../types/options";
 
@@ -39,6 +40,7 @@ export default function RichTextEditor({
       AnnotationExtension,
       CoreSummaryExtension,
       TitleExtension,
+      HeadingHardBreak,
     ],
     editable: true,
     content: html,

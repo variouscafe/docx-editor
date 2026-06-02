@@ -33,6 +33,50 @@ function getEffectiveLeadingSpaces(
   return configuredSpaces;
 }
 
+/**
+ * Get text content from an element, preserving <br> tags as newline characters.
+ * Unlike el.textContent which drops <br> entirely, this function converts
+ * <br> to \n so that line breaks are preserved in content bracket wrapping.
+ */
+function getTextContentWithBreaks(el: Element): string {
+  let text = '';
+  for (const child of Array.from(el.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      text += child.textContent || '';
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      const tag = (child as Element).tagName.toLowerCase();
+      if (tag === 'br') {
+        text += '\n';
+      } else {
+        text += getTextContentWithBreaks(child as Element);
+      }
+    }
+  }
+  return text;
+}
+
+/** Build TextRun objects from RunData[], handling break runs */
+function runsToTextRuns(
+  runs: RunData[],
+  baseOpts: { font: string; size: number; bold?: boolean; color?: string; italics?: boolean; underline?: {} | undefined; shading?: ReturnType<typeof getShading> }
+): TextRun[] {
+  return runs.map(r => {
+    if (r.break) {
+      return new TextRun({ break: 1, font: baseOpts.font, size: baseOpts.size });
+    }
+    return new TextRun({
+      text: r.text,
+      bold: baseOpts.bold || r.bold,
+      italics: baseOpts.italics || r.italics,
+      underline: baseOpts.underline ? {} : r.underline ? {} : undefined,
+      font: baseOpts.font,
+      size: baseOpts.size,
+      color: baseOpts.color || "000000",
+      shading: r.highlight ? getShading(r) : baseOpts.shading,
+    });
+  });
+}
+
 /** HTML 요소에서 text-align 추출 → docx AlignmentType 매핑 */
 function getAlignment(el: Element): typeof AlignmentType[keyof typeof AlignmentType] | undefined {
   // Check the element itself first
@@ -92,16 +136,20 @@ export async function exportToDocx(
 
     // Both modes: render main text normally (annotation handled separately)
     for (const r of runs) {
-      result.push(new TextRun({
-        text: r.text,
-        bold: r.bold,
-        italics: r.italics,
-        underline: r.underline ? {} : undefined,
-        font: parentFont,
-        size: parentSize,
-        color: "000000",
-        shading: getShading(r),
-      }));
+      if (r.break) {
+        result.push(new TextRun({ break: 1, font: parentFont, size: parentSize }));
+      } else {
+        result.push(new TextRun({
+          text: r.text,
+          bold: r.bold,
+          italics: r.italics,
+          underline: r.underline ? {} : undefined,
+          font: parentFont,
+          size: parentSize,
+          color: "000000",
+          shading: getShading(r),
+        }));
+      }
     }
     return result;
   }
@@ -234,7 +282,7 @@ export async function exportToDocx(
     } else if (tag === "h1") {
       counters.h1++;
       if (isContentBracket(options.h1.lineStartSymbol)) {
-        const textContent = el.textContent || "";
+        const textContent = getTextContentWithBreaks(el);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_1,
@@ -254,6 +302,7 @@ export async function exportToDocx(
         );
       } else {
         const symbolText = `${resolveCounter(options.h1.lineStartSymbol, counters.h1)} `;
+        const h1Bold = options.h1.bold || isBoldSymbol(options.h1.lineStartSymbol);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_1,
@@ -264,22 +313,11 @@ export async function exportToDocx(
               new TextRun({
                 text: symbolText,
                 size: options.h1.fontSize * 2,
-                bold: options.h1.bold || isBoldSymbol(options.h1.lineStartSymbol),
+                bold: h1Bold,
                 font,
                 color: "000000",
               }),
-              ...runs.map((r) =>
-                new TextRun({
-                  text: r.text,
-                  bold: options.h1.bold || isBoldSymbol(options.h1.lineStartSymbol),
-                  size: options.h1.fontSize * 2,
-                  font,
-                  color: "000000",
-                  italics: r.italics,
-                  underline: r.underline ? {} : undefined,
-                  shading: getShading(r),
-                })
-              ),
+              ...runsToTextRuns(runs, { font, size: options.h1.fontSize * 2, bold: h1Bold, color: "000000" }),
             ],
           })
         );
@@ -287,7 +325,7 @@ export async function exportToDocx(
     } else if (tag === "h2") {
       const symbol: LineStartSymbol = options.h2.lineStartSymbol;
       if (isContentBracket(symbol)) {
-        const textContent = el.textContent || "";
+        const textContent = getTextContentWithBreaks(el);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_2,
@@ -310,6 +348,7 @@ export async function exportToDocx(
           : getSymbolDisplay(symbol);
         const prefix =
           " ".repeat(getEffectiveLeadingSpaces(options.h2.lineStartSymbol, options.h2.leadingSpaces)) + `${symbolText} `;
+        const h2Bold = isBoldSymbol(symbol);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_2,
@@ -317,19 +356,8 @@ export async function exportToDocx(
             alignment,
             border: buildParagraphBorder(runs),
             children: [
-              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
-              ...runs.map((r) =>
-                new TextRun({
-                  text: r.text,
-                  bold: isBoldSymbol(symbol) || r.bold,
-                  italics: r.italics,
-                  underline: r.underline ? {} : undefined,
-                  shading: getShading(r),
-                  font,
-                  color: "000000",
-                  size: commonSize,
-                })
-              ),
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: h2Bold }),
+              ...runsToTextRuns(runs, { font, size: commonSize, bold: h2Bold, color: "000000" }),
             ],
           })
         );
@@ -337,7 +365,7 @@ export async function exportToDocx(
     } else if (tag === "h3") {
       const symbol: LineStartSymbol = options.h3.lineStartSymbol;
       if (isContentBracket(symbol)) {
-        const textContent = el.textContent || "";
+        const textContent = getTextContentWithBreaks(el);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
@@ -360,6 +388,7 @@ export async function exportToDocx(
           : getSymbolDisplay(symbol);
         const prefix =
           " ".repeat(getEffectiveLeadingSpaces(options.h3.lineStartSymbol, options.h3.leadingSpaces)) + `${symbolText} `;
+        const h3Bold = isBoldSymbol(symbol);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
@@ -367,20 +396,8 @@ export async function exportToDocx(
             alignment,
             border: buildParagraphBorder(runs),
             children: [
-              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
-              ...runs.map(
-                (r) =>
-                  new TextRun({
-                    text: r.text,
-                    bold: isBoldSymbol(symbol) || r.bold,
-                    italics: r.italics,
-                    underline: r.underline ? {} : undefined,
-                  shading: getShading(r),
-                    font,
-                    color: "000000",
-                    size: commonSize,
-                  })
-              ),
+              new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: h3Bold }),
+              ...runsToTextRuns(runs, { font, size: commonSize, bold: h3Bold, color: "000000" }),
             ],
           })
         );
@@ -388,11 +405,13 @@ export async function exportToDocx(
     } else if (tag === "h4") {
       const symbol: LineStartSymbol = options.h4.lineStartSymbol;
       const textContent = el.textContent || "";
-      const isSingleLine = !textContent.includes("\n");
+      const hasBreak = el.querySelectorAll("br").length > 0;
+      const isSingleLine = !textContent.includes("\n") && !hasBreak;
       const spacing = isSingleLine
         ? options.h4.singleLineSpacing
         : options.h4.secondLineSpacing;
       if (isContentBracket(symbol)) {
+        const textWithBreaks = getTextContentWithBreaks(el);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_4,
@@ -401,7 +420,7 @@ export async function exportToDocx(
             border: buildParagraphBorder(runs),
             children: [
               new TextRun({
-                text: `【${textContent}】`,
+                text: `【${textWithBreaks}】`,
                 font,
                 color: "000000",
                 size: commonSize,
@@ -423,19 +442,7 @@ export async function exportToDocx(
             border: buildParagraphBorder(runs),
             children: [
               new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
-              ...runs.map(
-                (r) =>
-                  new TextRun({
-                    text: r.text,
-                    bold: isBoldSymbol(symbol) || r.bold,
-                    italics: r.italics,
-                    underline: r.underline ? {} : undefined,
-                  shading: getShading(r),
-                    font,
-                    color: "000000",
-                    size: commonSize,
-                  })
-              ),
+              ...runsToTextRuns(runs, { font, size: commonSize, bold: isBoldSymbol(symbol), color: "000000" }),
             ],
           })
         );
@@ -443,7 +450,7 @@ export async function exportToDocx(
     } else if (tag === "h5") {
       const symbol: LineStartSymbol = options.h5.lineStartSymbol;
       if (isContentBracket(symbol)) {
-        const textContent = el.textContent || "";
+        const textContent = getTextContentWithBreaks(el);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_5,
@@ -474,19 +481,7 @@ export async function exportToDocx(
             border: buildParagraphBorder(runs),
             children: [
               new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
-              ...runs.map(
-                (r) =>
-                  new TextRun({
-                    text: r.text,
-                    bold: isBoldSymbol(symbol) || r.bold,
-                    italics: r.italics,
-                    underline: r.underline ? {} : undefined,
-                  shading: getShading(r),
-                    font,
-                    color: "000000",
-                    size: commonSize,
-                  })
-              ),
+              ...runsToTextRuns(runs, { font, size: commonSize, bold: isBoldSymbol(symbol), color: "000000" }),
             ],
           })
         );
@@ -494,7 +489,7 @@ export async function exportToDocx(
     } else if (tag === "h6") {
       const symbol: LineStartSymbol = options.h6.lineStartSymbol;
       if (isContentBracket(symbol)) {
-        const textContent = el.textContent || "";
+        const textContent = getTextContentWithBreaks(el);
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_6,
@@ -525,22 +520,10 @@ export async function exportToDocx(
             border: buildParagraphBorder(runs),
             children: [
               new TextRun({ text: prefix, font, color: "000000", size: commonSize, bold: isBoldSymbol(symbol) }),
-              ...runs.map(
-                (r) =>
-                  new TextRun({
-                    text: r.text,
-                    bold: isBoldSymbol(symbol) || r.bold,
-                    italics: r.italics,
-                  underline: r.underline ? {} : undefined,
-                  shading: getShading(r),
-                  font,
-                  color: "000000",
-                  size: commonSize,
-                })
-            ),
-          ],
-        })
-      );
+              ...runsToTextRuns(runs, { font, size: commonSize, bold: isBoldSymbol(symbol), color: "000000" }),
+            ],
+          })
+        );
       }
     } else if (tag === "p") {
       // 핵심요약: [data-core-summary] 감지 시 3셀 테이블로 export
@@ -563,16 +546,20 @@ export async function exportToDocx(
       }
     } else {
       const textRuns = runs.map(
-        (r) =>
-          new TextRun({
+        (r) => {
+          if (r.break) {
+            return new TextRun({ break: 1, font, size: commonSize });
+          }
+          return new TextRun({
             text: r.text,
             bold: r.bold,
             italics: r.italics,
             underline: r.underline ? {} : undefined,
-                  shading: getShading(r),
+            shading: getShading(r),
             font,
             size: commonSize,
-          })
+          });
+        }
       );
       children.push(
         new Paragraph({
@@ -678,6 +665,7 @@ interface RunData {
   annotation?: string;
   coreSummary?: boolean;
   highlight?: string; // hex color for mark/shading
+  break?: boolean; // line break within a paragraph
 }
 
 function buildTextRuns(el: Element): RunData[] {
@@ -699,6 +687,10 @@ function buildTextRuns(el: Element): RunData[] {
     const newStyles = { ...styles };
 
     const tag = htmlEl.tagName.toLowerCase();
+    if (tag === "br") {
+      runs.push({ text: "", break: true, ...styles } as RunData);
+      return;
+    }
     if (tag === "strong" || tag === "b") newStyles.bold = true;
     if (tag === "em" || tag === "i") newStyles.italics = true;
     if (tag === "u") newStyles.underline = true;

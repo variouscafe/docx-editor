@@ -155,10 +155,59 @@ const titleExtension = {
   },
 };
 
+/**
+ * Pre-process markdown to merge heading continuation lines.
+ * When a heading line is followed by non-blank, non-block lines
+ * (no blank line between them), they are merged into the same heading
+ * using %%BR%% as a line-break placeholder.
+ *
+ * Example:
+ *   ### heading
+ *      continuation text
+ * becomes:
+ *   ### heading%%BR%%   continuation text
+ */
+function preprocessMarkdown(md: string): string {
+  const lines = md.split('\n');
+  const result: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Check if this line is a heading
+    if (/^#{1,6}\s/.test(line)) {
+      result.push(line);
+
+      // Look ahead for continuation lines (no blank line between)
+      while (i + 1 < lines.length) {
+        const nextLine = lines[i + 1];
+
+        // Stop conditions
+        if (nextLine.trim() === '') break;                    // blank line
+        if (/^#{1,6}\s/.test(nextLine)) break;                // another heading
+        if (/^!\s/.test(nextLine)) break;                     // title
+        if (/^[-*+]\s/.test(nextLine)) break;                 // unordered list
+        if (/^\d+[.)]\s/.test(nextLine)) break;               // ordered list
+        if (/^---+$/.test(nextLine.trim())) break;            // horizontal rule
+        if (/^\*\*\*+$/.test(nextLine.trim())) break;         // horizontal rule
+        if (/^___+$/.test(nextLine.trim())) break;            // horizontal rule
+
+        // Merge with %%BR%% separator
+        i++;
+        result[result.length - 1] += '%%BR%%' + nextLine;
+      }
+    } else {
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
+}
+
 // Create a configured Marked instance with custom extensions
 const markedInstance = new Marked({
   gfm: true,
-  breaks: false,
+  breaks: true,
   extensions: [
     annotationExtension,
     highlightExtension,
@@ -176,9 +225,13 @@ const markedInstance = new Marked({
  * Line-end alignment: ` >>` = right, ` <>` = center, ` <<` = left
  */
 export function markdownToHtml(md: string): string {
-  const result = markedInstance.parse(md, { async: false });
-  const html = typeof result === "string" ? result : "";
-  return applyAlignmentMarkers(html);
+  const preprocessed = preprocessMarkdown(md);
+  const result = markedInstance.parse(preprocessed, { async: false });
+  let html = typeof result === "string" ? result : "";
+  html = applyAlignmentMarkers(html);
+  html = html.replace(/%%BR%%/g, '<br>');
+  html = preserveSpacesInHtml(html);
+  return html;
 }
 
 /**
@@ -206,4 +259,38 @@ function applyAlignmentMarkers(html: string): string {
     '<$1$2 style="text-align: left">$3</$1>'
   );
   return html;
+}
+
+/**
+ * Post-process HTML to preserve spaces by converting them to non-breaking spaces.
+ * HTML rendering collapses multiple consecutive spaces into a single space.
+ * This function walks all text nodes and converts:
+ * - Leading spaces (at the start of a text node) to NBSP
+ * - Sequences of 2+ consecutive spaces to NBSP
+ */
+function preserveSpacesInHtml(html: string): string {
+  if (typeof DOMParser === 'undefined') return html;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const body = doc.body;
+
+  const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (node.textContent) {
+      textNodes.push(node);
+    }
+  }
+
+  for (const node of textNodes) {
+    let text = node.textContent || '';
+    // Convert leading spaces to NBSP
+    text = text.replace(/^ +/, spaces => ' '.repeat(spaces.length));
+    // Convert sequences of 2+ spaces to NBSP
+    text = text.replace(/ {2,}/g, spaces => ' '.repeat(spaces.length));
+    node.textContent = text;
+  }
+
+  return body.innerHTML;
 }

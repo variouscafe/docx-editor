@@ -45,7 +45,7 @@ function alignMarker(align: string | null): string {
  */
 function walk(node: Node, indent: number = 0): string {
   if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent || "";
+    return (node.textContent || "").replace(/ /g, " ");
   }
 
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
@@ -135,7 +135,7 @@ function collectInline(el: Element): string {
  */
 function walkInline(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent || "";
+    return (node.textContent || "").replace(/ /g, " ");
   }
 
   if (node.nodeType !== Node.ELEMENT_NODE) return "";

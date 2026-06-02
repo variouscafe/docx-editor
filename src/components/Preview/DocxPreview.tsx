@@ -10,6 +10,7 @@ import { HighlightExtension } from "../Editor/extensions/highlightColors";
 import { AnnotationExtension } from "../Editor/extensions/annotation";
 import { CoreSummaryExtension } from "../Editor/extensions/coreSummary";
 import { TitleExtension } from "../Editor/extensions/title";
+import { HeadingHardBreak } from "../Editor/extensions/headingHardBreak";
 import RichTextToolbar from "../Editor/RichTextToolbar";
 import { applyOptionsToHtml, stripPreviewTransforms } from "../../utils/htmlToPreview";
 import type { DocxOptions } from "../../types/options";
@@ -54,6 +55,7 @@ export default function DocxPreview({
       AnnotationExtension,
       CoreSummaryExtension,
       TitleExtension,
+      HeadingHardBreak,
       PaginationPlus.configure({
         pageHeight: A4_HEIGHT,
         pageWidth: A4_WIDTH,

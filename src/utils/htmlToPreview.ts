@@ -24,6 +24,28 @@ function getEffectiveLeadingSpaces(
   return configuredSpaces;
 }
 
+/**
+ * Get text content from an element, preserving <br> tags as newline characters.
+ * Unlike el.textContent which drops <br> entirely, this function converts
+ * <br> to \n so that line breaks are not lost during content bracket wrapping.
+ */
+function getTextContentWithBreaks(el: Element): string {
+  let text = '';
+  for (const child of Array.from(el.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      text += child.textContent || '';
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      const tag = (child as Element).tagName.toLowerCase();
+      if (tag === 'br') {
+        text += '\n';
+      } else {
+        text += getTextContentWithBreaks(child as Element);
+      }
+    }
+  }
+  return text;
+}
+
 export function applyOptionsToHtml(html: string, options: DocxOptions): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
@@ -70,11 +92,15 @@ export function applyOptionsToHtml(html: string, options: DocxOptions): string {
       const leadingSpaces = " ".repeat(getEffectiveLeadingSpaces(symbol, configuredSpaces));
 
       if (isContentBracket(symbol)) {
-        const text = el.textContent || "";
+        const text = getTextContentWithBreaks(el);
         while (el.firstChild) el.removeChild(el.firstChild);
-        el.appendChild(
-          el.ownerDocument.createTextNode(`${leadingSpaces}【${text}】`)
-        );
+        // Convert \n back to <br> within the bracketed content
+        const bracketContent = `${leadingSpaces}【${text}】`;
+        const lines = bracketContent.split('\n');
+        for (let li = 0; li < lines.length; li++) {
+          if (li > 0) el.appendChild(el.ownerDocument.createElement('br'));
+          el.appendChild(el.ownerDocument.createTextNode(lines[li]));
+        }
       } else {
         const symbolText = isCounterSymbol(symbol)
           ? resolveCounter(symbol, ++counters[key])
@@ -135,11 +161,16 @@ export function stripPreviewTransforms(html: string, options: DocxOptions): stri
     const symbol = headingOpts.lineStartSymbol;
 
     if (isContentBracket(symbol)) {
-      // Reverse: 【text】 → text
-      const text = el.textContent || "";
+      // Reverse: 【text】 → text (preserve <br> line breaks)
+      const text = getTextContentWithBreaks(el);
       const stripped = text.replace(/^[·\s]*【(.+)】$/, "$1").trim();
       while (el.firstChild) el.removeChild(el.firstChild);
-      el.appendChild(el.ownerDocument.createTextNode(stripped));
+      // Convert \n back to <br> within the stripped content
+      const lines = stripped.split('\n');
+      for (let li = 0; li < lines.length; li++) {
+        if (li > 0) el.appendChild(el.ownerDocument.createElement('br'));
+        el.appendChild(el.ownerDocument.createTextNode(lines[li]));
+      }
     } else {
       const configuredSpaces = "leadingSpaces" in headingOpts ? headingOpts.leadingSpaces : 0;
       const leadingCount = getEffectiveLeadingSpaces(symbol, configuredSpaces);
