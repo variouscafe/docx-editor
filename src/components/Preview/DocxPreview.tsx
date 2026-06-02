@@ -149,7 +149,7 @@ function getPreviewStyles(options: DocxOptions): string {
       word-break: keep-all;
       overflow-wrap: break-word;
       line-height: 1.6;
-      font-family: ${options.common.fontFamily};
+      font-family: ${options.common.fontFamily} !important;
     }
 
     .rm-with-pagination .ProseMirror:focus {
@@ -253,7 +253,7 @@ function getPreviewStyles(options: DocxOptions): string {
     /* 꼬마글씨 Mode 2: block paragraph — handled by htmlToPreview transformation */
     .rm-with-pagination [data-annotation-paragraph] {
       font-size: ${options.annotation2.fontSize}pt;
-      font-family: ${options.common.fontFamily};
+      font-family: ${options.common.fontFamily} !important;
       margin-bottom: ${options.annotation2.paragraphSpacing}pt;
       color: ${options.common.fontFamily === options.annotation1.fontFamily ? '#333' : '#333'};
     }
