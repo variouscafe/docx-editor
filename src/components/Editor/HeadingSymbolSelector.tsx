@@ -1,4 +1,3 @@
-"use client";
 import type { DocxOptions } from "../../types/options";
 import {
   LineStartSymbol,

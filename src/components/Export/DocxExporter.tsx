@@ -1,4 +1,3 @@
-"use client";
 import { Download } from "lucide-react";
 import type { DocxOptions } from "../../types/options";
 import { exportToDocx } from "../../utils/docxGenerator";

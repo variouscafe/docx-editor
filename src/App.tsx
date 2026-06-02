@@ -1,25 +1,20 @@
-"use client";
-
-import dynamic from "next/dynamic";
 import { useState, useCallback } from "react";
 import type { DocxOptions } from "@/types/options";
 import { defaultOptions } from "@/types/options";
 import { markdownToHtml } from "@/utils/markdownToHtml";
 import { htmlToMarkdown } from "@/utils/htmlToMarkdown";
 import { INITIAL_MARKDOWN } from "@/components/Editor/TipTapEditor";
-
-// 모든 컴포넌트를 SSR 없이 클라이언트 전용으로 로드 (DOMParser 등 브라우저 API 사용)
-const TipTapEditor = dynamic(() => import("@/components/Editor/TipTapEditor"), { ssr: false });
-const RichTextEditor = dynamic(() => import("@/components/Editor/RichTextEditor"), { ssr: false });
-const HeadingSymbolSelector = dynamic(() => import("@/components/Editor/HeadingSymbolSelector"), { ssr: false });
-const AnnotationModeSelector = dynamic(() => import("@/components/Editor/AnnotationModeSelector"), { ssr: false });
-const DocxPreview = dynamic(() => import("@/components/Preview/DocxPreview"), { ssr: false });
-const OptionsPanel = dynamic(() => import("@/components/Options/OptionsPanel"), { ssr: false });
-const DocxExporter = dynamic(() => import("@/components/Export/DocxExporter"), { ssr: false });
+import TipTapEditor from "@/components/Editor/TipTapEditor";
+import RichTextEditor from "@/components/Editor/RichTextEditor";
+import HeadingSymbolSelector from "@/components/Editor/HeadingSymbolSelector";
+import AnnotationModeSelector from "@/components/Editor/AnnotationModeSelector";
+import DocxPreview from "@/components/Preview/DocxPreview";
+import OptionsPanel from "@/components/Options/OptionsPanel";
+import DocxExporter from "@/components/Export/DocxExporter";
 
 type EditorTab = "text" | "editor";
 
-export default function Home() {
+export default function App() {
   const [activeTab, setActiveTab] = useState<EditorTab>("text");
   const [markdownContent, setMarkdownContent] = useState(INITIAL_MARKDOWN);
   const [editorHtml, setEditorHtml] = useState(() => markdownToHtml(INITIAL_MARKDOWN));
