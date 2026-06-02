@@ -69,7 +69,7 @@ export default function RichTextEditor({
           padding: 16px;
           min-height: 100%;
           outline: none;
-          font-family: Batang, BatangChe, "Noto Serif KR", serif;
+          font-family: Batang, BatangChe, 바탕, 바탕체, 'Batang Che', 'Nanum Myeongjo', AppleMyungjo, serif;
           font-size: 14px;
           line-height: 1.6;
           color: #111827;

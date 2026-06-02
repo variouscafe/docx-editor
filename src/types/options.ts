@@ -83,7 +83,7 @@ export const defaultOptions: DocxOptions = {
   common: {
     fontSize: 14,
     paragraphSpacing: 12,
-    fontFamily: "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', AppleMyungjo, 'Nanum Myeongjo', serif",
+    fontFamily: "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', 'Nanum Myeongjo', AppleMyungjo, serif",
     marginTop: 2,
     marginBottom: 2,
     marginLeft: 2,
@@ -127,7 +127,7 @@ export const defaultOptions: DocxOptions = {
   },
   annotation1: {
     fontSize: 10,
-    fontFamily: "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', AppleMyungjo, 'Nanum Myeongjo', serif",
+    fontFamily: "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', 'Nanum Myeongjo', AppleMyungjo, serif",
     color: "#0000FF",
   },
   annotation2: {
