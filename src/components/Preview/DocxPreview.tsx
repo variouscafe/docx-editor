@@ -3,6 +3,10 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
 import { PaginationPlus, PAGE_SIZES } from "tiptap-pagination-plus";
 import { BoxBorder } from "../Editor/extensions/boxBorder";
 import { HighlightExtension } from "../Editor/extensions/highlightColors";
@@ -55,6 +59,10 @@ export default function DocxPreview({
       CoreSummaryExtension,
       TitleExtension,
       HeadingHardBreak,
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
       PaginationPlus.configure({
         pageHeight: A4_HEIGHT,
         pageWidth: A4_WIDTH,
@@ -309,6 +317,44 @@ function getPreviewStyles(options: DocxOptions): string {
     .rm-with-pagination .ProseMirror > div:hover {
       background-color: rgba(59, 130, 246, 0.06);
       border-radius: 2px;
+    }
+
+    /* 표 스타일 */
+    .rm-with-pagination table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 8px 0;
+      font-family: ${options.common.fontFamily} !important;
+    }
+    .rm-with-pagination table td,
+    .rm-with-pagination table th {
+      border: 1px solid #333;
+      padding: 6px 10px;
+      text-align: left;
+      vertical-align: top;
+      min-width: 50px;
+      position: relative;
+    }
+    .rm-with-pagination table th {
+      background-color: #f3f4f6;
+      font-weight: 600;
+    }
+    .rm-with-pagination table .selectedCell::after {
+      z-index: 2;
+      position: absolute;
+      content: "";
+      left: 0; right: 0; top: 0; bottom: 0;
+      background: rgba(59, 130, 246, 0.15);
+      pointer-events: none;
+    }
+    .rm-with-pagination table .column-resize-handle {
+      position: absolute;
+      right: -2px;
+      top: 0;
+      bottom: -2px;
+      width: 4px;
+      background-color: #3b82f6;
+      pointer-events: none;
     }
   `;
 }

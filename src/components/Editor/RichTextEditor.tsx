@@ -3,6 +3,10 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
 import { BoxBorder } from "./extensions/boxBorder";
 import { HighlightExtension } from "./extensions/highlightColors";
 import { AnnotationExtension } from "./extensions/annotation";
@@ -40,6 +44,10 @@ export default function RichTextEditor({
       CoreSummaryExtension,
       TitleExtension,
       HeadingHardBreak,
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
     ],
     editable: true,
     content: html,
