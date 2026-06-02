@@ -287,5 +287,28 @@ function getPreviewStyles(options: DocxOptions): string {
       height: 2px;
       background: linear-gradient(to right, #333 12px, transparent 12px, transparent calc(100% - 12px), #333 calc(100% - 12px));
     }
+
+    /* 텍스트 선택 시 파란색 하이라이트 */
+    .rm-with-pagination .ProseMirror ::selection {
+      background: #3b82f6;
+      color: #ffffff;
+    }
+    .rm-with-pagination .ProseMirror::selection {
+      background: #3b82f6;
+      color: #ffffff;
+    }
+
+    /* 문단 호버 시 연한 파란색 배경 */
+    .rm-with-pagination .ProseMirror > h1:hover,
+    .rm-with-pagination .ProseMirror > h2:hover,
+    .rm-with-pagination .ProseMirror > h3:hover,
+    .rm-with-pagination .ProseMirror > h4:hover,
+    .rm-with-pagination .ProseMirror > h5:hover,
+    .rm-with-pagination .ProseMirror > h6:hover,
+    .rm-with-pagination .ProseMirror > p:hover,
+    .rm-with-pagination .ProseMirror > div:hover {
+      background-color: rgba(59, 130, 246, 0.06);
+      border-radius: 2px;
+    }
   `;
 }
