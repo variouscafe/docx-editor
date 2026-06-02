@@ -255,6 +255,23 @@ function getPreviewStyles(options: DocxOptions): string {
       margin-bottom: ${options.common.paragraphSpacing}pt;
     }
 
+    /* 워드 스타일 엔터 기호(¶) 표시 */
+    .rm-with-pagination .ProseMirror > p::after,
+    .rm-with-pagination .ProseMirror > h1::after,
+    .rm-with-pagination .ProseMirror > h2::after,
+    .rm-with-pagination .ProseMirror > h3::after,
+    .rm-with-pagination .ProseMirror > h4::after,
+    .rm-with-pagination .ProseMirror > h5::after,
+    .rm-with-pagination .ProseMirror > h6::after,
+    .rm-with-pagination .ProseMirror > div[data-title]::after {
+      content: "¶";
+      color: #b0b0b0;
+      font-size: 0.75em;
+      margin-left: 1px;
+      pointer-events: none;
+      user-select: none;
+    }
+
     .rm-with-pagination [data-border="solid"] {
       display: block;
       border: 1.5px solid #333;
