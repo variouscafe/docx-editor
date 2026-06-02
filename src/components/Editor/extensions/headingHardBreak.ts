@@ -10,6 +10,7 @@ import { Extension } from "@tiptap/core";
  * Falls through to default behavior for:
  * - Non-heading nodes (paragraphs, etc.)
  * - Empty headings (creates a new paragraph instead)
+ * - Cursor at the very beginning of a heading (splits heading instead)
  */
 export const HeadingHardBreak = Extension.create({
   name: "headingHardBreak",
@@ -22,10 +23,15 @@ export const HeadingHardBreak = Extension.create({
         // Walk up the node tree to find a heading ancestor
         for (let d = $from.depth; d > 0; d--) {
           if ($from.node(d).type.name === "heading") {
-            // If the heading is empty, exit the heading (create a paragraph below)
             const headingNode = $from.node(d);
+            // Empty heading → default splitBlock (creates paragraph)
             if (headingNode.content.size === 0) {
-              return false; // let default splitBlock handle it → creates empty paragraph
+              return false;
+            }
+            // Cursor at the very start of heading text → default splitBlock
+            // (prevents cursor jumping to bottom after setHardBreak at position 0)
+            if ($from.parentOffset === 0) {
+              return false;
             }
             return editor.commands.setHardBreak();
           }
