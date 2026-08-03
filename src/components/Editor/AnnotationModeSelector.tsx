@@ -1,27 +1,43 @@
-import type { DocxOptions } from "../../types/options";
+import type { DocxOptions } from "@shared/options";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AnnotationModeSelectorProps {
   options: DocxOptions;
   onOptionsChange: (options: DocxOptions) => void;
 }
 
-export default function AnnotationModeSelector({ options, onOptionsChange }: AnnotationModeSelectorProps) {
+export default function AnnotationModeSelector({
+  options,
+  onOptionsChange,
+}: AnnotationModeSelectorProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 bg-gray-50">
-      <span className="text-xs text-gray-500 font-medium whitespace-nowrap">꼬마글씨</span>
-      <select
-        className="h-6 px-1.5 text-xs border border-gray-300 rounded bg-white"
-        value={options.annotationMode}
-        onChange={(e) => {
+    <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-1.5">
+      <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+        꼬마글씨
+      </span>
+      <Select
+        value={String(options.annotationMode)}
+        onValueChange={(v) =>
           onOptionsChange({
             ...options,
-            annotationMode: Number(e.target.value) as 1 | 2,
-          });
-        }}
+            annotationMode: Number(v) as 1 | 2,
+          })
+        }
       >
-        <option value={1}>꼬마글씨1 (인라인)</option>
-        <option value={2}>꼬마글씨2 (단락)</option>
-      </select>
+        <SelectTrigger className="h-7 gap-1 px-2 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="1">꼬마글씨1 (인라인)</SelectItem>
+          <SelectItem value="2">꼬마글씨2 (단락)</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 }

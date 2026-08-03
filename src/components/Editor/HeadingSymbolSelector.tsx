@@ -1,9 +1,16 @@
-import type { DocxOptions } from "../../types/options";
+import type { DocxOptions } from "@shared/options";
 import {
   LineStartSymbol,
   ALL_SYMBOLS,
   getSymbolDisplay,
-} from "../../types/lineStartSymbol";
+} from "@shared/lineStartSymbol";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface HeadingSymbolSelectorProps {
   options: DocxOptions;
@@ -37,7 +44,7 @@ export default function HeadingSymbolSelector({
 
   const handleChange = (
     headingKey: "h1" | "h2" | "h3" | "h4" | "h5" | "h6",
-    newSymbol: LineStartSymbol
+    newSymbol: LineStartSymbol,
   ) => {
     onOptionsChange({
       ...options,
@@ -49,35 +56,35 @@ export default function HeadingSymbolSelector({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 border-b border-gray-200 bg-gray-50">
-      <span className="text-xs font-medium text-gray-500 mr-1">시작기호</span>
+    <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-3 py-1.5">
+      <span className="mr-1 text-xs font-medium text-muted-foreground">시작기호</span>
       {HEADING_KEYS.map((key) => {
         const usedSymbols = getUsedSymbols(key);
         const currentSymbol = options[key].lineStartSymbol;
 
         return (
           <div key={key} className="flex items-center gap-1">
-            <label className="text-xs font-semibold text-gray-600">
-              {HEADING_LABELS[key]}:
-            </label>
-            <select
-              className="h-7 px-1.5 text-xs border border-gray-300 rounded bg-white min-w-[48px]"
+            <span className="text-xs font-semibold">{HEADING_LABELS[key]}:</span>
+            <Select
               value={currentSymbol}
-              onChange={(e) =>
-                handleChange(key, e.target.value as LineStartSymbol)
-              }
+              onValueChange={(v) => handleChange(key, v as LineStartSymbol)}
             >
-              {ALL_SYMBOLS.map((symbol) => (
-                <option
-                  key={symbol}
-                  value={symbol}
-                  disabled={usedSymbols.has(symbol)}
-                >
-                  {getSymbolDisplay(symbol)}
-                  {usedSymbols.has(symbol) ? " (사용 중)" : ""}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-7 min-w-[68px] gap-1 px-2 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_SYMBOLS.map((symbol) => (
+                  <SelectItem
+                    key={symbol}
+                    value={symbol}
+                    disabled={usedSymbols.has(symbol)}
+                  >
+                    {getSymbolDisplay(symbol)}
+                    {usedSymbols.has(symbol) ? " (사용 중)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         );
       })}

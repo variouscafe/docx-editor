@@ -26,22 +26,24 @@ function insertHardBreakWithCursor(editor: any, from: number): boolean {
 }
 
 /**
- * Custom TipTap extension that intercepts the Enter key inside heading nodes
- * and inserts a hard break (<br>) instead of splitting the heading into two.
+ * 헤딩 내 강제 줄바꿈(hard break)을 Shift+Enter 로 삽입.
  *
- * All cases use raw transactions with explicit cursor positioning to prevent
- * the cursor from jumping to unexpected positions.
+ * 일반 Enter 는 가로채지 않음 → 기본 splitBlock(새 문단/블록) 동작.
+ * 덕분에 헤딩 다음에 Enter 로 빈 문단(빈 줄)을 만들면 그 위치에서 `### ` 등
+ * 헤딩 input rule 자동 변환이 동작한다(줄 시작이 되므로).
  *
- * Falls through to default behavior for:
- * - Non-heading nodes (paragraphs, etc.)
- * - Empty headings (creates a new paragraph instead)
+ * 헤딩 안에서 같은 헤딩 블록 내 줄바꿈이 필요하면 Shift+Enter.
+ * raw transaction + 명시적 커서 위치로 커서 점프를 방지.
+ *
+ * 빈 헤딩에서는 새 문단 분할이 더 자연스러우므로 기본 동작에 맡김(return false).
+ * 헤딩이 아니면 StarterKit 의 기본 hardBreak(Shift+Enter) 동작으로 전달.
  */
 export const HeadingHardBreak = Extension.create({
   name: "headingHardBreak",
 
   addKeyboardShortcuts() {
     return {
-      Enter: ({ editor }) => {
+      "Shift-Enter": ({ editor }) => {
         const { $from } = editor.state.selection;
 
         // Walk up the node tree to find a heading ancestor
@@ -56,7 +58,7 @@ export const HeadingHardBreak = Extension.create({
             return insertHardBreakWithCursor(editor, $from.pos);
           }
         }
-        return false; // not in heading → default behavior
+        return false; // not in heading → StarterKit 기본 hardBreak 로 전달
       },
     };
   },

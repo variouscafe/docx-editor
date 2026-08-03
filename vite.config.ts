@@ -8,6 +8,12 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@shared": fileURLToPath(new URL("./shared", import.meta.url)),
     },
+  },
+  server: {
+    port: 5173,
+    // 로컬 로그인은 공용 suseona-auth(Pages Function)가 필요 → `wrangler pages dev` 사용.
+    // /api/* 는 절대 VITE_API_URL + CORS 로 호출.
   },
 });

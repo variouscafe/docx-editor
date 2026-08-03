@@ -1,0 +1,3 @@
+# 로컬 wrangler dev 시크릿. 복사해서 .dev.vars 로 사용: `cp worker/.dev.vars.example worker/.dev.vars`
+# 공용 suseona-auth 의 JWT_SECRET 와 '동일한 값'이어야 같은 토큰을 검증 가능.
+JWT_SECRET=change-me-to-match-suseona-auth

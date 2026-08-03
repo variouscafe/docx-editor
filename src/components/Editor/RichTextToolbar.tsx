@@ -4,8 +4,6 @@ import {
   Bold,
   Italic,
   Underline,
-  List,
-  ListOrdered,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -14,6 +12,18 @@ import {
   X,
   Check,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { highlightColors } from "./extensions/highlightColors";
 
 interface RichTextToolbarProps {
@@ -41,78 +51,59 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
 
   const tools = [
     {
-      icon: <Bold size={16} />,
+      icon: <Bold className="size-4" />,
       action: () => editor.chain().focus().toggleBold().run(),
       title: "Bold",
       active: editor.isActive("bold"),
     },
     {
-      icon: <Italic size={16} />,
+      icon: <Italic className="size-4" />,
       action: () => editor.chain().focus().toggleItalic().run(),
       title: "Italic",
       active: editor.isActive("italic"),
     },
     {
-      icon: <Underline size={16} />,
+      icon: <Underline className="size-4" />,
       action: () => editor.chain().focus().toggleUnderline().run(),
       title: "Underline",
       active: editor.isActive("underline"),
     },
     { divider: true },
     {
-      icon: <AlignLeft size={16} />,
+      icon: <AlignLeft className="size-4" />,
       action: () => editor.chain().focus().setTextAlign("left").run(),
-      title: "Align Left",
+      title: "왼쪽 정렬",
       active: editor.isActive({ textAlign: "left" }),
     },
     {
-      icon: <AlignCenter size={16} />,
+      icon: <AlignCenter className="size-4" />,
       action: () => editor.chain().focus().setTextAlign("center").run(),
-      title: "Align Center",
+      title: "가운데 정렬",
       active: editor.isActive({ textAlign: "center" }),
     },
     {
-      icon: <AlignRight size={16} />,
+      icon: <AlignRight className="size-4" />,
       action: () => editor.chain().focus().setTextAlign("right").run(),
-      title: "Align Right",
+      title: "오른쪽 정렬",
       active: editor.isActive({ textAlign: "right" }),
     },
     { divider: true },
     {
-      icon: <List size={16} />,
-      action: () => editor.chain().focus().toggleBulletList().run(),
-      title: "Bullet List",
-      active: editor.isActive("bulletList"),
-    },
-    {
-      icon: <ListOrdered size={16} />,
-      action: () => editor.chain().focus().toggleOrderedList().run(),
-      title: "Ordered List",
-      active: editor.isActive("orderedList"),
-    },
-    { divider: true },
-    {
-      icon: <Square size={16} />,
+      icon: <Square className="size-4" />,
       action: () => {
-        if (editor.isActive("boxBorder")) {
-          editor.chain().focus().unsetBox().run();
-        } else {
-          editor.chain().focus().setSolidBox().run();
-        }
+        if (editor.isActive("boxBorder")) editor.chain().focus().unsetBox().run();
+        else editor.chain().focus().setSolidBox().run();
       },
-      title: "Solid Box",
+      title: "실선 박스",
       active: editor.isActive("boxBorder"),
     },
     {
-      icon: <Square size={16} />,
+      icon: <Square className="size-4" />,
       action: () => {
-        if (editor.isActive("boxBorder")) {
-          editor.chain().focus().unsetBox().run();
-        } else {
-          editor.chain().focus().setDashedBox().run();
-        }
+        if (editor.isActive("boxBorder")) editor.chain().focus().unsetBox().run();
+        else editor.chain().focus().setDashedBox().run();
       },
-      title: "Dashed Box",
+      title: "점선 박스",
       variant: "dashed" as const,
       active: editor.isActive("boxBorder"),
     },
@@ -125,81 +116,102 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
     { divider: true },
     {
       icon: (
-        <span className="text-xs font-bold text-blue-600" title="꼬마글씨">
+        <span className="text-xs font-bold text-primary" title="꼬마글씨">
           주
         </span>
       ),
       action: () => {
-        if (editor.isActive("annotation")) {
-          editor.chain().focus().unsetAnnotation().run();
-        } else {
-          setAnnotationMode(true);
-        }
+        if (editor.isActive("annotation")) editor.chain().focus().unsetAnnotation().run();
+        else setAnnotationMode(true);
       },
       title: "꼬마글씨",
       active: editor.isActive("annotation"),
     },
   ];
 
+  const headingValue = editor.isActive("title")
+    ? "title"
+    : editor.isActive("heading", { level: 1 })
+      ? "1"
+      : editor.isActive("heading", { level: 2 })
+        ? "2"
+        : editor.isActive("heading", { level: 3 })
+          ? "3"
+          : editor.isActive("heading", { level: 4 })
+            ? "4"
+            : editor.isActive("heading", { level: 5 })
+              ? "5"
+              : editor.isActive("heading", { level: 6 })
+                ? "6"
+                : "paragraph";
+
+  const fontSizeValue =
+    [10, 12, 14, 16, 18, 20, 24]
+      .find((pt) => editor.isActive("fontSize", { fontSize: pt }))
+      ?.toString() ?? "default";
+
   return (
-    <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-200 bg-white flex-wrap">
+    <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b bg-background px-3 py-2 lg:flex-wrap [&>*]:shrink-0">
       {/* Heading select */}
-      <select
-        className="h-8 px-2 text-sm border border-gray-300 rounded bg-white"
-        value={
-          editor.isActive("title")
-            ? "title"
-            : editor.isActive("heading", { level: 1 })
-              ? "1"
-              : editor.isActive("heading", { level: 2 })
-                ? "2"
-                : editor.isActive("heading", { level: 3 })
-                  ? "3"
-                  : editor.isActive("heading", { level: 4 })
-                    ? "4"
-                    : editor.isActive("heading", { level: 5 })
-                      ? "5"
-                      : editor.isActive("heading", { level: 6 })
-                        ? "6"
-                        : "paragraph"
-        }
-        onChange={(e) => {
-          const level = e.target.value;
-          if (level === "paragraph") {
-            editor.chain().focus().setParagraph().run();
-          } else if (level === "title") {
-            editor.chain().focus().setNode("title").run();
-          } else {
-            editor
-              .chain()
-              .focus()
-              .toggleHeading({ level: Number(level) as 1 | 2 | 3 | 4 | 5 | 6 })
-              .run();
-          }
+      <Select
+        value={headingValue}
+        onValueChange={(level) => {
+          if (level === "paragraph") editor.chain().focus().setParagraph().run();
+          else if (level === "title") editor.chain().focus().setNode("title").run();
+          else
+            editor.chain().focus().toggleHeading({ level: Number(level) as 1 | 2 | 3 | 4 | 5 | 6 }).run();
         }}
       >
-        <option value="title">제목</option>
-        <option value="paragraph">Paragraph</option>
-        <option value="1">Heading 1</option>
-        <option value="2">Heading 2</option>
-        <option value="3">Heading 3</option>
-        <option value="4">Heading 4</option>
-        <option value="5">Heading 5</option>
-        <option value="6">Heading 6</option>
-      </select>
+        <SelectTrigger className="h-8 w-[110px] text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="title">제목</SelectItem>
+          <SelectItem value="paragraph">본문</SelectItem>
+          <SelectGroup>
+            <SelectLabel>헤딩</SelectLabel>
+            {[1, 2, 3, 4, 5, 6].map((l) => (
+              <SelectItem key={l} value={String(l)}>
+                Heading {l}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+
+      {/* Font size */}
+      <Select
+        value={fontSizeValue}
+        onValueChange={(v) => {
+          if (v === "default") editor.chain().focus().unsetFontSize().run();
+          else editor.chain().focus().setFontSize(Number(v)).run();
+        }}
+      >
+        <SelectTrigger className="h-8 w-[92px] text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="default">본문크기</SelectItem>
+          {[10, 12, 14, 16, 18, 20, 24].map((pt) => (
+            <SelectItem key={pt} value={String(pt)}>
+              {pt}pt
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       {tools.map((tool, i) => {
         if ("divider" in tool) {
-          return <div key={i} className="w-px h-6 bg-gray-300 mx-1" />;
+          return <Separator key={i} orientation="vertical" className="mx-1 h-6" />;
         }
         return (
-          <button
+          <Button
             key={i}
+            variant={tool.active ? "secondary" : "ghost"}
+            size="icon"
+            className="size-8"
             onClick={tool.action}
             title={tool.title}
-            className={`p-1.5 rounded hover:bg-gray-100 transition-colors ${
-              tool.active ? "bg-gray-200 text-gray-900" : "text-gray-600"
-            }`}
             style={
               tool.variant === "dashed"
                 ? { border: "1.5px dashed currentColor", borderRadius: 2 }
@@ -207,21 +219,19 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
             }
           >
             {tool.icon}
-          </button>
+          </Button>
         );
       })}
 
       {/* Highlight color buttons */}
       <div className="flex items-center gap-0.5">
-        <Highlighter size={16} className="text-gray-500 mr-1" />
+        <Highlighter className="mr-1 size-4 text-muted-foreground" />
         {highlightColors.map((hc) => (
           <button
             key={hc.color}
-            onClick={() =>
-              editor.chain().focus().toggleHighlight({ color: hc.color }).run()
-            }
+            onClick={() => editor.chain().focus().toggleHighlight({ color: hc.color }).run()}
             title={hc.name}
-            className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+            className="size-6 rounded border transition-transform hover:scale-110"
             style={{ backgroundColor: hc.color }}
           />
         ))}
@@ -229,8 +239,8 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
 
       {/* Annotation input popup */}
       {annotationMode && (
-        <div className="flex items-center gap-1 ml-2 border border-gray-300 rounded px-2 py-1 bg-white shadow-sm">
-          <input
+        <div className="ml-2 flex items-center gap-1 rounded border bg-background px-2 py-1 shadow-sm">
+          <Input
             type="text"
             value={annotationText}
             onChange={(e) => setAnnotationText(e.target.value)}
@@ -239,21 +249,25 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
               if (e.key === "Escape") handleAnnotationCancel();
             }}
             placeholder="부연설명 입력..."
-            className="w-32 text-sm outline-none border-none"
+            className="h-7 w-32 border-0 shadow-none focus-visible:ring-0"
             autoFocus
           />
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6 text-green-600"
             onClick={handleAnnotationConfirm}
-            className="p-0.5 text-green-600 hover:text-green-800"
           >
-            <Check size={14} />
-          </button>
-          <button
+            <Check className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6 text-destructive"
             onClick={handleAnnotationCancel}
-            className="p-0.5 text-red-500 hover:text-red-700"
           >
-            <X size={14} />
-          </button>
+            <X className="size-3.5" />
+          </Button>
         </div>
       )}
     </div>

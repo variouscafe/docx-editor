@@ -1,0 +1,29 @@
+{
+  "name": "docx-editor-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "docx-editor API — Cloudflare Worker (Hono + Drizzle/D1). Google OAuth + HS256 JWT + report CRUD + DOCX export.",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:apply:local": "wrangler d1 migrations apply docs --local",
+    "db:apply:remote": "wrangler d1 migrations apply docs --remote"
+  },
+  "dependencies": {
+    "docx": "^9.7.1",
+    "drizzle-orm": "^0.38.3",
+    "hono": "^4.6.14",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.0.0",
+    "drizzle-kit": "^0.30.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^4.0.0"
+  }
+}

@@ -13,6 +13,15 @@ dist-ssr
 .next
 *.local
 
+# Worker (Cloudflare)
+.wrangler
+.dev.vars
+worker/.dev.vars
+
+# Build artifacts
+test-results/
+*.tsbuildinfo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
