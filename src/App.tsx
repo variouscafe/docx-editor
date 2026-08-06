@@ -3,9 +3,12 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/auth";
 import { useThemeStore, applyTheme } from "./store/theme";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AppShell } from "./components/Layout/AppShell";
 import { Login } from "./pages/Login";
 import ReportList from "./pages/ReportList";
+import Groups from "./pages/Groups";
+import GroupDetail from "./pages/GroupDetail";
 import { CommandPalette } from "./components/Layout/CommandPalette";
 import { Toaster } from "./components/ui/sonner";
 
@@ -25,6 +28,7 @@ export default function App() {
 
   return (
     <>
+    <ErrorBoundary area="앱">
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<ProtectedRoute isAuthed={!!accessToken} />}>
@@ -38,24 +42,45 @@ export default function App() {
           }
         />
         <Route
+          path="/groups"
+          element={
+            <AppShell>
+              <Groups />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/groups/:id"
+          element={
+            <AppShell>
+              <GroupDetail />
+            </AppShell>
+          }
+        />
+        <Route
           path="/reports/new"
           element={
-            <Suspense fallback={editorFallback}>
-              <ReportEditor />
-            </Suspense>
+            <ErrorBoundary area="편집기">
+              <Suspense fallback={editorFallback}>
+                <ReportEditor />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
         <Route
           path="/reports/:id"
           element={
-            <Suspense fallback={editorFallback}>
-              <ReportEditor />
-            </Suspense>
+            <ErrorBoundary area="편집기">
+              <Suspense fallback={editorFallback}>
+                <ReportEditor />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
       </Route>
       <Route path="*" element={<Navigate to="/reports" replace />} />
     </Routes>
+    </ErrorBoundary>
     <CommandPalette />
     <Toaster />
     </>

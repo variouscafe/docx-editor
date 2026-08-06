@@ -8,6 +8,7 @@ import type {
   RevisionListItem,
   CreateRevisionBody,
 } from "@shared/report";
+import type { ReportShare, CreateReportShareBody } from "@shared/groups";
 
 export async function listReports(q?: string): Promise<ReportListItem[]> {
   const res = await authHttp.get<{ items: ReportListItem[] }>("/api/reports", {
@@ -30,6 +31,23 @@ export async function updateReport(id: string, body: UpdateReportBody): Promise<
 
 export async function deleteReport(id: string): Promise<void> {
   await authHttp.del(`/api/reports/${id}`);
+}
+
+/* ── 공유(그룹 단위, 읽기 전용) ─────────────────────────────────── */
+export async function listReportShares(reportId: string): Promise<ReportShare[]> {
+  const res = await authHttp.get<{ items: ReportShare[] }>(`/api/reports/${reportId}/shares`);
+  return res.items;
+}
+
+export async function shareReport(
+  reportId: string,
+  body: CreateReportShareBody,
+): Promise<ReportShare> {
+  return authHttp.post<ReportShare>(`/api/reports/${reportId}/shares`, { body });
+}
+
+export async function unshareReport(reportId: string, shareId: string): Promise<void> {
+  await authHttp.del(`/api/reports/${reportId}/shares/${shareId}`);
 }
 
 /** DOCX 내보내기 — BE 가 저장된 JSON+템플릿으로 생성한 Blob 반환. */

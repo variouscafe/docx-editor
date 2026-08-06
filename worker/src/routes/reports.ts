@@ -1,13 +1,22 @@
 import { Hono } from 'hono';
-import { and, desc, eq, like, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, like, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AppEnv } from '../types.js';
 import { createDb } from '../db/index.js';
-import { reports, revisions } from '../db/schema.js';
+import { reports, revisions, reportShares, users, groups } from '../db/schema.js';
 import { newId, isoNow } from '../lib/id.js';
-import { badRequest, notFound } from '../lib/errors.js';
+import { badRequest, forbidden, notFound, conflict } from '../lib/errors.js';
 import { jwtAuth } from '../middleware/auth.js';
-import type { Report, ReportStatus, Revision, RevisionListItem } from '@shared/report';
+import { ensureReportAccess, assertGroupMember, getGroupIds } from '../lib/authz.js';
+import type {
+  Report,
+  ReportListItem,
+  ReportPermission,
+  ReportStatus,
+  Revision,
+  RevisionListItem,
+} from '@shared/report';
+import type { ReportShare } from '@shared/groups';
 
 const DOCX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -26,8 +35,11 @@ const reportPatchSchema = reportCreateSchema.partial();
 export const reportRoutes = new Hono<AppEnv>();
 reportRoutes.use('*', jwtAuth);
 
-/** DB 행(문자열 JSON 포함) → Report(파싱된 객체). */
-function serializeReport(row: typeof reports.$inferSelect): Report {
+/** DB 행(문자열 JSON 포함) → Report(파싱된 객체). permission 은 호출부에서 계산(기본 owner). */
+function serializeReport(
+  row: typeof reports.$inferSelect,
+  permission: ReportPermission = 'owner',
+): Report {
   return {
     id: row.id,
     userId: row.userId,
@@ -37,6 +49,7 @@ function serializeReport(row: typeof reports.$inferSelect): Report {
     templateOptions: JSON.parse(row.templateOptions),
     templateId: row.templateId,
     status: row.status as ReportStatus,
+    permission,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -112,29 +125,41 @@ async function maybeCreateAutoRevision(
   }
 }
 
-/** 보고서 소유권 확인(존재/권한). */
+/** 보고서 소유권 확인(쓰기 전용). 공유받은 사용자는 403. */
 async function ensureOwned(
   db: ReturnType<typeof createDb>,
   id: string,
   userId: string,
 ) {
-  const row = await db
-    .select({ id: reports.id })
-    .from(reports)
-    .where(and(eq(reports.id, id), eq(reports.userId, userId)))
-    .get();
-  if (!row) throw notFound('Report not found');
+  const { row, isOwner } = await ensureReportAccess(db, id, userId);
+  if (!isOwner) throw forbidden('Report is read-only');
   return row;
 }
 
-/** 내 보고서 목록 (최신순). ?q= 제목 검색, ?status= 상태 필터. */
+/** 보고서 목록 (최신순) — 내 보고서 + 공유받은 보고서. ?q= 제목 검색, ?status= 상태 필터. */
 reportRoutes.get('/', async (c) => {
   const userId = c.get('user').userId;
   const q = c.req.query('q')?.trim();
   const status = c.req.query('status');
   const db = createDb(c.env.DB);
 
-  const conditions: SQL[] = [eq(reports.userId, userId)];
+  // 공유받은 보고서 id (내 그룹에 공유된 것)
+  const myGroups = await getGroupIds(db, userId);
+  const sharedIds = myGroups.length
+    ? (
+        await db
+          .select({ id: reportShares.reportId })
+          .from(reportShares)
+          .where(inArray(reportShares.groupId, myGroups))
+          .all()
+      ).map((r) => r.id)
+    : [];
+
+  const ownerCond = eq(reports.userId, userId);
+  const scope: SQL = sharedIds.length
+    ? or(ownerCond, inArray(reports.id, sharedIds))!
+    : ownerCond;
+  const conditions: SQL[] = [scope];
   if (q) conditions.push(like(reports.title, `%${q}%`));
   if (status === 'draft' || status === 'published') conditions.push(eq(reports.status, status));
 
@@ -143,14 +168,43 @@ reportRoutes.get('/', async (c) => {
       id: reports.id,
       title: reports.title,
       status: reports.status,
+      ownerId: reports.userId,
+      ownerName: users.name,
       createdAt: reports.createdAt,
       updatedAt: reports.updatedAt,
     })
     .from(reports)
+    .leftJoin(users, eq(reports.userId, users.userId))
     .where(and(...conditions))
-    .orderBy(desc(reports.updatedAt));
+    .orderBy(desc(reports.updatedAt))
+    .all();
 
-  return c.json({ items: rows });
+  // 공유 보고서의 그룹명(표시용, 첫 그룹)
+  const groupOfReport = new Map<string, string>();
+  if (sharedIds.length) {
+    const grs = await db
+      .select({ reportId: reportShares.reportId, name: groups.name })
+      .from(reportShares)
+      .leftJoin(groups, eq(reportShares.groupId, groups.id))
+      .where(and(inArray(reportShares.reportId, sharedIds), inArray(reportShares.groupId, myGroups)))
+      .all();
+    for (const g of grs) if (!groupOfReport.has(g.reportId)) groupOfReport.set(g.reportId, g.name ?? '');
+  }
+
+  const items: ReportListItem[] = rows.map((r) => {
+    const isOwner = r.ownerId === userId;
+    return {
+      id: r.id,
+      title: r.title,
+      status: r.status as ReportStatus,
+      permission: isOwner ? 'owner' : 'view',
+      ownerName: isOwner ? null : (r.ownerName ?? null),
+      groupName: isOwner ? null : (groupOfReport.get(r.id) ?? null),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    };
+  });
+  return c.json({ items });
 });
 
 /** 생성. */
@@ -178,17 +232,34 @@ reportRoutes.post('/', async (c) => {
   return c.json(serializeReport(row), 201);
 });
 
-/** 단건 조회. */
+/** 단건 조회. owner 또는 공유받은 그룹원. 응답에 permission 포함. */
 reportRoutes.get('/:id', async (c) => {
-  const userId = c.get('user').userId;
+  const user = c.get('user');
   const db = createDb(c.env.DB);
-  const row = await db
-    .select()
-    .from(reports)
-    .where(and(eq(reports.id, c.req.param('id')), eq(reports.userId, userId)))
-    .get();
-  if (!row) throw notFound('Report not found');
-  return c.json(serializeReport(row));
+  const { row, isOwner } = await ensureReportAccess(db, c.req.param('id'), user.userId);
+  const body = serializeReport(row, isOwner ? 'owner' : 'view');
+  if (!isOwner) {
+    const owner = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.userId, row.userId))
+      .get();
+    body.ownerName = owner?.name ?? null;
+    const myGroups = await getGroupIds(db, user.userId);
+    if (myGroups.length) {
+      const share = await db
+        .select({ groupId: reportShares.groupId })
+        .from(reportShares)
+        .where(and(eq(reportShares.reportId, row.id), inArray(reportShares.groupId, myGroups)))
+        .limit(1)
+        .get();
+      if (share) {
+        const g = await db.select({ name: groups.name }).from(groups).where(eq(groups.id, share.groupId)).get();
+        body.groupName = g?.name ?? null;
+      }
+    }
+  }
+  return c.json(body);
 });
 
 /** 수정 (자동/수동 저장). */
@@ -199,17 +270,8 @@ reportRoutes.patch('/:id', async (c) => {
   const { title, content, contentMd, templateOptions, templateId, status } = parsed.data;
 
   const db = createDb(c.env.DB);
-  const existing = await db
-    .select({
-      id: reports.id,
-      content: reports.content,
-      contentMd: reports.contentMd,
-      templateOptions: reports.templateOptions,
-    })
-    .from(reports)
-    .where(and(eq(reports.id, c.req.param('id')), eq(reports.userId, userId)))
-    .get();
-  if (!existing) throw notFound('Report not found');
+  const { row: existing, isOwner } = await ensureReportAccess(db, c.req.param('id'), userId);
+  if (!isOwner) throw forbidden('Report is read-only');
 
   // 자동 리비전(content 변경 + 간격 경과 시) — update 전 기존 content 와 비교.
   if (content !== undefined) {
@@ -239,16 +301,14 @@ reportRoutes.patch('/:id', async (c) => {
   return c.json(serializeReport(row));
 });
 
-/** 삭제. */
+/** 삭제(owner). 공유·리비전도 함께 정리(FK 없음). */
 reportRoutes.delete('/:id', async (c) => {
   const userId = c.get('user').userId;
   const db = createDb(c.env.DB);
-  const row = await db
-    .select({ id: reports.id })
-    .from(reports)
-    .where(and(eq(reports.id, c.req.param('id')), eq(reports.userId, userId)))
-    .get();
-  if (!row) throw notFound('Report not found');
+  const { row, isOwner } = await ensureReportAccess(db, c.req.param('id'), userId);
+  if (!isOwner) throw forbidden('Report is read-only');
+  await db.delete(reportShares).where(eq(reportShares.reportId, row.id));
+  await db.delete(revisions).where(eq(revisions.reportId, row.id));
   await db.delete(reports).where(eq(reports.id, row.id));
   return c.body(null, 204);
 });
@@ -260,12 +320,7 @@ reportRoutes.delete('/:id', async (c) => {
 reportRoutes.post('/:id/export', async (c) => {
   const userId = c.get('user').userId;
   const db = createDb(c.env.DB);
-  const row = await db
-    .select()
-    .from(reports)
-    .where(and(eq(reports.id, c.req.param('id')), eq(reports.userId, userId)))
-    .get();
-  if (!row) throw notFound('Report not found');
+  const { row } = await ensureReportAccess(db, c.req.param('id'), userId);
 
   const { generateDocx } = await import('../docx/generator.js');
   const buf = await generateDocx(JSON.parse(row.content), JSON.parse(row.templateOptions));
@@ -277,6 +332,109 @@ reportRoutes.post('/:id/export', async (c) => {
       'content-disposition': `attachment; filename="${encodeURIComponent(safeName)}.docx"`,
     },
   });
+});
+
+/* ── 공유(그룹 단위, 읽기 전용) ─────────────────────────────────── */
+
+const shareCreateSchema = z.object({ groupId: z.string().min(1) });
+
+/** 공유 목록(owner). */
+reportRoutes.get('/:id/shares', async (c) => {
+  const user = c.get('user');
+  const db = createDb(c.env.DB);
+  const row = await ensureOwned(db, c.req.param('id'), user.userId);
+  const rows = await db
+    .select({
+      id: reportShares.id,
+      reportId: reportShares.reportId,
+      groupId: reportShares.groupId,
+      sharedBy: reportShares.sharedBy,
+      permission: reportShares.permission,
+      createdAt: reportShares.createdAt,
+      groupName: groups.name,
+    })
+    .from(reportShares)
+    .leftJoin(groups, eq(reportShares.groupId, groups.id))
+    .where(eq(reportShares.reportId, row.id))
+    .orderBy(desc(reportShares.createdAt))
+    .all();
+  const items: ReportShare[] = rows.map((r) => ({
+    id: r.id,
+    reportId: r.reportId,
+    groupId: r.groupId,
+    groupName: r.groupName ?? '',
+    sharedBy: r.sharedBy,
+    permission: r.permission as 'view',
+    createdAt: r.createdAt,
+  }));
+  return c.json({ items });
+});
+
+/** 공유 추가(owner). 소유자가 속한 그룹에만 공유 가능. */
+reportRoutes.post('/:id/shares', async (c) => {
+  const user = c.get('user');
+  const parsed = shareCreateSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());
+  const db = createDb(c.env.DB);
+  const row = await ensureOwned(db, c.req.param('id'), user.userId);
+  const { groupId } = parsed.data;
+  await assertGroupMember(db, groupId, user.userId);
+  const dup = await db
+    .select({ id: reportShares.id })
+    .from(reportShares)
+    .where(and(eq(reportShares.reportId, row.id), eq(reportShares.groupId, groupId)))
+    .get();
+  if (dup) throw conflict('Already shared to this group');
+  const id = newId();
+  await db.insert(reportShares).values({
+    id,
+    reportId: row.id,
+    groupId,
+    sharedBy: user.userId,
+    permission: 'view',
+  });
+  const created = await db
+    .select({
+      id: reportShares.id,
+      reportId: reportShares.reportId,
+      groupId: reportShares.groupId,
+      sharedBy: reportShares.sharedBy,
+      permission: reportShares.permission,
+      createdAt: reportShares.createdAt,
+      groupName: groups.name,
+    })
+    .from(reportShares)
+    .leftJoin(groups, eq(reportShares.groupId, groups.id))
+    .where(eq(reportShares.id, id))
+    .get();
+  if (!created) throw notFound('Share not found');
+  return c.json(
+    {
+      id: created.id,
+      reportId: created.reportId,
+      groupId: created.groupId,
+      groupName: created.groupName ?? '',
+      sharedBy: created.sharedBy,
+      permission: created.permission as 'view',
+      createdAt: created.createdAt,
+    } satisfies ReportShare,
+    201,
+  );
+});
+
+/** 공유 해제(owner). */
+reportRoutes.delete('/:id/shares/:shareId', async (c) => {
+  const user = c.get('user');
+  const db = createDb(c.env.DB);
+  const row = await ensureOwned(db, c.req.param('id'), user.userId);
+  const share = await db
+    .select({ id: reportShares.id })
+    .from(reportShares)
+    .where(and(eq(reportShares.id, c.req.param('shareId')), eq(reportShares.reportId, row.id)))
+    .get();
+  if (!share) throw notFound('Share not found');
+  await db.delete(reportShares).where(eq(reportShares.id, share.id));
+  return c.body(null, 204);
 });
 
 /* ── 리비전(버전 기록) ─────────────────────────────────────────── */
@@ -321,13 +479,7 @@ const revisionCreateSchema = z.object({ label: z.string().max(50).optional() });
 reportRoutes.post('/:id/revisions', async (c) => {
   const userId = c.get('user').userId;
   const db = createDb(c.env.DB);
-  await ensureOwned(db, c.req.param('id'), userId);
-  const rep = await db
-    .select()
-    .from(reports)
-    .where(and(eq(reports.id, c.req.param('id')), eq(reports.userId, userId)))
-    .get();
-  if (!rep) throw notFound('Report not found');
+  const rep = await ensureOwned(db, c.req.param('id'), userId);
 
   const parsed = revisionCreateSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());

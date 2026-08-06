@@ -7,6 +7,9 @@ import { DocxOptions } from "./options";
 
 export type ReportStatus = "draft" | "published";
 
+/** 보고서 접근 권한. owner=작성자(전 권한), view=공유받은 그룹원(읽기·내보내기만). */
+export type ReportPermission = "owner" | "view";
+
 export interface Report {
   id: string;
   userId: string;
@@ -20,12 +23,23 @@ export interface Report {
   /** 출처 템플릿 표시용 (선택). 렌더링은 templateOptions 가 기준. */
   templateId: string | null;
   status: ReportStatus;
+  /** 현재 호출 사용자의 접근 권한(서버 계산). */
+  permission: ReportPermission;
+  /** 공유받아 보는 경우 작성자 표시용(서버 join, optional). */
+  ownerName?: string | null;
+  /** 공유받아 보는 경우 그룹명 표시용(서버 join, optional). */
+  groupName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-/** 템플릿 공개 범위. private=소유자만, public=사내 전체(읽기/복제 가능, 편집·삭제는 소유자). */
-export type TemplateVisibility = "private" | "public";
+/**
+ * 템플릿 공개 범위.
+ * - private=소유자만
+ * - public=사내 전체(읽기/복제 가능, 편집·삭제는 소유자)
+ * - group=지정 그룹원(읽기/복제/적용 가능, 편집·삭제는 소유자). groupId 필수.
+ */
+export type TemplateVisibility = "private" | "public" | "group";
 
 export interface ReportTemplateRow {
   id: string;
@@ -36,6 +50,10 @@ export interface ReportTemplateRow {
   visibility: TemplateVisibility;
   /** 현재 호출 사용자가 소유자인지(서버 계산). false면 읽기/복제만 가능. */
   isOwner: boolean;
+  /** visibility='group' 일 때의 대상 그룹 id. */
+  groupId?: string | null;
+  /** 표시용 그룹명(서버 join). group 템플릿 표시용. */
+  groupName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +63,12 @@ export interface ReportListItem {
   id: string;
   title: string;
   status: ReportStatus;
+  /** 현재 호출 사용자의 접근 권한(서버 계산). */
+  permission: ReportPermission;
+  /** 공유받은 보고서의 작성자명(서버 join, optional). */
+  ownerName?: string | null;
+  /** 공유받은 보고서의 공유 그룹명(서버 join, optional). */
+  groupName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,6 +89,8 @@ export interface CreateTemplateBody {
   options: DocxOptions;
   isDefault?: boolean;
   visibility?: TemplateVisibility;
+  /** visibility='group' 일 때 대상 그룹 id. */
+  groupId?: string | null;
 }
 
 export type UpdateTemplateBody = Partial<CreateTemplateBody>;

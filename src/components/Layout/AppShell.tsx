@@ -1,5 +1,5 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { FileText, Plus, Search, LogOut, User } from "lucide-react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { FileText, Plus, Search, LogOut, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -77,8 +77,10 @@ function ProfileMenu() {
 
 function AppSidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const active = params.get("filter") ?? "all";
+  const groupsActive = location.pathname.startsWith("/groups");
   return (
     <Sidebar>
       <SidebarHeader>
@@ -100,6 +102,21 @@ function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => navigate("/reports/new")}>
                   <Plus /> 새 보고서
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>그룹</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={groupsActive}
+                  onClick={() => navigate("/groups")}
+                >
+                  <Users /> 그룹
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

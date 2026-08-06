@@ -29,6 +29,13 @@
       "when": 1785625797597,
       "tag": "0003_red_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1785940627023,
+      "tag": "0004_groups",
+      "breakpoints": true
     }
   ]
 }

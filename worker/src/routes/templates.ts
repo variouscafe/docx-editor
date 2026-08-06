@@ -1,21 +1,23 @@
 import { Hono } from 'hono';
-import { and, desc, eq, ne, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AppEnv } from '../types.js';
 import { createDb, type Database } from '../db/index.js';
-import { templates } from '../db/schema.js';
+import { templates, groups } from '../db/schema.js';
 import { newId, isoNow } from '../lib/id.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { jwtAuth } from '../middleware/auth.js';
+import { getGroupIds, assertGroupMember } from '../lib/authz.js';
 import type { ReportTemplateRow, TemplateVisibility } from '@shared/report';
 
-const visibilitySchema = z.enum(['private', 'public']);
+const visibilitySchema = z.enum(['private', 'public', 'group']);
 
 const templateCreateSchema = z.object({
   name: z.string().min(1),
   options: z.any(),
   isDefault: z.boolean().optional(),
   visibility: visibilitySchema.optional(),
+  groupId: z.string().nullable().optional(),
 });
 const templatePatchSchema = templateCreateSchema.partial();
 const templateDuplicateSchema = z.object({
@@ -25,7 +27,11 @@ const templateDuplicateSchema = z.object({
 export const templateRoutes = new Hono<AppEnv>();
 templateRoutes.use('*', jwtAuth);
 
-function serialize(row: typeof templates.$inferSelect, isOwner: boolean): ReportTemplateRow {
+function serialize(
+  row: typeof templates.$inferSelect,
+  isOwner: boolean,
+  groupName?: string | null,
+): ReportTemplateRow {
   return {
     id: row.id,
     userId: row.userId,
@@ -34,9 +40,22 @@ function serialize(row: typeof templates.$inferSelect, isOwner: boolean): Report
     isDefault: !!row.isDefault,
     visibility: row.visibility as TemplateVisibility,
     isOwner,
+    groupId: row.groupId,
+    groupName: groupName ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** 호출자 그룹 id → 이름 매핑(그룹 템플릿 표시용). */
+async function groupNames(db: Database, ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({ id: groups.id, name: groups.name })
+    .from(groups)
+    .where(inArray(groups.id, ids))
+    .all();
+  return new Map(rows.map((r) => [r.id, r.name]));
 }
 
 /**
@@ -51,16 +70,29 @@ async function reconcileDefault(db: Database, userId: string, exceptId: string) 
     .where(and(eq(templates.userId, userId), ne(templates.id, exceptId)));
 }
 
-/** 템플릿 목록 — 내 템플릿(모든 visibility) + 타인 공개 템플릿. 빌트인은 FE shared/presets. */
+/**
+ * 템플릿 목록 — 내 템플릿(모든 visibility) + 타인 공개(public) + 타인 그룹 공유(멤버).
+ * 빌트인은 FE shared/presets.
+ */
 templateRoutes.get('/', async (c) => {
   const userId = c.get('user').userId;
   const db = createDb(c.env.DB);
+  const gIds = await getGroupIds(db, userId);
   const rows = await db
     .select()
     .from(templates)
-    .where(or(eq(templates.userId, userId), eq(templates.visibility, 'public')))
+    .where(
+      or(
+        eq(templates.userId, userId),
+        eq(templates.visibility, 'public'),
+        ...(gIds.length
+          ? [and(eq(templates.visibility, 'group'), inArray(templates.groupId, gIds))]
+          : []),
+      ),
+    )
     .orderBy(desc(templates.updatedAt));
-  return c.json({ items: rows.map((r) => serialize(r, r.userId === userId)) });
+  const gNames = await groupNames(db, gIds);
+  return c.json({ items: rows.map((r) => serialize(r, r.userId === userId, gNames.get(r.groupId ?? ''))) });
 });
 
 /** 내 기본 템플릿 — 새 보고서 초기화용. 없으면 204. */
@@ -80,16 +112,25 @@ templateRoutes.post('/', async (c) => {
   const userId = c.get('user').userId;
   const parsed = templateCreateSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());
-  const { name, options, isDefault, visibility } = parsed.data;
+  const { name, options, isDefault, visibility, groupId } = parsed.data;
+
+  const db = createDb(c.env.DB);
+  const vis: TemplateVisibility = visibility ?? 'private';
+  let gid: string | null = null;
+  if (vis === 'group') {
+    if (!groupId) throw badRequest('groupId required for group visibility');
+    await assertGroupMember(db, groupId, userId);
+    gid = groupId;
+  }
 
   const id = newId();
-  const db = createDb(c.env.DB);
   await db.insert(templates).values({
     id,
     userId,
     name,
     options: JSON.stringify(options),
-    visibility: visibility ?? 'private',
+    visibility: vis,
+    groupId: gid,
     isDefault: isDefault ? 1 : 0,
   });
   if (isDefault) await reconcileDefault(db, userId, id);
@@ -107,7 +148,7 @@ templateRoutes.patch('/:id', async (c) => {
   const userId = c.get('user').userId;
   const parsed = templatePatchSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());
-  const { name, options, isDefault, visibility } = parsed.data;
+  const { name, options, isDefault, visibility, groupId } = parsed.data;
 
   const db = createDb(c.env.DB);
   // 소유권 체크(id + user_id) — 비소유자는 존재 자체를 은닉(404).
@@ -121,7 +162,18 @@ templateRoutes.patch('/:id', async (c) => {
   const patch: Record<string, unknown> = { updatedAt: isoNow() };
   if (name !== undefined) patch.name = name;
   if (options !== undefined) patch.options = JSON.stringify(options);
-  if (visibility !== undefined) patch.visibility = visibility;
+  if (visibility !== undefined) {
+    if (visibility === 'group') {
+      if (!groupId) throw badRequest('groupId required for group visibility');
+      await assertGroupMember(db, groupId, userId);
+      patch.visibility = 'group';
+      patch.groupId = groupId;
+    } else {
+      // private | public → 그룹 공유 해제
+      patch.visibility = visibility;
+      patch.groupId = null;
+    }
+  }
   if (isDefault !== undefined) patch.isDefault = isDefault ? 1 : 0;
 
   await db.update(templates).set(patch).where(eq(templates.id, existing.id));
@@ -153,12 +205,22 @@ templateRoutes.post('/:id/duplicate', async (c) => {
   if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());
 
   const db = createDb(c.env.DB);
-  // 소스 조회 — 호출자에게 보이는 것(내 것 OR 공개)만. 타인 private → 404(존재 은닉).
+  const gIds = await getGroupIds(db, userId);
+  // 소스 조회 — 호출자에게 보이는 것(내 것 OR 공개 OR 그룹 멤버)만. 타인 private → 404(존재 은닉).
   const src = await db
     .select()
     .from(templates)
     .where(
-      and(eq(templates.id, c.req.param('id')), or(eq(templates.userId, userId), eq(templates.visibility, 'public'))),
+      and(
+        eq(templates.id, c.req.param('id')),
+        or(
+          eq(templates.userId, userId),
+          eq(templates.visibility, 'public'),
+          ...(gIds.length
+            ? [and(eq(templates.visibility, 'group'), inArray(templates.groupId, gIds))]
+            : []),
+        ),
+      ),
     )
     .get();
   if (!src) throw notFound('Template not found');
@@ -171,6 +233,7 @@ templateRoutes.post('/:id/duplicate', async (c) => {
     name,
     options: src.options, // 이미 stringified JSON
     visibility: 'private',
+    groupId: null, // 복제본은 항상 비공개
     isDefault: 0,
   });
 

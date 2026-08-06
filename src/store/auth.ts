@@ -9,6 +9,7 @@ interface AuthTokens {
 }
 
 interface AuthState extends Partial<AuthTokens> {
+  userId?: string;
   email?: string;
   name?: string | null;
   setTokens: (tokens: AuthTokens) => void;
@@ -23,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
+          userId: typeof payload?.sub === 'string' ? (payload.sub as string) : undefined,
           email: typeof payload?.email === 'string' ? (payload.email as string) : undefined,
           name:
             typeof payload?.name === 'string'
@@ -32,7 +34,14 @@ export const useAuthStore = create<AuthState>()(
                 : undefined,
         });
       },
-      logout: () => set({ accessToken: undefined, refreshToken: undefined, email: undefined, name: undefined }),
+      logout: () =>
+        set({
+          accessToken: undefined,
+          refreshToken: undefined,
+          userId: undefined,
+          email: undefined,
+          name: undefined,
+        }),
     }),
     { name: 'docx-auth' },
   ),

@@ -128,6 +128,12 @@ export default function DocxPreview({
         footerRight: "{page}",
       }),
     ],
+    // ReportEditor 는 React.lazy(Suspense) 로 로드된다. 기본값 immediatelyRender:true 는
+    // 렌더 도중 에디터를 선행 생성한 뒤 1ms scheduleDestroy 타이머로 파괴하는데,
+    // Suspense 의 reconnectPassiveEffects 경로와 엮여 "파괴된 에디터의 editor.commands 접근"
+    // 크래시(Editor.destroy() 가 commandManager=null 로 만듦)를 유발한다.
+    // 본 서비스는 CSR 전용(SSR 없음)이므로 false 로 두어 렌더-효과 경쟁을 원천 차단.
+    immediatelyRender: false,
     editable,
     content: safeJson,
     onUpdate: ({ editor: e }) => {
@@ -140,7 +146,7 @@ export default function DocxPreview({
   });
 
   useEffect(() => {
-    if (editor) editor.setEditable(editable);
+    if (editor && !editor.isDestroyed) editor.setEditable(editable);
   }, [editor, editable]);
 
   // json 이 바뀌면 콘텐츠 교체. 단, 에디터가 방금 생산한 JSON(편집)이 그대로 돌아온 경우는
@@ -148,7 +154,7 @@ export default function DocxPreview({
   // 커서가 문서 끝/다음 문단으로 튕겨 "줄바꿈"처럼 보이는 문제가 발생한다.
   // 주: flattenLists 는 항상 새 객체를 반환하므로, 비교는 raw json 참조로 해야 가드가 작동한다.
   useEffect(() => {
-    if (editor && json && json !== lastEditorJsonRef.current) {
+    if (editor && !editor.isDestroyed && json && json !== lastEditorJsonRef.current) {
       editor.commands.setContent(safeJson, { emitUpdate: false });
       // 구 포맷(prefix 미포함) 마이그레이션 → 각 헤딩에 prefix 실제 텍스트 삽입.
       if (!hasAnyHeadingPrefixMark(editor.state.doc)) {
@@ -161,7 +167,7 @@ export default function DocxPreview({
   // 첫 마운트는 sig 만 기록(사용자 편집 리셋 방지).
   const prevHeadingSigRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     const sig = JSON.stringify(
       ([1, 2, 3, 4, 5, 6] as const).map((l) => {
         const h = options[`h${l}`];
@@ -180,7 +186,7 @@ export default function DocxPreview({
 
   // 옵션 변경 시 장식(기호/카운터/꼬마글씨) 강제 재계산.
   useEffect(() => {
-    if (editor) forceRedecorate(editor);
+    if (editor && !editor.isDestroyed) forceRedecorate(editor);
   }, [editor, options]);
 
   const calcScale = useCallback(() => {

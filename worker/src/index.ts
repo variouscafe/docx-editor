@@ -6,6 +6,7 @@ import type { AppEnv } from './types.js';
 import { ApiHttpError } from './lib/errors.js';
 import { reportRoutes } from './routes/reports.js';
 import { templateRoutes } from './routes/templates.js';
+import { groupRoutes } from './routes/groups.js';
 
 // 데이터 API 전용. 인증(구글 로그인/JWT 발급)은 공용 suseona-auth 가 담당.
 // 본 Worker 는 suseona-auth 가 발급한 JWT 를 같은 JWT_SECRET 로 검증(jwtAuth)만 수행.
@@ -44,5 +45,6 @@ app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } 
 
 app.route('/api/reports', reportRoutes);
 app.route('/api/templates', templateRoutes);
+app.route('/api/groups', groupRoutes);
 
 export default app;

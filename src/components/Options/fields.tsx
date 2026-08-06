@@ -1,13 +1,7 @@
-import { useId, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import {
   Select,
   SelectContent,
@@ -15,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { DocxOptions, LineSpacing, LineSpacingRule } from "@shared/options";
 
 /** 글꼴 프리셋 — value 는 shared/options.ts 의 기본 폰트 스택과 동일 문자열 사용(매칭 위해). */
@@ -34,45 +29,70 @@ export function matchFontPreset(value: string): string {
   return FONT_PRESETS.find((f) => f.value === value)?.value ?? FONT_PRESETS[0].value;
 }
 
-/* ── 아코디언 섹션 ─────────────────────────────────────────────── */
-export function AccordionSection({
-  title,
-  subtitle,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) {
-  const id = useId();
+/* ── 공통 스타일 토큰 ─────────────────────────────────────────────── */
+const rowBase = "flex items-center justify-between gap-2";
+// 모바일 터치 영역 확보 + 라벨 대비 향상. h-9(36px), foreground/80.
+const LABEL_CLS = "shrink-0 text-xs font-medium text-foreground/80";
+
+/* ── Word 그룹박스 (fieldset/legend) ─────────────────────────────── */
+/** 둥근 테두리 위에 제목(legend)이 걸치는 전통 폼 다이얼로그 스타일. */
+export function GroupBox({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <Accordion type="multiple" defaultValue={defaultOpen ? [id] : []}>
-      <AccordionItem value={id} className="border-b">
-        <AccordionTrigger className="hover:no-underline py-2.5">
-          <span className="flex flex-col items-start gap-0.5 text-left">
-            <span className="text-sm font-semibold">{title}</span>
-            {subtitle && <span className="text-[11px] text-muted-foreground">{subtitle}</span>}
-          </span>
-        </AccordionTrigger>
-        <AccordionContent className="pb-3">
-          <div className="space-y-2">{children}</div>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+    <fieldset className="m-0 space-y-3 rounded-lg border bg-card p-4">
+      <legend className="px-1.5 text-[11px] font-semibold text-muted-foreground">{label}</legend>
+      {children}
+    </fieldset>
   );
 }
 
-/* ── 공통 입력 컨트롤 ──────────────────────────────────────────── */
-const rowBase = "flex items-center justify-between gap-2";
-
-/** 섹션 내 소그룹 라벨(예: "단락 뒤"). 필드 사이 구분용 작은 제목. */
-export function GroupLabel({ children }: { children: ReactNode }) {
-  return <div className="pt-1 text-[11px] font-medium text-muted-foreground">{children}</div>;
+/* ── 세그먼트 토글 ─────────────────────────────────────────────── */
+/** 2~3 버튼 그룹(활성 = 반전). 정렬·공개범위 등 좁은 선택용. 모바일 친화적. */
+export function SegmentedField<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label?: string;
+  value: T;
+  onChange: (v: T) => void;
+  options: { label: string; value: T; icon?: ReactNode }[];
+}) {
+  return (
+    <div className={label ? rowBase : "flex"}>
+      {label && <Label className={LABEL_CLS}>{label}</Label>}
+      <div
+        className={cn(
+          "inline-flex gap-0.5 overflow-hidden rounded-md border bg-muted/50 p-0.5",
+          label ? "flex-1" : "w-full"
+        )}
+      >
+        {options.map((o) => {
+          const active = o.value === value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onChange(o.value)}
+              aria-pressed={active}
+              className={cn(
+                "flex h-8 flex-1 items-center justify-center gap-1 rounded-[5px] text-xs font-medium transition-colors [&_svg]:size-3.5",
+                active
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {o.icon}
+              <span>{o.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
-/** 줄 간격 프리셋 — Word 단락 간격 옵션. */
+/* ── 줄 간격 ──────────────────────────────────────────────────── */
 const LINE_SPACING_PRESETS: { label: string; value: LineSpacingRule }[] = [
   { label: "한 줄 (1.0)", value: "single" },
   { label: "1.15줄", value: "1.15" },
@@ -98,7 +118,7 @@ export function LineSpacingField({
   const val = value.rule === "multiple" ? value.value ?? 1.6 : value.value ?? 16;
   return (
     <div className={rowBase}>
-      <Label className="shrink-0 text-xs text-muted-foreground">{label}</Label>
+      <Label className={LABEL_CLS}>{label}</Label>
       <div className="flex items-center gap-1">
         {needValue && (
           <Input
@@ -108,7 +128,7 @@ export function LineSpacingField({
             min={0}
             max={value.rule === "multiple" ? 10 : 200}
             onChange={(e) => onChange({ ...value, value: Number(e.target.value) })}
-            className="h-8 w-14 text-right text-xs"
+            className="h-9 w-14 text-right text-xs"
           />
         )}
         {needValue && <span className="w-5 text-[11px] text-muted-foreground">{unit}</span>}
@@ -121,7 +141,7 @@ export function LineSpacingField({
             onChange({ rule: r as LineSpacingRule, value: needsV ? dv : undefined });
           }}
         >
-          <SelectTrigger className="h-8 w-[116px] text-xs">
+          <SelectTrigger className="h-9 w-[110px] text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -140,7 +160,7 @@ export function LineSpacingField({
 type SpacingSection = "common" | "title" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "annotation2";
 export type { SpacingSection };
 
-/** 단락 간격 3종(줄 간격·단락 앞·단락 뒤) 묶음. 각 블록 섹션에 배치. */
+/** 단락 간격 3종(줄 간격·단락 앞·단락 뒤). GroupBox("간격") 안에 배치 — 라벨은 제거. */
 export function SpacingFields({
   section,
   options,
@@ -153,7 +173,6 @@ export function SpacingFields({
   const sec = options[section];
   return (
     <>
-      <GroupLabel>간격</GroupLabel>
       <LineSpacingField
         label="줄 간격"
         value={sec.lineSpacing}
@@ -200,7 +219,7 @@ export function NumberField({
 }) {
   return (
     <div className={rowBase}>
-      <Label className="shrink-0 text-xs text-muted-foreground">{label}</Label>
+      <Label className={LABEL_CLS}>{label}</Label>
       <div className="flex items-center gap-1">
         <Input
           type="number"
@@ -210,7 +229,7 @@ export function NumberField({
           step={step}
           disabled={disabled}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-8 w-16 text-right text-xs"
+          className="h-9 w-16 text-right text-xs"
         />
         {unit && <span className="w-6 text-[11px] text-muted-foreground">{unit}</span>}
       </div>
@@ -231,9 +250,9 @@ export function SelectField({
 }) {
   return (
     <div className={rowBase}>
-      <Label className="shrink-0 text-xs text-muted-foreground">{label}</Label>
+      <Label className={LABEL_CLS}>{label}</Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-8 max-w-[180px] text-xs">
+        <SelectTrigger className="h-9 max-w-[180px] text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -259,7 +278,7 @@ export function ToggleField({
 }) {
   return (
     <div className={rowBase}>
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium text-foreground/80">{label}</Label>
       <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
@@ -276,13 +295,13 @@ export function ColorField({
 }) {
   return (
     <div className={rowBase}>
-      <Label className="shrink-0 text-xs text-muted-foreground">{label}</Label>
+      <Label className={LABEL_CLS}>{label}</Label>
       <div className="flex items-center gap-1.5">
         <input
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="size-7 cursor-pointer rounded border bg-background p-0.5"
+          className="size-8 cursor-pointer rounded-md border bg-background p-0.5"
         />
         <span className="w-16 text-[11px] tabular-nums text-muted-foreground">
           {value.toUpperCase()}
@@ -305,35 +324,13 @@ export function TextField({
 }) {
   return (
     <div className={rowBase}>
-      <Label className="shrink-0 text-xs text-muted-foreground">{label}</Label>
+      <Label className={LABEL_CLS}>{label}</Label>
       <Input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`${width} h-8 text-right text-xs`}
+        className={`${width} h-9 text-right text-xs`}
       />
-    </div>
-  );
-}
-
-/** 헤딩 레벨 그룹 라벨 (H1~H6) */
-export function LevelGroup({
-  label,
-  badge,
-  children,
-}: {
-  label: string;
-  badge: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="space-y-2 rounded-md border bg-muted/30 p-2">
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] font-bold">{label}</span>
-        <span className="text-[11px] text-muted-foreground">기호:</span>
-        <span className="rounded border bg-background px-1.5 py-0.5 text-[11px]">{badge}</span>
-      </div>
-      {children}
     </div>
   );
 }
