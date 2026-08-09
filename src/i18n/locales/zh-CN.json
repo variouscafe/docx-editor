@@ -106,7 +106,9 @@
     "cellBackground": "单元格背景色",
     "noColor": "无颜色",
     "deleteTable": "删除表格",
-    "deleteTableConfirm": "确定删除此表格吗？"
+    "deleteTableConfirm": "确定删除此表格吗？",
+    "copyTable": "复制表格",
+    "duplicateTable": "复制为副本"
   },
   "tableCalc": {
     "format": "数字格式",
@@ -131,7 +133,9 @@
     "resultFormat": "结果格式",
     "apply": "应用",
     "clearFormula": "清除公式",
-    "sumQuick": "列求和 (Σ)"
+    "exprLabel": "直接输入",
+    "exprPlaceholder": "=A1+B1*0.1",
+    "totalsRow": "添加合计行"
   },
   "symbols": {
     "startSymbol": "起始符号",

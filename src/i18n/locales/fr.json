@@ -106,7 +106,9 @@
     "cellBackground": "Fond de cellule",
     "noColor": "Sans couleur",
     "deleteTable": "Supprimer le tableau",
-    "deleteTableConfirm": "Supprimer ce tableau ?"
+    "deleteTableConfirm": "Supprimer ce tableau ?",
+    "copyTable": "Copier le tableau",
+    "duplicateTable": "Dupliquer le tableau"
   },
   "tableCalc": {
     "format": "Format numérique",
@@ -131,7 +133,9 @@
     "resultFormat": "Format du résultat",
     "apply": "Appliquer",
     "clearFormula": "Effacer la formule",
-    "sumQuick": "Somme de colonne (Σ)"
+    "exprLabel": "Expression personnalisée",
+    "exprPlaceholder": "=A1+B1*0.1",
+    "totalsRow": "Ajouter une ligne de totaux"
   },
   "symbols": {
     "startSymbol": "Symbole de début",

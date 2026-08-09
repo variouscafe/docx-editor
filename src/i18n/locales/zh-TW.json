@@ -106,7 +106,9 @@
     "cellBackground": "儲存格背景色",
     "noColor": "無顏色",
     "deleteTable": "刪除表格",
-    "deleteTableConfirm": "確定刪除此表格嗎？"
+    "deleteTableConfirm": "確定刪除此表格嗎？",
+    "copyTable": "複製表格",
+    "duplicateTable": "複製為副本"
   },
   "tableCalc": {
     "format": "數字格式",
@@ -131,7 +133,9 @@
     "resultFormat": "結果格式",
     "apply": "套用",
     "clearFormula": "清除公式",
-    "sumQuick": "列求和 (Σ)"
+    "exprLabel": "直接輸入",
+    "exprPlaceholder": "=A1+B1*0.1",
+    "totalsRow": "新增合計列"
   },
   "symbols": {
     "startSymbol": "起始符號",

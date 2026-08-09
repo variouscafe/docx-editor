@@ -10,6 +10,9 @@ import {
   parseFormula,
   buildTableGrid,
   evaluateFormula,
+  evaluateExpression,
+  evaluateAny,
+  isFunctionFormula,
   formatCellValue,
   isNumberFormat,
 } from "./tableFormula";
@@ -272,3 +275,109 @@ describe("isNumberFormat", () => {
     expect(isNumberFormat(null)).toBe(false);
   });
 });
+
+/* ---------------- 사칙연산 표현식 엔진(phase 2) ---------------- */
+
+// 3행 3열 그리드: A1=10 B1=20 C1=30 / A2=40 B2=50 C2=60 / A3..C3=0(수식 셀 위치)
+const EG = buildTableGrid(
+  table(
+    row(cell("10"), cell("20"), cell("30")),
+    row(cell("40"), cell("50"), cell("60")),
+    row(cell("0"), cell("0"), cell("0")),
+  ),
+);
+// origin 은 참조 범위 밖(A3) — 수식 셀은 자기 자신을 합산하지 않는 규칙 때문.
+const origin0 = EG.matrix[2][0]!;
+
+describe("isFunctionFormula", () => {
+  it("순수 함수호출만 true", () => {
+    expect(isFunctionFormula("SUM(ABOVE)")).toBe(true);
+    expect(isFunctionFormula("=SUM(A1:A5)")).toBe(true);
+    expect(isFunctionFormula("SUM")).toBe(true);
+    expect(isFunctionFormula("A1+B1")).toBe(false);
+    expect(isFunctionFormula("A1")).toBe(false);
+    expect(isFunctionFormula("(A1+A2)*0.1")).toBe(false);
+  });
+});
+
+describe("evaluateExpression — 사칙연산/우선순위/괄호/셀참조", () => {
+  it("기본 사칙연산", () => {
+    expect(evaluateExpression("A1+B1", EG, origin0).value).toBe(30);
+    expect(evaluateExpression("A1*B1", EG, origin0).value).toBe(200);
+    expect(evaluateExpression("C2-A2", EG, origin0).value).toBe(20);
+    expect(evaluateExpression("C2/A2", EG, origin0).value).toBe(1.5);
+  });
+  it("연산자 우선순위(* / 가 + - 보다 먼저)", () => {
+    expect(evaluateExpression("A1+B1*C1", EG, origin0).value).toBe(10 + 20 * 30);
+    expect(evaluateExpression("A1*B1+C2", EG, origin0).value).toBe(10 * 20 + 60);
+  });
+  it("괄호", () => {
+    expect(evaluateExpression("(A1+B1)*C1", EG, origin0).value).toBe(30 * 30);
+    expect(evaluateExpression("((A1))", EG, origin0).value).toBe(10);
+  });
+  it("단항 마이너스 / 리터럴 숫자", () => {
+    expect(evaluateExpression("-A1", EG, origin0).value).toBe(-10);
+    expect(evaluateExpression("100", EG, origin0).value).toBe(100);
+    expect(evaluateExpression("B2-A1*1.1", EG, origin0).value).toBeCloseTo(50 - 11);
+  });
+  it("리딩 = 허용", () => {
+    expect(evaluateExpression("=A1+B1", EG, origin0).value).toBe(30);
+  });
+  it("0 나눗셈 → div0", () => {
+    expect(evaluateExpression("A1/0", EG, origin0).error).toBe("div0");
+  });
+  it("빈 셀/비숫자 셀은 0 취급", () => {
+    const g = buildTableGrid(table(row(cell("x"), cell("5"))));
+    expect(evaluateExpression("A1+B1", g, g.matrix[0][0]!).value).toBe(5);
+  });
+  it("잘못된 식 → parse 오류", () => {
+    expect(evaluateExpression("A1+", EG, origin0).error).toBe("parse");
+    expect(evaluateExpression("A1 B1", EG, origin0).error).toBe("parse");
+    expect(evaluateExpression("", EG, origin0).error).toBe("parse");
+    expect(evaluateExpression(")A1(", EG, origin0).error).toBe("parse");
+  });
+});
+
+describe("evaluateExpression — 함수호출 포함", () => {
+  it("SUM/AVERAGE 범위를 피연산자로", () => {
+    expect(evaluateExpression("SUM(A1:C1)", EG, origin0).value).toBe(60);
+    expect(evaluateExpression("SUM(A1:C1)+A2", EG, origin0).value).toBe(100);
+    expect(evaluateExpression("AVERAGE(A1:A2)*2", EG, origin0).value).toBe(50);
+  });
+  it("MAX/MIN/COUNT", () => {
+    expect(evaluateExpression("MAX(A1:C2)", EG, origin0).value).toBe(60);
+    expect(evaluateExpression("MIN(A1:C2)", EG, origin0).value).toBe(10);
+    expect(evaluateExpression("COUNT(A1:C2)", EG, origin0).value).toBe(6);
+  });
+});
+
+describe("evaluateAny — 함수형/표현식 자동 라우팅", () => {
+  it("함수형은 기존 경로", () => {
+    expect(evaluateAny("SUM(A1:C1)", EG, origin0).value).toBe(60);
+  });
+  it("산술식은 표현식 경로", () => {
+    expect(evaluateAny("A1+B1", EG, origin0).value).toBe(30);
+    expect(evaluateAny("(A1+A2)/2", EG, origin0).value).toBe(25);
+  });
+});
+
+describe("formatCellValue — 산술 수식 셀", () => {
+  it("수식 결과를 포맷", () => {
+    const g = buildTableGrid(
+      table(row(cell("10"), cell("20"), cell("0", { formula: "A1*B1", format: "currency" }))),
+    );
+    const fcell = g.cells.find((c) => c.formula)!;
+    expect(formatCellValue(fcell, g)).toBe("₩200");
+  });
+  it("함수+산술 혼합", () => {
+    const g = buildTableGrid(
+      table(
+        row(cell("10"), cell("20"), cell("30")),
+        row(cell("0", { formula: "SUM(A1:C1)*1.1", format: "number2" })),
+      ),
+    );
+    const fcell = g.cells.find((c) => c.formula)!;
+    expect(formatCellValue(fcell, g)).toBe("66.00"); // (10+20+30)*1.1
+  });
+});
+

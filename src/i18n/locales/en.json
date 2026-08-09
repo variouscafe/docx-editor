@@ -106,7 +106,9 @@
     "cellBackground": "Cell background",
     "noColor": "No color",
     "deleteTable": "Delete table",
-    "deleteTableConfirm": "Delete this table?"
+    "deleteTableConfirm": "Delete this table?",
+    "copyTable": "Copy table",
+    "duplicateTable": "Duplicate table"
   },
   "tableCalc": {
     "format": "Number format",
@@ -131,7 +133,9 @@
     "resultFormat": "Result format",
     "apply": "Apply",
     "clearFormula": "Clear formula",
-    "sumQuick": "Column sum (Σ)"
+    "exprLabel": "Custom expression",
+    "exprPlaceholder": "=A1+B1*0.1",
+    "totalsRow": "Add totals row"
   },
   "symbols": {
     "startSymbol": "Start symbol",

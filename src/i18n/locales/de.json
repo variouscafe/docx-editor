@@ -106,7 +106,9 @@
     "cellBackground": "Zellhintergrund",
     "noColor": "Keine Farbe",
     "deleteTable": "Tabelle löschen",
-    "deleteTableConfirm": "Diese Tabelle löschen?"
+    "deleteTableConfirm": "Diese Tabelle löschen?",
+    "copyTable": "Tabelle kopieren",
+    "duplicateTable": "Tabelle duplizieren"
   },
   "tableCalc": {
     "format": "Zahlenformat",
@@ -131,7 +133,9 @@
     "resultFormat": "Ergebnisformat",
     "apply": "Anwenden",
     "clearFormula": "Formel entfernen",
-    "sumQuick": "Spaltensumme (Σ)"
+    "exprLabel": "Eigener Ausdruck",
+    "exprPlaceholder": "=A1+B1*0.1",
+    "totalsRow": "Summenzeile hinzufügen"
   },
   "symbols": {
     "startSymbol": "Startsymbol",

@@ -19,8 +19,9 @@ import {
   Trash2,
   X,
   Hash,
-  Sigma,
   Calculator,
+  Copy,
+  CopyPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -41,6 +42,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { highlightColors } from "./extensions/highlightColors";
+import { insertTotalsRow } from "./extensions/tableTotalsRow";
+import { copyTableToClipboard, duplicateTable } from "./extensions/tableActions";
 import type { NumberFormat, FormulaFn, Direction } from "@shared/tableFormula";
 
 interface Props {
@@ -85,6 +88,8 @@ export function TableBubbleMenu({ editor }: Props) {
   const [fn, setFn] = useState<FormulaFn>("SUM");
   const [dir, setDir] = useState<Direction>("ABOVE");
   const [resultFmt, setResultFmt] = useState<NumberFormat>("currency");
+  // 직접 수식 입력(=A1+B1*0.1, =SUM(B2:B8)*1.1 ...).
+  const [exprInput, setExprInput] = useState("");
 
   // 현재 선택 셀의 포맷/수식(활성 표시용).
   const cellAttrs = editor.getAttributes("tableCell") as {
@@ -114,6 +119,21 @@ export function TableBubbleMenu({ editor }: Props) {
       {children}
     </button>
   );
+
+  /** 직접 입력한 수식 적용(=A1+B1*0.1 등). */
+  const applyExpr = () => {
+    const v = exprInput.trim();
+    if (!v) return;
+    editor
+      .chain()
+      .focus()
+      .setCellFormula(v)
+      .setCellFormat(resultFmt)
+      .setTextAlign("right")
+      .run();
+    setExprInput("");
+    setCalcOpen(false);
+  };
 
   /** 아이콘 버튼 — 클릭 시 포커스 복귀 + 명령 실행. */
   const Tool = ({
@@ -278,23 +298,6 @@ export function TableBubbleMenu({ editor }: Props) {
         </PopoverContent>
       </Popover>
 
-      {/* 빠른 합계: SUM(ABOVE) + 금액 + 우측정렬 한 번에 */}
-      <Tool
-        onClick={() =>
-          editor
-            .chain()
-            .focus()
-            .setCellFormula("SUM(ABOVE)")
-            .setCellFormat("currency")
-            .setTextAlign("right")
-            .run()
-        }
-        title={t("tableCalc.sumQuick")}
-        active={cellAttrs.formula === "SUM(ABOVE)"}
-      >
-        <Sigma className="size-4" />
-      </Tool>
-
       {/* 계산식(함수 × 방향 × 결과포맷) */}
       <Popover open={calcOpen} onOpenChange={setCalcOpen}>
         <PopoverTrigger asChild>
@@ -310,6 +313,19 @@ export function TableBubbleMenu({ editor }: Props) {
         </PopoverTrigger>
         <PopoverContent align="center" className="w-auto p-2">
           <div className="flex flex-col gap-2" style={{ minWidth: 180 }}>
+            {/* 합계 행 자동 추가: 숫자 열 감지해 맨 아래 SUM 행 생성 */}
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-full"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                insertTotalsRow(editor);
+                setCalcOpen(false);
+              }}
+            >
+              {t("tableCalc.totalsRow")}
+            </Button>
             <div>
               <div className="mb-1 text-[11px] text-muted-foreground">
                 {t("tableCalc.fn")}
@@ -381,6 +397,35 @@ export function TableBubbleMenu({ editor }: Props) {
                 {t("tableCalc.clearFormula")}
               </Button>
             </div>
+
+            {/* 직접 수식 입력 — 사칙연산/셀참조/함수 혼합 */}
+            <div className="mt-2 border-t pt-2">
+              <div className="mb-1 text-[11px] text-muted-foreground">
+                {t("tableCalc.exprLabel")}
+              </div>
+              <input
+                value={exprInput}
+                onChange={(e) => setExprInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyExpr();
+                  }
+                }}
+                placeholder={t("tableCalc.exprPlaceholder")}
+                className="w-full rounded border bg-background px-2 py-1 text-xs outline-none focus:border-accent"
+                onMouseDown={(e) => e.stopPropagation()}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-1 h-7 w-full"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={applyExpr}
+              >
+                {t("tableCalc.apply")}
+              </Button>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
@@ -429,6 +474,21 @@ export function TableBubbleMenu({ editor }: Props) {
           </div>
         </PopoverContent>
       </Popover>
+
+      <Div />
+
+      {/* 표 복사(클립보드) · 복제(인라인) · 삭제 */}
+      <Tool
+        onClick={() => {
+          void copyTableToClipboard(editor);
+        }}
+        title={t("toolbar.copyTable")}
+      >
+        <Copy className="size-4" />
+      </Tool>
+      <Tool onClick={() => duplicateTable(editor)} title={t("toolbar.duplicateTable")}>
+        <CopyPlus className="size-4" />
+      </Tool>
 
       <Div />
 

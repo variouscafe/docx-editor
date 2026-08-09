@@ -106,7 +106,9 @@
     "cellBackground": "セルの背景色",
     "noColor": "色なし",
     "deleteTable": "表を削除",
-    "deleteTableConfirm": "この表を削除しますか？"
+    "deleteTableConfirm": "この表を削除しますか？",
+    "copyTable": "表をコピー",
+    "duplicateTable": "表を複製"
   },
   "tableCalc": {
     "format": "数値書式",
@@ -131,7 +133,9 @@
     "resultFormat": "結果の書式",
     "apply": "適用",
     "clearFormula": "計算式をクリア",
-    "sumQuick": "列合計 (Σ)"
+    "exprLabel": "直接入力",
+    "exprPlaceholder": "=A1+B1*0.1",
+    "totalsRow": "合計行を追加"
   },
   "symbols": {
     "startSymbol": "開始記号",

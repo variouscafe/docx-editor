@@ -373,13 +373,12 @@ function collectRefs(
   return out;
 }
 
-export function evaluateFormula(
-  formula: string | null | undefined,
+/** 구조화된 수식(ParsedFormula) 평가 — 함수·범위/방향 핵심 로직. */
+export function evaluateParsed(
+  parsed: ParsedFormula,
   grid: TableGrid,
   origin: GridCell,
 ): EvalResult {
-  const parsed = parseFormula(formula);
-  if (!parsed) return { value: null, error: "parse" };
   const refs = collectRefs(parsed, grid, origin);
   const nums = refs.map((c) => c.value).filter((v): v is number => v !== null);
   switch (parsed.fn) {
@@ -395,6 +394,275 @@ export function evaluateFormula(
     case "MIN":
       return nums.length ? { value: Math.min(...nums) } : { value: null };
   }
+}
+
+/** 함수형 수식(SUM(ABOVE), =SUM(B2:B8) 등) 평가 — parse + evaluateParsed. */
+export function evaluateFormula(
+  formula: string | null | undefined,
+  grid: TableGrid,
+  origin: GridCell,
+): EvalResult {
+  const parsed = parseFormula(formula);
+  if (!parsed) return { value: null, error: "parse" };
+  return evaluateParsed(parsed, grid, origin);
+}
+
+/* ------------------------------------------------------------------ *
+ * 사칙연산 표현식 엔진(=A1+B1*0.1, =(A1+A2)/2, =SUM(B2:B8)*1.1 ...)
+ * 재귀하강 파서. 연산자 우선순위: * / > + - > 단항 -. 괄호 지원.
+ * 피연산자: 숫자 / 셀참조(A1) / 함수호출(SUM(...)). 함수호출은 방향·A1범위 모두 허용.
+ * 비숫자 셀은 0 으로 취급(스프레드시트 관례). 0 나눗셈 → div0.
+ * ------------------------------------------------------------------ */
+
+class CalcError extends Error {
+  code: FormulaError;
+  constructor(code: FormulaError) {
+    super(code);
+    this.code = code;
+  }
+}
+
+type Token =
+  | { t: "num"; v: number }
+  | { t: "cell"; ref: CellRef }
+  | { t: "ident"; name: string }
+  | { t: "op"; v: "+" | "-" | "*" | "/" }
+  | { t: "lp" }
+  | { t: "rp" }
+  | { t: "colon" };
+
+function tokenize(s: string): Token[] {
+  const out: Token[] = [];
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === " " || ch === "\t" || ch === "\n") {
+      i++;
+      continue;
+    }
+    if (ch === "(") {
+      out.push({ t: "lp" });
+      i++;
+      continue;
+    }
+    if (ch === ")") {
+      out.push({ t: "rp" });
+      i++;
+      continue;
+    }
+    if (ch === ":") {
+      out.push({ t: "colon" });
+      i++;
+      continue;
+    }
+    if (ch === "+" || ch === "-" || ch === "*" || ch === "/") {
+      out.push({ t: "op", v: ch });
+      i++;
+      continue;
+    }
+    if (/[0-9.]/.test(ch)) {
+      let j = i;
+      while (j < s.length && /[0-9]/.test(s[j])) j++;
+      if (s[j] === ".") {
+        j++;
+        while (j < s.length && /[0-9]/.test(s[j])) j++;
+      }
+      const num = Number(s.slice(i, j));
+      if (!Number.isFinite(num)) throw new CalcError("parse");
+      out.push({ t: "num", v: num });
+      i = j;
+      continue;
+    }
+    if (/[A-Za-z]/.test(ch)) {
+      let j = i;
+      while (j < s.length && /[A-Za-z]/.test(s[j])) j++;
+      const letters = s.slice(i, j);
+      // 글자 뒤 숫자가 오면 셀참조(A1), 아니면 식별자(함수명/방향키워드).
+      if (j < s.length && /[0-9]/.test(s[j])) {
+        let k = j;
+        while (k < s.length && /[0-9]/.test(s[k])) k++;
+        const ref = parseCellRef(s.slice(i, k));
+        if (!ref) throw new CalcError("parse");
+        out.push({ t: "cell", ref });
+        i = k;
+        continue;
+      }
+      out.push({ t: "ident", name: letters });
+      i = j;
+      continue;
+    }
+    throw new CalcError("parse");
+  }
+  return out;
+}
+
+interface FuncArg {
+  direction?: Direction;
+  range?: { from: CellRef; to: CellRef };
+}
+
+/** 셀참조 → 숫자(비숫자/빈 셀은 0). */
+function cellNum(ref: CellRef, grid: TableGrid): number {
+  const c = grid.matrix[ref.row]?.[ref.col];
+  return c?.value ?? 0;
+}
+
+/** 표현식 내 함수호출 평가 → 숫자. 방향·A1범위 인자 재사용. */
+function evalFuncCall(
+  name: string,
+  arg: FuncArg,
+  grid: TableGrid,
+  origin: GridCell,
+): number {
+  const fn = FN_ALIAS[name] ?? name;
+  if (!(FORMULA_FNS as readonly string[]).includes(fn)) throw new CalcError("parse");
+  const parsed: ParsedFormula = {
+    fn,
+    direction: arg.direction ?? "ABOVE",
+    range: arg.range,
+  };
+  const res = evaluateParsed(parsed, grid, origin);
+  if (res.error === "div0") throw new CalcError("div0");
+  return res.value ?? 0;
+}
+
+/** 사칙연산 표현식 평가. */
+export function evaluateExpression(
+  raw: string | null | undefined,
+  grid: TableGrid,
+  origin: GridCell,
+): EvalResult {
+  try {
+    const s = (raw ?? "").trim().replace(/^=/, "").trim();
+    if (s === "") return { value: null, error: "parse" };
+    const tokens = tokenize(s);
+    let i = 0;
+    const peek = (): Token | undefined => tokens[i];
+    const eat = (): Token | undefined => tokens[i++];
+    const expectType = (t: Token["t"]): void => {
+      const tk = eat();
+      if (!tk || tk.t !== t) throw new CalcError("parse");
+    };
+
+    const parseExpr = (): number => {
+      let v = parseTerm();
+      for (;;) {
+        const tk = peek();
+        if (tk?.t === "op" && (tk.v === "+" || tk.v === "-")) {
+          eat();
+          const r = parseTerm();
+          v = tk.v === "+" ? v + r : v - r;
+        } else break;
+      }
+      return v;
+    };
+    const parseTerm = (): number => {
+      let v = parseFactor();
+      for (;;) {
+        const tk = peek();
+        if (tk?.t === "op" && (tk.v === "*" || tk.v === "/")) {
+          eat();
+          const r = parseFactor();
+          if (tk.v === "/") {
+            if (r === 0) throw new CalcError("div0");
+            v = v / r;
+          } else v = v * r;
+        } else break;
+      }
+      return v;
+    };
+    const parseFactor = (): number => {
+      const tk = peek();
+      if (tk?.t === "op" && tk.v === "-") {
+        eat();
+        return -parseFactor();
+      }
+      if (tk?.t === "op" && tk.v === "+") {
+        eat();
+        return parseFactor();
+      }
+      return parsePrimary();
+    };
+    const parsePrimary = (): number => {
+      const tk = peek();
+      if (!tk) throw new CalcError("parse");
+      if (tk.t === "num") {
+        eat();
+        return tk.v;
+      }
+      if (tk.t === "cell") {
+        eat();
+        return cellNum(tk.ref, grid);
+      }
+      if (tk.t === "lp") {
+        eat();
+        const v = parseExpr();
+        expectType("rp");
+        return v;
+      }
+      if (tk.t === "ident") {
+        eat();
+        if (peek()?.t === "lp") {
+          eat(); // (
+          const arg = parseArg();
+          expectType("rp");
+          return evalFuncCall(tk.name.toUpperCase(), arg, grid, origin);
+        }
+        // 단독 식별자(방향/함수명)는 값 아님 → 오류.
+        throw new CalcError("parse");
+      }
+      throw new CalcError("parse");
+    };
+    const parseArg = (): FuncArg => {
+      const tk = peek();
+      if (tk?.t === "ident") {
+        const up = tk.name.toUpperCase();
+        if ((DIRECTIONS as readonly string[]).includes(up)) {
+          eat();
+          return { direction: up as Direction };
+        }
+      }
+      if (tk?.t === "cell") {
+        eat();
+        if (peek()?.t === "colon") {
+          eat();
+          const t2 = eat();
+          if (!t2 || t2.t !== "cell") throw new CalcError("parse");
+          return { range: { from: tk.ref, to: t2.ref } };
+        }
+        return { range: { from: tk.ref, to: tk.ref } };
+      }
+      throw new CalcError("parse");
+    };
+
+    const result = parseExpr();
+    if (i < tokens.length) throw new CalcError("parse"); // 잉여 토큰
+    if (!Number.isFinite(result)) return { value: null, error: "parse" };
+    return { value: result };
+  } catch (e) {
+    if (e instanceof CalcError) return { value: null, error: e.code };
+    return { value: null, error: "parse" };
+  }
+}
+
+/** 순수 함수형 수식(SUM(...) 또는 SUM)인지 — 그렇지 않으면 산술 표현식 경로. */
+export function isFunctionFormula(s: string | null | undefined): boolean {
+  if (!s) return false;
+  const t = s.trim().replace(/^=/, "").trim();
+  return /^[A-Za-z]+\s*(\([^)]*\))?$/.test(t);
+}
+
+/** 수식 통합 평가 — 함수형이면 evaluateParsed, 아니면 산술 표현식. */
+export function evaluateAny(
+  formula: string | null | undefined,
+  grid: TableGrid,
+  origin: GridCell,
+): EvalResult {
+  if (isFunctionFormula(formula)) {
+    const parsed = parseFormula(formula);
+    if (parsed) return evaluateParsed(parsed, grid, origin);
+  }
+  return evaluateExpression(formula, grid, origin);
 }
 
 /** 에러 코드 → 로케일 중립 표시(엑셀 유사). */
@@ -415,7 +683,7 @@ export function formulaErrorText(error: FormulaError): string {
  */
 export function formatCellValue(cell: GridCell, grid: TableGrid): string {
   if (cell.formula) {
-    const { value, error } = evaluateFormula(cell.formula, grid, cell);
+    const { value, error } = evaluateAny(cell.formula, grid, cell);
     if (error) return formulaErrorText(error);
     if (value === null) return "";
     const fmt: NumberFormat = isNumberFormat(cell.format) ? cell.format : "number";
