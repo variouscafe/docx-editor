@@ -1,4 +1,5 @@
 import { FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
@@ -26,6 +27,7 @@ function GoogleIcon({ className }: { className?: string }) {
 }
 
 export function Login() {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-background to-muted p-4">
       <Card className="w-full max-w-sm text-center shadow-md">
@@ -34,8 +36,8 @@ export function Login() {
             <FileText className="size-6" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Suseona Docs</h1>
-            <p className="text-sm text-muted-foreground">사내 양식 보고서 작성 · DOCX 내보내기</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("nav.brand")}</h1>
+            <p className="text-sm text-muted-foreground">{t("auth.tagline")}</p>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -48,11 +50,9 @@ export function Login() {
             }}
           >
             <GoogleIcon className="size-5" />
-            Google로 계속하기
+            {t("auth.continueWithGoogle")}
           </Button>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            로그인 시 Google 계정의 이메일·이름이 인증 서버에서 처리되며, 보고서는 계정 단위로 안전하게 보관됩니다.
-          </p>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">{t("auth.privacyNote")}</p>
         </CardContent>
       </Card>
     </div>

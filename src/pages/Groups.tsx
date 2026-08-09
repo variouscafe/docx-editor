@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,19 +19,20 @@ import {
 import { listGroups, createGroup } from "@/api/groups";
 import type { Group, GroupRole } from "@shared/groups";
 
-/** 역할 → 라벨/스타일(문서 내 pill 패턴 재사용). */
-export function roleBadge(role: GroupRole): { label: string; cls: string } {
+/** 역할 → 라벨/스타일(문서 내 pill 패턴 재사용). 라벨은 호출부 t 로 번역. */
+export function roleBadge(role: GroupRole, t: TFunction): { label: string; cls: string } {
   switch (role) {
     case "owner":
-      return { label: "소유자", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300" };
+      return { label: t("groupDetail.role.owner"), cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300" };
     case "admin":
-      return { label: "관리자", cls: "bg-blue-500/15 text-blue-700 dark:text-blue-300" };
+      return { label: t("groupDetail.role.admin"), cls: "bg-blue-500/15 text-blue-700 dark:text-blue-300" };
     default:
-      return { label: "멤버", cls: "bg-muted text-muted-foreground" };
+      return { label: t("groupDetail.role.member"), cls: "bg-muted text-muted-foreground" };
   }
 }
 
 export default function Groups() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [items, setItems] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,13 +60,13 @@ export default function Groups() {
     setBusy(true);
     try {
       const g = await createGroup({ name: name.trim(), description: description.trim() || undefined });
-      toast.success("그룹을 만들었어요");
+      toast.success(t("groups.created"));
       setOpen(false);
       setName("");
       setDescription("");
       navigate(`/groups/${g.id}`);
     } catch {
-      toast.error("그룹 생성에 실패했어요");
+      toast.error(t("groups.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -72,9 +75,9 @@ export default function Groups() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">그룹</h2>
+        <h2 className="text-xl font-semibold">{t("groups.title")}</h2>
         <Button onClick={() => setOpen(true)}>
-          <Plus /> 그룹 만들기
+          <Plus /> {t("groups.create")}
         </Button>
       </div>
 
@@ -89,14 +92,12 @@ export default function Groups() {
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-dashed p-16 text-center">
           <Users className="mx-auto mb-3 size-10 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">
-            참여한 그룹이 없습니다. 그룹을 만들어 팀원과 템플릿·보고서를 공유해보세요.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("groups.empty")}</p>
         </div>
       ) : (
         <ul className="space-y-2">
           {items.map((g) => {
-            const badge = roleBadge(g.myRole);
+            const badge = roleBadge(g.myRole, t);
             return (
               <li key={g.id}>
                 <button
@@ -111,7 +112,7 @@ export default function Groups() {
                     {g.description ? (
                       <div className="truncate text-xs text-muted-foreground">{g.description}</div>
                     ) : (
-                      <div className="text-xs text-muted-foreground">멤버 {g.memberCount}명</div>
+                      <div className="text-xs text-muted-foreground">{t("groups.memberCount", { count: g.memberCount })}</div>
                     )}
                   </div>
                   <span
@@ -129,22 +130,20 @@ export default function Groups() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>그룹 만들기</DialogTitle>
-            <DialogDescription>
-              그룹원끼리 템플릿과 보고서를 공유할 수 있어요.
-            </DialogDescription>
+            <DialogTitle>{t("groups.createTitle")}</DialogTitle>
+            <DialogDescription>{t("groups.createDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="grp-name" className="text-xs font-medium text-foreground/80">
-                이름
+                {t("groups.nameLabel")}
               </Label>
               <Input
                 id="grp-name"
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="예: 마케팅팀"
+                placeholder={t("groups.namePlaceholder")}
                 className="h-10"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void handleCreate();
@@ -153,23 +152,23 @@ export default function Groups() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="grp-desc" className="text-xs font-medium text-foreground/80">
-                설명 (선택)
+                {t("groups.descLabel")}
               </Label>
               <Input
                 id="grp-desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="그룹 설명"
+                placeholder={t("groups.descPlaceholder")}
                 className="h-10"
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              취소
+              {t("common.cancel")}
             </Button>
             <Button onClick={() => void handleCreate()} disabled={!name.trim() || busy}>
-              만들기
+              {t("groups.createButton")}
             </Button>
           </DialogFooter>
         </DialogContent>

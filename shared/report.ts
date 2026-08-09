@@ -119,3 +119,27 @@ export interface RevisionListItem {
 export interface CreateRevisionBody {
   label?: string;
 }
+
+/* ── 퍼블릭 링크 공유(로그인 없이 읽기 전용) ───────────────────── */
+
+/** 보고서 1개의 퍼블릭 공유 상태(소유자용). 토큰은 추측 불가 capability. */
+export interface PublicShareState {
+  enabled: boolean;
+  token: string | null;
+}
+
+/** 퍼블릭 링크로 노출되는 보고서 응답(로그인 없음) — 렌더링 최소 subset. */
+export interface PublicReportView {
+  title: string;
+  content: JSONContent;
+  templateOptions: DocxOptions;
+  updatedAt: string;
+}
+
+/** 퍼블릭 공유 토글·재생성 요청 body. */
+export interface UpdatePublicShareBody {
+  /** true=활성화(토큰 없으면 발급), false=비활성화(토큰 유지). */
+  enabled?: boolean;
+  /** true=새 토큰 발급(이전 링크 즉시 무효, 활성 상태는 유지). */
+  regenerate?: boolean;
+}

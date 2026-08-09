@@ -20,9 +20,15 @@ export const reports = sqliteTable(
     status: text('status').notNull().default('draft'),
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
     updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+    // 퍼블릭 링크 공유(로그인 없이 읽기 전용). 1 보고서 = 1 링크.
+    // shareToken 은 추측 불가 capability — shareEnabled=true 일 때만 공개 조회 허용.
+    shareEnabled: integer('share_enabled', { mode: 'boolean' }).notNull().default(false),
+    shareToken: text('share_token'),
   },
   (t) => ({
     userIdx: index('idx_reports_user').on(t.userId, t.updatedAt),
+    // SQLite 는 unique 인덱스에서 NULL 을 다수 허용 → 미공유 보고서(토큰 없음) 충돌 없음.
+    shareTokenUniq: uniqueIndex('uq_reports_share_token').on(t.shareToken),
   })
 );
 

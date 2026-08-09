@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   MoreHorizontal,
@@ -61,9 +62,8 @@ import type {
   InviteRole,
 } from "@shared/groups";
 
-const ROLE_LABEL: Record<InviteRole, string> = { admin: "관리자", member: "멤버" };
-
 export default function GroupDetail() {
+  const { t } = useTranslation();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState<GroupDetailResponse | null>(null);
@@ -87,12 +87,12 @@ export default function GroupDetail() {
     try {
       setData(await getGroup(id));
     } catch {
-      toast.error("그룹을 열 수 없어요");
+      toast.error(t("groupDetail.loadFailed"));
       navigate("/groups");
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   useEffect(() => {
     void load();
@@ -105,7 +105,7 @@ export default function GroupDetail() {
       await fn();
       await load();
     } catch {
-      toast.error("처리 중 오류가 발생했어요");
+      toast.error(t("errors.generic"));
     } finally {
       setBusy(false);
     }
@@ -123,27 +123,27 @@ export default function GroupDetail() {
       if (!email.trim()) return;
       const res = await addMember(id, { email: email.trim(), role: inviteRole });
       setEmail("");
-      if (res.member) toast.success("멤버를 추가했어요");
-      else if (res.invitation) toast.success("초대를 보냈어요 — 상대가 로그인하면 자동 참여됩니다");
+      if (res.member) toast.success(t("groupDetail.memberAdded"));
+      else if (res.invitation) toast.success(t("groupDetail.inviteSent"));
     });
 
   const handleRole = (m: GroupMember, role: InviteRole) =>
     run(async () => {
       await updateMemberRole(id, m.userId, { role });
-      toast.success(`${ROLE_LABEL[role]}로 변경했어요`);
+      toast.success(t("groupDetail.roleChanged", { role: t(`groupDetail.role.${role}` as const) }));
     });
 
   const handleRemove = (m: GroupMember) =>
     run(async () => {
       await removeMember(id, m.userId);
-      toast.success(m.isMe ? "그룹에서 탈퇴했어요" : "멤버를 제거했어요");
+      toast.success(m.isMe ? t("groupDetail.left") : t("groupDetail.memberRemoved"));
       if (m.isMe) navigate("/groups");
     });
 
   const handleRevoke = (invId: string) =>
     run(async () => {
       await revokeInvitation(id, invId);
-      toast.success("초대를 취소했어요");
+      toast.success(t("groupDetail.inviteRevoked"));
     });
 
   const openSettings = () => {
@@ -158,10 +158,10 @@ export default function GroupDetail() {
     try {
       await updateGroup(id, { name: editName.trim() || group.name, description: editDesc.trim() || null });
       setSettingsOpen(false);
-      toast.success("저장했어요");
+      toast.success(t("groupDetail.saved"));
       await load();
     } catch {
-      toast.error("저장에 실패했어요");
+      toast.error(t("groupDetail.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -172,10 +172,10 @@ export default function GroupDetail() {
     setBusy(true);
     try {
       await deleteGroup(id);
-      toast.success("그룹을 삭제했어요");
+      toast.success(t("groupDetail.deleted"));
       navigate("/groups");
     } catch {
-      toast.error("삭제에 실패했어요");
+      toast.error(t("groupDetail.deleteFailed"));
       setBusy(false);
     }
   };
@@ -191,12 +191,12 @@ export default function GroupDetail() {
     );
   }
 
-  const myBadge = roleBadge(group.myRole);
+  const myBadge = roleBadge(group.myRole, t);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <Button variant="ghost" size="sm" className="mb-3 -ml-2" onClick={() => navigate("/groups")}>
-        <ArrowLeft /> 그룹 목록
+        <ArrowLeft /> {t("groupDetail.back")}
       </Button>
 
       {/* 헤더 */}
@@ -211,22 +211,22 @@ export default function GroupDetail() {
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {group.description || `멤버 ${group.memberCount}명`}
+            {group.description || t("groups.memberCount", { count: group.memberCount })}
           </p>
         </div>
         {canManage && (
           <Button variant="outline" size="sm" onClick={openSettings}>
-            <Settings /> 정보 수정
+            <Settings /> {t("groupDetail.editInfo")}
           </Button>
         )}
       </div>
 
       {/* 멤버 */}
       <section className="mb-6">
-        <h3 className="mb-2 text-sm font-semibold text-foreground/80">멤버 ({members.length})</h3>
+        <h3 className="mb-2 text-sm font-semibold text-foreground/80">{t("groupDetail.members", { count: members.length })}</h3>
         <ul className="divide-y rounded-lg border bg-card">
           {members.map((m) => {
-            const b = roleBadge(m.role);
+            const b = roleBadge(m.role, t);
             return (
               <li key={m.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
@@ -234,8 +234,8 @@ export default function GroupDetail() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{m.name || "(이름 없음)"}</span>
-                    {m.isMe && <span className="text-[11px] text-muted-foreground">나</span>}
+                    <span className="truncate text-sm font-medium">{m.name || t("groupDetail.noName")}</span>
+                    {m.isMe && <span className="text-[11px] text-muted-foreground">{t("groupDetail.me")}</span>}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">{m.email}</div>
                 </div>
@@ -253,13 +253,13 @@ export default function GroupDetail() {
                       onClick={() => void handleRemove(m)}
                       disabled={busy}
                     >
-                      <LogOut /> 탈퇴
+                      <LogOut /> {t("groupDetail.leave")}
                     </Button>
                   )
                 ) : canManage ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8 shrink-0" title="더 보기">
+                      <Button variant="ghost" size="icon" className="size-8 shrink-0" title={t("groupDetail.more")}>
                         <MoreHorizontal />
                       </Button>
                     </DropdownMenuTrigger>
@@ -268,20 +268,20 @@ export default function GroupDetail() {
                         disabled={m.role === "admin"}
                         onClick={() => void handleRole(m, "admin")}
                       >
-                        관리자로 변경
+                        {t("groupDetail.changeRole", { role: t("groupDetail.role.admin") })}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={m.role === "member"}
                         onClick={() => void handleRole(m, "member")}
                       >
-                        멤버로 변경
+                        {t("groupDetail.changeRole", { role: t("groupDetail.role.member") })}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={() => void handleRemove(m)}
                       >
-                        <Trash2 /> 그룹에서 제거
+                        <Trash2 /> {t("groupDetail.removeFromGroup")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -295,13 +295,13 @@ export default function GroupDetail() {
       {/* 초대/추가 (manager) */}
       {canManage && (
         <section className="mb-6">
-          <h3 className="mb-2 text-sm font-semibold text-foreground/80">멤버 추가</h3>
+          <h3 className="mb-2 text-sm font-semibold text-foreground/80">{t("groupDetail.addMember")}</h3>
           <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="이메일 주소"
+              placeholder={t("groupDetail.emailPlaceholder")}
               className="h-9 min-w-[180px] flex-1 text-sm"
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleAdd();
@@ -312,19 +312,19 @@ export default function GroupDetail() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="member">멤버</SelectItem>
-                <SelectItem value="admin">관리자</SelectItem>
+                <SelectItem value="member">{t("groupDetail.role.member")}</SelectItem>
+                <SelectItem value="admin">{t("groupDetail.role.admin")}</SelectItem>
               </SelectContent>
             </Select>
             <Button size="sm" onClick={() => void handleAdd()} disabled={busy || !email.trim()}>
-              <Plus /> 추가
+              <Plus /> {t("groupDetail.add")}
             </Button>
           </div>
 
           {invitations.length > 0 && (
             <>
               <h4 className="mb-1.5 mt-4 text-xs font-medium text-muted-foreground">
-                초대 대기 ({invitations.length})
+                {t("groupDetail.pending", { count: invitations.length })}
               </h4>
               <ul className="divide-y rounded-lg border bg-card">
                 {invitations.map((inv) => (
@@ -332,7 +332,7 @@ export default function GroupDetail() {
                     <div className="min-w-0 flex-1">
                       <span className="truncate text-sm">{inv.email}</span>
                       <span className="ml-2 text-[11px] text-muted-foreground">
-                        {ROLE_LABEL[inv.role]} 대기중
+                        {t("groupDetail.pendingRole", { role: t(`groupDetail.role.${inv.role}` as const) })}
                       </span>
                     </div>
                     <Button
@@ -342,7 +342,7 @@ export default function GroupDetail() {
                       onClick={() => void handleRevoke(inv.id)}
                       disabled={busy}
                     >
-                      취소
+                      {t("groupDetail.revoke")}
                     </Button>
                   </li>
                 ))}
@@ -357,13 +357,11 @@ export default function GroupDetail() {
         <section className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold text-destructive">그룹 삭제</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                그룹의 멤버·초대·공유가 모두 제거됩니다. 공유된 템플릿은 작성자의 비공개로 돌아갑니다.
-              </p>
+              <h3 className="text-sm font-semibold text-destructive">{t("groupDetail.deleteSection")}</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t("groupDetail.deleteSectionDesc")}</p>
             </div>
             <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={busy}>
-              <Trash2 /> 삭제
+              <Trash2 /> {t("common.delete")}
             </Button>
           </div>
         </section>
@@ -373,25 +371,25 @@ export default function GroupDetail() {
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>그룹 정보 수정</DialogTitle>
-            <DialogDescription>그룹 이름과 설명을 변경합니다.</DialogDescription>
+            <DialogTitle>{t("groupDetail.settingsTitle")}</DialogTitle>
+            <DialogDescription>{t("groupDetail.settingsDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground/80">이름</Label>
+              <Label className="text-xs font-medium text-foreground/80">{t("groupDetail.nameLabel")}</Label>
               <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-10" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground/80">설명</Label>
+              <Label className="text-xs font-medium text-foreground/80">{t("groupDetail.descLabel")}</Label>
               <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="h-10" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSettingsOpen(false)}>
-              취소
+              {t("common.cancel")}
             </Button>
             <Button onClick={() => void handleSaveSettings()} disabled={busy}>
-              저장
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -401,14 +399,12 @@ export default function GroupDetail() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>그룹을 삭제할까요?</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 작업은 되돌릴 수 없습니다. 멤버·초대·보고서 공유가 제거되고, 공유된 템플릿은 비공개로 전환됩니다.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("groupDetail.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("groupDetail.deleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void handleDelete()}>삭제</AlertDialogAction>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleDelete()}>{t("common.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

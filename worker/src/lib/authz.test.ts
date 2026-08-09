@@ -1,11 +1,13 @@
 /// <reference types="@cloudflare/vitest-pool-workers/types" />
 import { describe, it, expect, beforeAll } from "vitest";
+import { eq } from "drizzle-orm";
 import { env } from "cloudflare:test";
 
 import { createDb, schema, type Database } from "../db/index.js";
 import type { Bindings } from "../env.js";
 import {
   ensureReportAccess,
+  ensurePublicReport,
   getGroupRole,
   assertGroupManager,
   assertGroupOwner,
@@ -17,8 +19,9 @@ import m1 from "../../migrations/0001_shared_auth.sql?raw";
 import m2 from "../../migrations/0002_first_bloodaxe.sql?raw";
 import m3 from "../../migrations/0003_red_hex.sql?raw";
 import m4 from "../../migrations/0004_groups.sql?raw";
+import m5 from "../../migrations/0005_public_share.sql?raw";
 
-const ALL_MIGRATIONS = [m0, m1, m2, m3, m4].join("\n");
+const ALL_MIGRATIONS = [m0, m1, m2, m3, m4, m5].join("\n");
 
 /** 마이그레이션 SQL → 개별 statement 로 분리(-- 주석 라인 제거 후 ';' 기준). */
 function splitStatements(sql: string): string[] {
@@ -47,6 +50,14 @@ async function seedReport(id: string, ownerUserId: string) {
   await db
     .insert(schema.reports)
     .values({ id, userId: ownerUserId, title: "t", content: "{}", templateOptions: "{}" });
+}
+
+/** 퍼블릭 공유 상태로 보고서 시드(활성 여부 + 토큰). */
+async function seedPublicShare(id: string, enabled: boolean, token: string | null) {
+  await db
+    .update(schema.reports)
+    .set({ shareEnabled: enabled, shareToken: token })
+    .where(eq(schema.reports.id, id));
 }
 
 async function seedGroup(id: string, ownerUserId: string) {
@@ -125,5 +136,32 @@ describe("그룹 역할 게이트", () => {
     await seedMember("g6", "userB", "admin");
     await assertGroupOwner(db, "g6", "userA"); // not throw
     await expect(assertGroupOwner(db, "g6", "userB")).rejects.toMatchObject({ status: 403 });
+  });
+});
+
+describe("ensurePublicReport — 퍼블릭 링크 접근(토큰 capability)", () => {
+  it("활성 + 토큰 일치 → row 반환", async () => {
+    await seedReport("p1", "userA");
+    await seedPublicShare("p1", true, "tok-p1");
+    const row = await ensurePublicReport(db, "tok-p1");
+    expect(row.id).toBe("p1");
+  });
+
+  it("비활성(shareEnabled=false) → notFound(404) — 공유 해제 시 접근 불가", async () => {
+    await seedReport("p2", "userA");
+    await seedPublicShare("p2", false, "tok-p2");
+    await expect(ensurePublicReport(db, "tok-p2")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("알 수 없는 토큰 → notFound(404) — 존재 은닉", async () => {
+    await seedReport("p3", "userA");
+    await seedPublicShare("p3", true, "tok-p3");
+    await expect(ensurePublicReport(db, "totally-unknown")).rejects.toBeInstanceOf(ApiHttpError);
+    await expect(ensurePublicReport(db, "totally-unknown")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("토큰 없는 보고서(미공유) → notFound(404)", async () => {
+    await seedReport("p4", "userA"); // shareEnabled=false, token=null (기본값)
+    await expect(ensurePublicReport(db, "tok-p4")).rejects.toMatchObject({ status: 404 });
   });
 });

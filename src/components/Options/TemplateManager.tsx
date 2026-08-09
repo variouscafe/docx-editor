@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Save,
   Copy,
@@ -101,6 +102,7 @@ type NameDialog = {
 
 /** 우측 패널 템플릿 관리 — 선택 · 저장(갱신) · 다른 이름으로 저장 · 복제 · 삭제 · 공개범위 · 기본 지정. */
 export default function TemplateManager({ options, templateId, onApply }: TemplateManagerProps) {
+  const { t } = useTranslation();
   const [userTemplates, setUserTemplates] = useState<ReportTemplateRow[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [nameDialog, setNameDialog] = useState<NameDialog | null>(null);
@@ -164,7 +166,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       await load();
     } catch (e) {
       console.error("[template action failed]", e);
-      toast.error("처리 중 오류가 발생했어요");
+      toast.error(t("templates.actionFailed"));
     } finally {
       setBusy(false);
     }
@@ -174,13 +176,13 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
     run(async () => {
       if (!templateId || !isOwner) return;
       await updateTemplate(templateId, { options });
-      toast.success("템플릿에 저장했어요");
+      toast.success(t("templates.saved"));
     });
 
   const openCreate = () =>
     setNameDialog({
       mode: "create",
-      name: sel ? `${sel.name} 사본` : "내 템플릿",
+      name: sel ? t("templates.copyName", { name: sel.name }) : t("templates.myTemplate"),
       visibility: "private",
       groupId: "",
     });
@@ -193,7 +195,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       if (nameDialog.mode === "create") {
         const vis = nameDialog.visibility;
         if (vis === "group" && !nameDialog.groupId) {
-          toast.error("공유할 그룹을 선택해 주세요");
+          toast.error(t("templates.pickGroup"));
           return;
         }
         const row = await createTemplate({
@@ -203,10 +205,10 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
           groupId: vis === "group" ? nameDialog.groupId : null,
         });
         onApply(options, row.id);
-        toast.success("새 템플릿으로 저장했어요");
+        toast.success(t("templates.savedNew"));
       } else if (templateId) {
         await updateTemplate(templateId, { name });
-        toast.success("이름을 변경했어요");
+        toast.success(t("templates.renamed"));
       }
       setNameDialog(null);
     });
@@ -216,7 +218,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       if (!templateId) return;
       const row = await duplicateTemplate(templateId);
       onApply(clone(row.options), row.id);
-      toast.success("복제했어요");
+      toast.success(t("templates.duplicated"));
     });
 
   /** 가시성 변경(인라인 에디터). private/public 은 즉시, group 은 그룹 선택 시 확정. */
@@ -226,10 +228,10 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       if (vis === "group") {
         if (!gid) return;
         await updateTemplate(templateId, { visibility: "group", groupId: gid });
-        toast.success("그룹에 공유했어요");
+        toast.success(t("templates.groupSharedToast"));
       } else {
         await updateTemplate(templateId, { visibility: vis });
-        toast.success(vis === "public" ? "공개로 전환했어요" : "비공개로 전환했어요");
+        toast.success(vis === "public" ? t("templates.toPublic") : t("templates.toPrivate"));
       }
     });
 
@@ -242,7 +244,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
     run(async () => {
       if (!templateId || !isOwner) return;
       await updateTemplate(templateId, { isDefault: !isDefault });
-      toast.success(isDefault ? "기본 템플릿을 해제했어요" : "기본 템플릿으로 지정했어요");
+      toast.success(isDefault ? t("templates.unsetDefaultToast") : t("templates.setAsDefault"));
     });
 
   const confirmDelete = () =>
@@ -250,7 +252,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       if (!templateId) return;
       await deleteTemplate(templateId);
       onApply(options, null);
-      toast.success("템플릿을 삭제했어요");
+      toast.success(t("templates.deleted"));
       setDeleteOpen(false);
     });
 
@@ -267,41 +269,41 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       {/* 현재 양식 선택 */}
       <div className="flex items-center gap-2">
         <Layers className="size-4 shrink-0 text-muted-foreground" />
-        <span className="shrink-0 text-xs font-medium text-foreground/80">현재 양식</span>
+        <span className="shrink-0 text-xs font-medium text-foreground/80">{t("templates.current")}</span>
         <Select value={isDeleted ? "" : templateId ?? "current"} onValueChange={handleChange}>
           <SelectTrigger className="h-9 min-w-0 flex-1 text-sm">
-            <SelectValue placeholder="(삭제된 양식)" />
+            <SelectValue placeholder={t("templates.deletedPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="current">(현재 옵션)</SelectItem>
+            <SelectItem value="current">{t("templates.currentOption")}</SelectItem>
             <SelectGroup>
-              <SelectLabel>빌트인</SelectLabel>
-              {BUILTIN_TEMPLATES.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
+              <SelectLabel>{t("templates.builtin")}</SelectLabel>
+              {BUILTIN_TEMPLATES.map((tpl) => (
+                <SelectItem key={tpl.id} value={tpl.id}>
+                  {tpl.name}
                 </SelectItem>
               ))}
             </SelectGroup>
             {myTemplates.length > 0 && (
               <SelectGroup>
-                <SelectLabel>내 템플릿</SelectLabel>
-                {myTemplates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                    {t.isDefault ? " ★" : ""}
-                    {t.visibility === "public" ? " 🔗" : ""}
-                    {t.visibility === "group" ? ` · ${t.groupName ?? "그룹"}` : ""}
+                <SelectLabel>{t("templates.mine")}</SelectLabel>
+                {myTemplates.map((tpl) => (
+                  <SelectItem key={tpl.id} value={tpl.id}>
+                    {tpl.name}
+                    {tpl.isDefault ? " ★" : ""}
+                    {tpl.visibility === "public" ? " 🔗" : ""}
+                    {tpl.visibility === "group" ? ` · ${tpl.groupName ?? t("templates.group")}` : ""}
                   </SelectItem>
                 ))}
               </SelectGroup>
             )}
             {sharedTemplates.length > 0 && (
               <SelectGroup>
-                <SelectLabel>공유 템플릿</SelectLabel>
-                {sharedTemplates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                    {t.visibility === "group" ? ` · ${t.groupName ?? "그룹"}` : " 🔗"}
+                <SelectLabel>{t("templates.shared")}</SelectLabel>
+                {sharedTemplates.map((tpl) => (
+                  <SelectItem key={tpl.id} value={tpl.id}>
+                    {tpl.name}
+                    {tpl.visibility === "group" ? ` · ${tpl.groupName ?? t("templates.group")}` : " 🔗"}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -311,27 +313,27 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
         {showMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-9 shrink-0" title="더 보기">
+              <Button variant="ghost" size="icon" className="size-9 shrink-0" title={t("templates.more")}>
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={openCreate}>
-                <FilePlus2 /> 다른 이름으로 저장
+                <FilePlus2 /> {t("templates.saveAs")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={openRename}>
-                <Pencil /> 이름 편집
+                <Pencil /> {t("templates.rename")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDuplicate}>
-                <Copy /> 복제
+                <Copy /> {t("templates.duplicate")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleToggleDefault}>
-                <Star /> {isDefault ? "기본 템플릿 해제" : "기본 템플릿으로 지정"}
+                <Star /> {isDefault ? t("templates.unsetDefault") : t("templates.setDefault")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
-                <Trash2 /> 삭제
+                <Trash2 /> {t("common.delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -340,28 +342,28 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
 
       {/* 상태 표시 (pill 배지) */}
       {isDeleted ? (
-        <p className="text-[11px] text-muted-foreground">(삭제된 양식) — 현재 옵션은 유지됩니다.</p>
+        <p className="text-[11px] text-muted-foreground">{t("templates.deletedHint")}</p>
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
           {dirty && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
               <span className="size-1.5 rounded-full bg-amber-500" />
-              수정됨 · 저장 필요
+              {t("templates.modified")}
             </span>
           )}
           {isOwner && isDefault && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
-              <Star className="size-3" /> 기본 템플릿
+              <Star className="size-3" /> {t("templates.defaultBadge")}
             </span>
           )}
           {isOthersGroup && (
             <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] text-violet-700 dark:text-violet-300">
-              <Users className="size-3" /> {userSel?.groupName ?? "그룹"} 공유 (읽기 전용)
+              <Users className="size-3" /> {t("templates.groupShared", { group: userSel?.groupName ?? t("templates.group") })}
             </span>
           )}
           {isOthersShared && !isOthersGroup && (
             <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[11px] text-blue-700 dark:text-blue-300">
-              <Link className="size-3" /> 공유 (읽기 전용)
+              <Link className="size-3" /> {t("templates.sharedBadge")}
             </span>
           )}
         </div>
@@ -374,23 +376,21 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
             value={effVis}
             onChange={onVisSegment}
             options={[
-              { label: "비공개", value: "private", icon: <Lock className="size-3.5" /> },
-              { label: "공개", value: "public", icon: <Globe className="size-3.5" /> },
-              { label: "그룹", value: "group", icon: <Users className="size-3.5" /> },
+              { label: t("templates.visibility.private"), value: "private", icon: <Lock className="size-3.5" /> },
+              { label: t("templates.visibility.public"), value: "public", icon: <Globe className="size-3.5" /> },
+              { label: t("templates.visibility.group"), value: "group", icon: <Users className="size-3.5" /> },
             ]}
           />
           {effVis === "group" &&
             (groups.length > 0 ? (
               <SelectField
-                label="공유 그룹"
+                label={t("templates.shareGroup")}
                 value={currentGroupId ?? ""}
                 onChange={(v) => void handleVisibility("group", v)}
                 options={groups.map((g) => ({ label: g.name, value: g.id }))}
               />
             ) : (
-              <p className="text-[11px] text-muted-foreground">
-                가입한 그룹이 없습니다. 먼저 그룹에 참여하세요.
-              </p>
+              <p className="text-[11px] text-muted-foreground">{t("templates.noGroupJoin")}</p>
             ))}
         </div>
       )}
@@ -399,7 +399,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       <div className="grid grid-cols-2 gap-1.5">
         {showSaveButton && (
           <Button size="sm" disabled={!dirty || busy} onClick={() => void handleSave()}>
-            <Save /> 저장
+            <Save /> {t("common.save")}
           </Button>
         )}
         {showCreateButton && (
@@ -410,7 +410,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
             disabled={busy}
             className={showSaveButton ? "" : "col-span-2"}
           >
-            <FilePlus2 /> 새 템플릿으로 저장
+            <FilePlus2 /> {t("templates.saveNew")}
           </Button>
         )}
       </div>
@@ -419,24 +419,22 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       <Dialog open={!!nameDialog} onOpenChange={(o) => !o && setNameDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isRename ? "템플릿 이름 편집" : "새 템플릿으로 저장"}</DialogTitle>
+            <DialogTitle>{isRename ? t("templates.renameTitle") : t("templates.nameTitle")}</DialogTitle>
             <DialogDescription>
-              {isRename
-                ? "템플릿의 이름을 변경합니다."
-                : "지금 보고 있는 옵션으로 새 템플릿을 만듭니다."}
+              {isRename ? t("templates.renameDesc") : t("templates.nameDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="tpl-name" className="text-xs font-medium text-foreground/80">
-                이름
+                {t("templates.nameLabel")}
               </Label>
               <Input
                 id="tpl-name"
                 autoFocus
                 value={nameDialog?.name ?? ""}
                 onChange={(e) => setNameDialog((d) => (d ? { ...d, name: e.target.value } : d))}
-                placeholder="템플릿 이름"
+                placeholder={t("templates.namePlaceholder")}
                 className="h-10"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void confirmName();
@@ -445,45 +443,43 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
             </div>
             {nameDialog?.mode === "create" && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground/80">공개 범위</Label>
+                <Label className="text-xs font-medium text-foreground/80">{t("templates.visibilityLabel")}</Label>
                 <SegmentedField<TemplateVisibility>
                   value={nameDialog.visibility}
                   onChange={(v) => setNameDialog((d) => (d ? { ...d, visibility: v } : d))}
                   options={[
-                    { label: "비공개", value: "private", icon: <Lock className="size-3.5" /> },
-                    { label: "공개", value: "public", icon: <Globe className="size-3.5" /> },
-                    { label: "그룹", value: "group", icon: <Users className="size-3.5" /> },
+                    { label: t("templates.visibility.private"), value: "private", icon: <Lock className="size-3.5" /> },
+                    { label: t("templates.visibility.public"), value: "public", icon: <Globe className="size-3.5" /> },
+                    { label: t("templates.visibility.group"), value: "group", icon: <Users className="size-3.5" /> },
                   ]}
                 />
                 {nameDialog.visibility === "group" &&
                   (groups.length > 0 ? (
                     <SelectField
-                      label="공유 그룹"
+                      label={t("templates.shareGroup")}
                       value={nameDialog.groupId}
                       onChange={(v) => setNameDialog((d) => (d ? { ...d, groupId: v } : d))}
                       options={groups.map((g) => ({ label: g.name, value: g.id }))}
                     />
                   ) : (
-                    <p className="text-[11px] text-muted-foreground">
-                      가입한 그룹이 없습니다. 먼저 그룹에 참여하세요.
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">{t("templates.noGroupJoin")}</p>
                   ))}
                 <p className="text-[11px] text-muted-foreground">
                   {nameDialog.visibility === "public"
-                    ? "공개 템플릿은 사내 전체가 읽고 복제할 수 있어요."
+                    ? t("templates.visDesc.public")
                     : nameDialog.visibility === "group"
-                      ? "그룹원이 읽고 복제·적용할 수 있어요."
-                      : "비공개 템플릿은 나만 볼 수 있어요."}
+                      ? t("templates.visDesc.group")
+                      : t("templates.visDesc.private")}
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNameDialog(null)}>
-              취소
+              {t("common.cancel")}
             </Button>
             <Button onClick={() => void confirmName()} disabled={!nameDialog?.name.trim() || busy}>
-              저장
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -493,14 +489,12 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>템플릿을 삭제할까요?</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 템플릿으로 만든 기존 보고서는 영향을 받지 않습니다(각 보고서는 자체 양식을 저장함).
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("templates.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("templates.deleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void confirmDelete()}>삭제</AlertDialogAction>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmDelete()}>{t("common.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import { History, RotateCcw, Trash2, Save } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { RotateCcw, Trash2, Save } from "lucide-react";
 import type { Report, RevisionListItem } from "@shared/report";
 import {
   listRevisions,
@@ -17,7 +18,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -33,12 +33,15 @@ import {
 interface Props {
   reportId?: string;
   onRestored: (report: Report) => void;
+  /** 상위 ⋯ 더 보기 메뉴가 열고 닫음(제어형). */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-/** SQLite CURRENT_TIMESTAMP("YYYY-MM-DD HH:MM:SS" UTC) → 로컬 표시. */
-function fmt(ts: string): string {
+/** SQLite CURRENT_TIMESTAMP("YYYY-MM-DD HH:MM:SS" UTC) → 로컬 표시(선택 언어 로케일). */
+function fmt(ts: string, lng?: string): string {
   const d = new Date(ts.replace(" ", "T") + "Z");
-  return Number.isNaN(d.getTime()) ? ts : d.toLocaleString();
+  return Number.isNaN(d.getTime()) ? ts : d.toLocaleString(lng);
 }
 
 type ConfirmAction = { type: "restore" | "delete"; rid: string } | null;
@@ -49,8 +52,8 @@ type ConfirmAction = { type: "restore" | "delete"; rid: string } | null;
  * - 항목 → 되돌리기(AlertDialog) / 삭제(AlertDialog).
  * 자동 리비전은 BE(PATCH 저장 시 3분 간격)에서 생성됨.
  */
-export function VersionHistory({ reportId, onRestored }: Props) {
-  const [open, setOpen] = useState(false);
+export function VersionHistory({ reportId, onRestored, open, onOpenChange }: Props) {
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<RevisionListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -81,7 +84,7 @@ export function VersionHistory({ reportId, onRestored }: Props) {
       await createRevision(reportId, { label: saveName.trim() || undefined });
       setSaveOpen(false);
       setSaveName("");
-      toast.success("버전이 저장됐습니다");
+      toast.success(t("versionHistory.saved"));
       await load();
     } finally {
       setBusy(false);
@@ -97,11 +100,11 @@ export function VersionHistory({ reportId, onRestored }: Props) {
       if (action.type === "restore") {
         const report = await restoreRevision(reportId, action.rid);
         onRestored(report);
-        setOpen(false);
-        toast.success("해당 버전으로 되돌렸습니다");
+        onOpenChange(false);
+        toast.success(t("versionHistory.restored"));
       } else {
         await deleteRevision(reportId, action.rid);
-        toast.success("버전 기록이 삭제됐습니다");
+        toast.success(t("versionHistory.deleted"));
         await load();
       }
     } finally {
@@ -111,31 +114,17 @@ export function VersionHistory({ reportId, onRestored }: Props) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!reportId}
-            className="shrink-0"
-            title="버전 기록"
-          >
-            <History />
-            <span className="hidden sm:inline">버전</span>
-          </Button>
-        </DialogTrigger>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md gap-0">
           <DialogHeader>
-            <DialogTitle>버전 기록</DialogTitle>
+            <DialogTitle>{t("versionHistory.title")}</DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] space-y-1 overflow-y-auto py-2">
             {loading ? (
-              <p className="py-8 text-center text-xs text-muted-foreground">불러오는 중…</p>
+              <p className="py-8 text-center text-xs text-muted-foreground">{t("common.loading")}</p>
             ) : items.length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted-foreground">
-                저장된 버전이 없습니다.
-                <br />
-                자동(수정 후 약 3분 간격) 또는 “현재 버전 저장”으로 생성됩니다.
+              <p className="whitespace-pre-line py-8 text-center text-xs text-muted-foreground">
+                {t("versionHistory.empty")}
               </p>
             ) : (
               items.map((r) => (
@@ -145,9 +134,9 @@ export function VersionHistory({ reportId, onRestored }: Props) {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-medium">
-                      {r.label || (r.isManual ? "수동 버전" : "자동 버전")}
+                      {r.label || (r.isManual ? t("versionHistory.manualVersion") : t("versionHistory.autoVersion"))}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">{fmt(r.createdAt)}</div>
+                    <div className="text-[11px] text-muted-foreground">{fmt(r.createdAt, i18n.language)}</div>
                   </div>
                   <span
                     className={cn(
@@ -157,7 +146,7 @@ export function VersionHistory({ reportId, onRestored }: Props) {
                         : "bg-muted text-muted-foreground",
                     )}
                   >
-                    {r.isManual ? "수동" : "자동"}
+                    {r.isManual ? t("versionHistory.manual") : t("versionHistory.auto")}
                   </span>
                   <Button
                     variant="ghost"
@@ -165,7 +154,7 @@ export function VersionHistory({ reportId, onRestored }: Props) {
                     className="size-7"
                     disabled={busy}
                     onClick={() => setConfirmAction({ type: "restore", rid: r.id })}
-                    title="이 버전으로 되돌리기"
+                    title={t("versionHistory.restore")}
                   >
                     <RotateCcw className="size-3.5" />
                   </Button>
@@ -175,7 +164,7 @@ export function VersionHistory({ reportId, onRestored }: Props) {
                     className="size-7 text-muted-foreground hover:text-destructive"
                     disabled={busy}
                     onClick={() => setConfirmAction({ type: "delete", rid: r.id })}
-                    title="삭제"
+                    title={t("common.delete")}
                   >
                     <Trash2 className="size-3.5" />
                   </Button>
@@ -190,7 +179,7 @@ export function VersionHistory({ reportId, onRestored }: Props) {
               disabled={busy || !reportId}
             >
               <Save className="size-3.5" />
-              현재 버전 저장
+              {t("versionHistory.saveCurrent")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -200,18 +189,18 @@ export function VersionHistory({ reportId, onRestored }: Props) {
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>현재 버전 저장</DialogTitle>
+            <DialogTitle>{t("versionHistory.saveCurrent")}</DialogTitle>
           </DialogHeader>
           <Input
             value={saveName}
             onChange={(e) => setSaveName(e.target.value)}
-            placeholder="버전 이름(선택사항)"
+            placeholder={t("versionHistory.namePlaceholder")}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveOpen(false)}>
-              취소
+              {t("common.cancel")}
             </Button>
-            <Button onClick={() => void handleSave()}>저장</Button>
+            <Button onClick={() => void handleSave()}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -221,21 +210,21 @@ export function VersionHistory({ reportId, onRestored }: Props) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmAction?.type === "restore" ? "이 버전으로 되돌리기" : "버전 기록 삭제"}
+              {confirmAction?.type === "restore" ? t("versionHistory.restore") : t("versionHistory.deleteConfirmTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction?.type === "restore"
-                ? "현재 편집 내용이 해당 버전으로 교체됩니다. 계속하시겠습니까?"
-                : "이 버전 기록을 삭제할까요?"}
+                ? t("versionHistory.restoreConfirmDesc")
+                : t("versionHistory.deleteConfirmDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className={cn(confirmAction?.type === "delete" && "bg-destructive text-white hover:bg-destructive/90")}
               onClick={() => void handleConfirm()}
             >
-              {confirmAction?.type === "restore" ? "되돌리기" : "삭제"}
+              {confirmAction?.type === "restore" ? t("versionHistory.restoreAction") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

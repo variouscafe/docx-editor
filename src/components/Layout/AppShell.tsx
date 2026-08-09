@@ -1,14 +1,7 @@
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { FileText, Plus, Search, LogOut, User, Users } from "lucide-react";
+import { FileText, Plus, Search, Users } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -23,59 +16,18 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useAuthStore } from "@/store/auth";
-import { authWorkerHttp } from "@/api/client";
 import { useCommandStore } from "@/store/command";
-import { ThemeToggle } from "./ThemeToggle";
+import { UserMenu } from "./UserMenu";
 
 const NAV_FILTERS = [
-  { value: "all", label: "전체" },
-  { value: "recent", label: "최근" },
-  { value: "published", label: "게시됨" },
-  { value: "draft", label: "초안" },
+  { value: "all", key: "all" },
+  { value: "recent", key: "recent" },
+  { value: "published", key: "published" },
+  { value: "draft", key: "draft" },
 ] as const;
 
-function ProfileMenu() {
-  const navigate = useNavigate();
-  const email = useAuthStore((s) => s.email);
-  const name = useAuthStore((s) => s.name);
-  const logout = useAuthStore((s) => s.logout);
-  const refreshToken = useAuthStore((s) => s.refreshToken);
-
-  const handleLogout = async () => {
-    try {
-      await authWorkerHttp.post("/auth/logout", { body: { refreshToken } });
-    } catch {
-      /* ignore */
-    }
-    logout();
-    navigate("/login");
-  };
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" title="계정">
-          <User />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">{name ?? "사용자"}</span>
-            {email && <span className="text-xs text-muted-foreground">{email}</span>}
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void handleLogout()}>
-          <LogOut /> 로그아웃
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 function AppSidebar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -91,24 +43,24 @@ function AppSidebar() {
           <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <FileText className="size-4" />
           </div>
-          <span className="text-sm font-semibold">Suseona Docs</span>
+          <span className="text-sm font-semibold">{t("nav.brand")}</span>
         </button>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>보고서</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.reports")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => navigate("/reports/new")}>
-                  <Plus /> 새 보고서
+                  <Plus /> {t("nav.newReport")}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>그룹</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.groups")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -116,14 +68,14 @@ function AppSidebar() {
                   isActive={groupsActive}
                   onClick={() => navigate("/groups")}
                 >
-                  <Users /> 그룹
+                  <Users /> {t("nav.groups")}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>필터</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.filters")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_FILTERS.map((f) => (
@@ -132,7 +84,7 @@ function AppSidebar() {
                     isActive={active === f.value}
                     onClick={() => setParams(f.value === "all" ? {} : { filter: f.value })}
                   >
-                    {f.label}
+                    {t(`nav.filter.${f.key}` as const)}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -150,11 +102,12 @@ function AppSidebar() {
  * 에디터(/reports/:id, /new)는 풀스크린 집중 모드로 AppShell 을 쓰지 않는다.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="flex flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-3 sm:px-4">
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3 sm:px-4">
           <SidebarTrigger />
           <div className="ml-auto flex items-center gap-1">
             <Button
@@ -162,14 +115,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               size="sm"
               className="text-muted-foreground"
               onClick={() => useCommandStore.getState().setOpen(true)}
-              title="검색 (⌘K)"
+              title={t("nav.searchKbd")}
             >
               <Search />
-              <span className="hidden sm:inline">검색</span>
+              <span className="hidden sm:inline">{t("nav.search")}</span>
               <kbd className="ml-1 hidden text-[10px] sm:inline">⌘K</kbd>
             </Button>
-            <ThemeToggle />
-            <ProfileMenu />
+            <UserMenu />
           </div>
         </header>
         <main className="flex-1 overflow-auto">{children}</main>

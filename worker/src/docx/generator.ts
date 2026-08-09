@@ -16,11 +16,13 @@ import {
   TableCell,
   WidthType,
   ShadingType,
+  TableLayoutType,
 } from 'docx';
 import { resolveSpacing, normalizeOptions, type DocxOptions, type SpacingFields } from '@shared/options';
 import { isBoldSymbol } from '@shared/lineStartSymbol';
 import { type HeadingKey } from '@shared/symbols';
 import { type JSONContent, type RunData } from '@shared/runs';
+import { buildTableGrid, formatCellValue } from '@shared/tableFormula';
 
 type Mark = { type: string; attrs?: Record<string, any> };
 
@@ -200,7 +202,7 @@ function getAlignment(node: JSONContent) {
 
 function getShading(r: RunData) {
   if (!r.highlight) return undefined;
-  return { type: ShadingType.SOLID, color: 'auto', fill: r.highlight.replace('#', '').toUpperCase() };
+  return { type: ShadingType.CLEAR, color: 'auto', fill: r.highlight.replace('#', '').toUpperCase() };
 }
 
 function runsToTextRuns(runs: RunData[], base: RunBase): TextRun[] {
@@ -404,20 +406,106 @@ function createAnnotationParagraphs(runs: RunData[], options: DocxOptions, font:
   );
 }
 
-/** TipTap 표(table>tableRow>(tableHeader|tableCell)>paragraph) → docx Table (최소 매핑). */
+/**
+ * TipTap 표(table>tableRow>(tableHeader|tableCell)>paragraph) → docx Table.
+ * 테두리·병합셀(colspan/rowspan)·헤더행(tableHeader)·셀음영(background)·
+ * 셀 단락 정렬(textAlign)·열 너비(colwidth→twips) 매핑. 미리보기와 동일 스펙.
+ *
+ * 표 계산: shared 엔진(buildTableGrid/formatCellValue)로 그리드를 빌드해 format/formula 셀을
+ * 미리보기와 동일하게 평가·포맷한다. 수식은 매 내보내기마다 재평가(저장 시점 무관).
+ * 숫자 포맷/수식 셀은 명시적 정렬이 없으면 우측 정렬(금액 표기 관례).
+ */
 function buildTable(node: JSONContent, font: string, commonSize: number): Table {
-  const rows = (node.content ?? [])
-    .filter((r) => r.type === 'tableRow')
-    .map((row) => {
-      const cells = (row.content ?? []).map((cell) => {
-        const cellRuns = buildRuns(collectInline(cell));
-        const trs = runsToTextRuns(cellRuns, { font, size: commonSize, color: '000000' });
-        return new TableCell({
-          children: [new Paragraph({ children: trs.length ? trs : [new TextRun({ text: '', font, size: commonSize })] })],
-        });
-      });
-      return new TableRow({ children: cells });
-    });
+  const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: '333333' }; // 4 = 0.5pt
+  const tableBorders = {
+    top: cellBorder,
+    bottom: cellBorder,
+    left: cellBorder,
+    right: cellBorder,
+    insideHorizontal: cellBorder,
+    insideVertical: cellBorder,
+  };
 
-  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+  const rowsArr = (node.content ?? []).filter((r) => r.type === 'tableRow');
+  const grid = buildTableGrid(node);
+
+  // 열 너비: 첫 행 셀의 colwidth(px) → twips(px*15). 병합 셀이 섞이거나 값이 없으면 자동 배분에 맡김.
+  let columnWidths: number[] | undefined;
+  const firstRowCells = (rowsArr[0]?.content ?? []).filter(
+    (c) => c.type === 'tableCell' || c.type === 'tableHeader',
+  );
+  const allSimple = firstRowCells.length > 0 && firstRowCells.every((c) => !c.attrs?.colspan || c.attrs.colspan <= 1);
+  if (allSimple) {
+    const widths = firstRowCells.map((c) => {
+      const cw = c.attrs?.colwidth;
+      const px = Array.isArray(cw) ? Number(cw[0]) : undefined;
+      return px && px > 0 ? Math.round(px * 15) : null;
+    });
+    if (widths.every((w) => w !== null)) columnWidths = widths as number[];
+  }
+
+  // 문서 순서 커서 — buildTableGrid.cells 와 동일 순서로 셀을 순회하기 위함.
+  let cellCursor = 0;
+  const rows = rowsArr.map((row) => {
+    const cells = (row.content ?? []).filter((c) => c.type === 'tableCell' || c.type === 'tableHeader');
+    const isHeaderRow = cells.some((c) => c.type === 'tableHeader');
+    const tableCells = cells.map((cell) => {
+      const gc = grid.cells[cellCursor++] ?? null;
+      const hasCalc = !!gc && (!!gc.formula || !!gc.format);
+      const isHeader = cell.type === 'tableHeader';
+      const bg = (isHeader ? '#f3f4f6' : (cell.attrs?.background as string | undefined))?.replace('#', '').toUpperCase();
+
+      let paragraphs: Paragraph[];
+      if (hasCalc && gc) {
+        // 계산 셀 — shared 엔진으로 평가·포맷한 표시 텍스트 1문단. 명시 정렬 없으면 우측.
+        const display = formatCellValue(gc, grid);
+        const childParas = (cell.content ?? []).filter((p) => p.type === 'paragraph');
+        const explicit = childParas[0] ? getAlignment(childParas[0]) : undefined;
+        const alignment = explicit ?? ALIGN.right;
+        const trs =
+          display === ''
+            ? []
+            : runsToTextRuns([{ text: display }], { font, size: commonSize, color: '000000' });
+        paragraphs = [
+          new Paragraph({
+            alignment,
+            children: trs.length ? trs : [new TextRun({ text: '', font, size: commonSize })],
+          }),
+        ];
+      } else {
+        // 일반 셀 — 셀 안 단락들을 각각 Paragraph 로(단락별 정렬 유지). 단락이 없으면 빈 단락 1개.
+        const childParas = (cell.content ?? []).filter((p) => p.type === 'paragraph');
+        const sources = childParas.length ? childParas : [null];
+        paragraphs = sources.map((p) => {
+          const trs = runsToTextRuns(buildRuns(collectInline(p ?? { type: 'paragraph' })), {
+            font,
+            size: commonSize,
+            color: '000000',
+          });
+          return new Paragraph({
+            alignment: p ? getAlignment(p) : undefined,
+            children: trs.length ? trs : [new TextRun({ text: '', font, size: commonSize })],
+          });
+        });
+      }
+
+      const colspan = cell.attrs?.colspan;
+      const rowspan = cell.attrs?.rowspan;
+      return new TableCell({
+        columnSpan: colspan && colspan > 1 ? colspan : undefined,
+        rowSpan: rowspan && rowspan > 1 ? rowspan : undefined,
+        shading: bg ? { type: ShadingType.CLEAR, color: 'auto', fill: bg } : undefined,
+        children: paragraphs,
+      });
+    });
+    return new TableRow({ tableHeader: isHeaderRow || undefined, children: tableCells });
+  });
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths,
+    layout: columnWidths ? TableLayoutType.FIXED : undefined,
+    borders: tableBorders,
+    rows,
+  });
 }

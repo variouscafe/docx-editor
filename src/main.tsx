@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { useAuthStore } from './store/auth';
 import { useThemeStore, applyTheme } from './store/theme';
+import './i18n'; // i18next 부트스트랩(감지 + <html lang> 적용)
 import './index.css';
 
 // /auth/google/callback 가 URL fragment(#at=&rt=)로 돌려준 토큰을 React 렌더 전에 소비.

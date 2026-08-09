@@ -1,4 +1,4 @@
-import { authHttp, authFetchRaw } from "./client";
+import { authHttp, authFetchRaw, API_URL } from "./client";
 import type {
   Report,
   ReportListItem,
@@ -7,6 +7,9 @@ import type {
   Revision,
   RevisionListItem,
   CreateRevisionBody,
+  PublicShareState,
+  PublicReportView,
+  UpdatePublicShareBody,
 } from "@shared/report";
 import type { ReportShare, CreateReportShareBody } from "@shared/groups";
 
@@ -48,6 +51,38 @@ export async function shareReport(
 
 export async function unshareReport(reportId: string, shareId: string): Promise<void> {
   await authHttp.del(`/api/reports/${reportId}/shares/${shareId}`);
+}
+
+/* ── 퍼블릭 링크 공유(로그인 없이 읽기 전용) ───────────────────── */
+
+/** 퍼블릭 공유 상태 조회(owner). */
+export async function getPublicShare(reportId: string): Promise<PublicShareState> {
+  return authHttp.get<PublicShareState>(`/api/reports/${reportId}/public-share`);
+}
+
+/** 퍼블릭 공유 토글·토큰 재생성(owner). */
+export async function setPublicShare(
+  reportId: string,
+  body: UpdatePublicShareBody,
+): Promise<PublicShareState> {
+  return authHttp.put<PublicShareState>(`/api/reports/${reportId}/public-share`, { body });
+}
+
+/**
+ * 퍼블릭 링크로 보고서 읽기(로그인 없음) — authHttp 미사용(Bearer/refresh 없음).
+ * 404(무효·해제된 링크) 시 status 를 담은 에러를 throw.
+ */
+export async function getPublicReport(token: string): Promise<PublicReportView> {
+  const res = await fetch(`${API_URL}/api/public/reports/${encodeURIComponent(token)}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const err = new Error(body?.error?.message ?? "보고서를 불러올 수 없습니다.") as Error & {
+      status: number;
+    };
+    err.status = res.status;
+    throw err;
+  }
+  return (await res.json()) as PublicReportView;
 }
 
 /** DOCX 내보내기 — BE 가 저장된 JSON+템플릿으로 생성한 Blob 반환. */

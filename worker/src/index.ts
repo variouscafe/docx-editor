@@ -7,6 +7,7 @@ import { ApiHttpError } from './lib/errors.js';
 import { reportRoutes } from './routes/reports.js';
 import { templateRoutes } from './routes/templates.js';
 import { groupRoutes } from './routes/groups.js';
+import { publicRoutes } from './routes/public.js';
 
 // 데이터 API 전용. 인증(구글 로그인/JWT 발급)은 공용 suseona-auth 가 담당.
 // 본 Worker 는 suseona-auth 가 발급한 JWT 를 같은 JWT_SECRET 로 검증(jwtAuth)만 수행.
@@ -18,7 +19,7 @@ app.use(
   cors({
     origin: '*',
     allowHeaders: ['authorization', 'content-type'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   }),
 );
 
@@ -46,5 +47,7 @@ app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } 
 app.route('/api/reports', reportRoutes);
 app.route('/api/templates', templateRoutes);
 app.route('/api/groups', groupRoutes);
+// 퍼블릭 라우터 — 인증 없음(jwtAuth 미적용). 토큰 capability 로만 접근 제어.
+app.route('/api/public', publicRoutes);
 
 export default app;

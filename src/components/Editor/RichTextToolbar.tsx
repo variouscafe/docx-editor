@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Editor } from "@tiptap/react";
 import {
   Bold,
@@ -11,10 +12,18 @@ import {
   Highlighter,
   X,
   Check,
+  Table2,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -31,8 +40,17 @@ interface RichTextToolbarProps {
 }
 
 export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
+  const { t } = useTranslation();
   const [annotationMode, setAnnotationMode] = useState(false);
   const [annotationText, setAnnotationText] = useState("");
+  const [tableOpen, setTableOpen] = useState(false);
+  const [hoverCell, setHoverCell] = useState<{ r: number; c: number } | null>(null);
+
+  // 실행 취소/다시 실행 단축키 툴팁 — macOS(⌘) vs 기타(Ctrl) 표기 분기.
+  const isMac =
+    typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform || "");
+  const modKey = isMac ? "⌘" : "Ctrl+";
+  const shiftKey = isMac ? "⇧" : "Shift+";
 
   if (!editor) return null;
 
@@ -72,19 +90,19 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
     {
       icon: <AlignLeft className="size-4" />,
       action: () => editor.chain().focus().setTextAlign("left").run(),
-      title: "왼쪽 정렬",
+      title: t("toolbar.alignLeft"),
       active: editor.isActive({ textAlign: "left" }),
     },
     {
       icon: <AlignCenter className="size-4" />,
       action: () => editor.chain().focus().setTextAlign("center").run(),
-      title: "가운데 정렬",
+      title: t("toolbar.alignCenter"),
       active: editor.isActive({ textAlign: "center" }),
     },
     {
       icon: <AlignRight className="size-4" />,
       action: () => editor.chain().focus().setTextAlign("right").run(),
-      title: "오른쪽 정렬",
+      title: t("toolbar.alignRight"),
       active: editor.isActive({ textAlign: "right" }),
     },
     { divider: true },
@@ -94,7 +112,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
         if (editor.isActive("boxBorder")) editor.chain().focus().unsetBox().run();
         else editor.chain().focus().setSolidBox().run();
       },
-      title: "실선 박스",
+      title: t("toolbar.boxSolid"),
       active: editor.isActive("boxBorder"),
     },
     {
@@ -103,20 +121,20 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
         if (editor.isActive("boxBorder")) editor.chain().focus().unsetBox().run();
         else editor.chain().focus().setDashedBox().run();
       },
-      title: "점선 박스",
+      title: t("toolbar.boxDashed"),
       variant: "dashed" as const,
       active: editor.isActive("boxBorder"),
     },
     {
       icon: <span className="text-xs font-bold">[ ]</span>,
       action: () => editor.chain().focus().toggleMark("coreSummary").run(),
-      title: "핵심요약",
+      title: t("toolbar.coreSummary"),
       active: editor.isActive("coreSummary"),
     },
     { divider: true },
     {
       icon: (
-        <span className="text-xs font-bold text-primary" title="꼬마글씨">
+        <span className="text-xs font-bold text-primary" title={t("toolbar.annotation")}>
           주
         </span>
       ),
@@ -124,7 +142,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
         if (editor.isActive("annotation")) editor.chain().focus().unsetAnnotation().run();
         else setAnnotationMode(true);
       },
-      title: "꼬마글씨",
+      title: t("toolbar.annotation"),
       active: editor.isActive("annotation"),
     },
   ];
@@ -152,6 +170,33 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
 
   return (
     <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b bg-background px-3 py-2 lg:flex-wrap [&>*]:shrink-0">
+      {/* 실행 취소 / 다시 실행 — 도구 모음 최좌측.
+          히스토리는 ProseMirror UndoRedo(StarterKit 내장)가 브라우저 메모리에만 보관 →
+          서버에는 content(JSON)만 저장되고 undo/redo 스택은 영속화되지 않는다(웹에서만). */}
+      <div className="flex items-center gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          onClick={() => editor.chain().focus().undo().run()}
+          disabled={!editor.can().undo()}
+          title={`${t("toolbar.undo")} (${modKey}Z)`}
+        >
+          <Undo2 className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          onClick={() => editor.chain().focus().redo().run()}
+          disabled={!editor.can().redo()}
+          title={`${t("toolbar.redo")} (${modKey}${shiftKey}Z)`}
+        >
+          <Redo2 className="size-4" />
+        </Button>
+      </div>
+      <Separator orientation="vertical" className="mx-1 h-6" />
+
       {/* Heading select */}
       <Select
         value={headingValue}
@@ -166,10 +211,10 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="title">제목</SelectItem>
-          <SelectItem value="paragraph">본문</SelectItem>
+          <SelectItem value="title">{t("toolbar.title")}</SelectItem>
+          <SelectItem value="paragraph">{t("toolbar.body")}</SelectItem>
           <SelectGroup>
-            <SelectLabel>헤딩</SelectLabel>
+            <SelectLabel>{t("toolbar.heading")}</SelectLabel>
             {[1, 2, 3, 4, 5, 6].map((l) => (
               <SelectItem key={l} value={String(l)}>
                 Heading {l}
@@ -191,7 +236,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="default">본문크기</SelectItem>
+          <SelectItem value="default">{t("toolbar.defaultSize")}</SelectItem>
           {[10, 12, 14, 16, 18, 20, 24].map((pt) => (
             <SelectItem key={pt} value={String(pt)}>
               {pt}pt
@@ -199,6 +244,51 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
           ))}
         </SelectContent>
       </Select>
+
+      {/* 표 삽입 — N×M 그리드 선택기 */}
+      <Popover
+        open={tableOpen}
+        onOpenChange={(o) => {
+          setTableOpen(o);
+          if (!o) setHoverCell(null);
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8" title={t("toolbar.insertTable")}>
+            <Table2 className="size-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto p-2">
+          <div className="flex flex-col gap-0.5">
+            {Array.from({ length: 10 }, (_, r) => (
+              <div key={r} className="flex gap-0.5">
+                {Array.from({ length: 10 }, (_, c) => {
+                  const on = hoverCell && r <= hoverCell.r && c <= hoverCell.c;
+                  return (
+                    <button
+                      key={c}
+                      className={`size-3 rounded-sm border ${on ? "bg-primary" : ""}`}
+                      onMouseEnter={() => setHoverCell({ r, c })}
+                      onClick={() => {
+                        editor
+                          .chain()
+                          .focus()
+                          .insertTable({ rows: r + 1, cols: c + 1, withHeaderRow: true })
+                          .run();
+                        setTableOpen(false);
+                        setHoverCell(null);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+            {hoverCell ? `${hoverCell.r + 1} × ${hoverCell.c + 1}` : t("toolbar.insertTable")}
+          </p>
+        </PopoverContent>
+      </Popover>
 
       {tools.map((tool, i) => {
         if ("divider" in tool) {
@@ -248,7 +338,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
               if (e.key === "Enter") handleAnnotationConfirm();
               if (e.key === "Escape") handleAnnotationCancel();
             }}
-            placeholder="부연설명 입력..."
+            placeholder={t("toolbar.annotationPlaceholder")}
             className="h-7 w-32 border-0 shadow-none focus-visible:ring-0"
             autoFocus
           />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FileText, Plus, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,12 +11,13 @@ import type { ReportListItem } from "@shared/report";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const SCOPES = [
-  { value: "all", label: "전체" },
-  { value: "mine", label: "내 보고서" },
-  { value: "shared", label: "공유됨" },
+  { value: "all", key: "all" },
+  { value: "mine", key: "mine" },
+  { value: "shared", key: "shared" },
 ] as const;
 
 export default function ReportList() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const filter = params.get("filter") ?? "all";
@@ -37,9 +39,9 @@ export default function ReportList() {
   }, [load]);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("이 보고서를 삭제하시겠습니까?")) return;
+    if (!window.confirm(t("reportList.deleteConfirm"))) return;
     await deleteReport(id);
-    toast.success("삭제됨");
+    toast.success(t("reportList.deleted"));
     await load();
   };
 
@@ -67,9 +69,9 @@ export default function ReportList() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">보고서</h2>
+        <h2 className="text-xl font-semibold">{t("reportList.title")}</h2>
         <Button onClick={() => navigate("/reports/new")}>
-          <Plus /> 새 보고서
+          <Plus /> {t("nav.newReport")}
         </Button>
       </div>
 
@@ -85,7 +87,7 @@ export default function ReportList() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {s.label}
+            {t(`reportList.scope.${s.key}` as const)}
           </button>
         ))}
       </div>
@@ -106,10 +108,10 @@ export default function ReportList() {
           <FileText className="mx-auto mb-3 size-10 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
             {scope === "shared"
-              ? "공유받은 보고서가 없습니다."
+              ? t("reportList.empty.shared")
               : items.length === 0
-                ? "보고서가 없습니다. 새 보고서를 만들어보세요."
-                : "이 필터에 해당하는 보고서가 없습니다."}
+                ? t("reportList.empty.none")
+                : t("reportList.empty.filter")}
           </p>
         </div>
       ) : (
@@ -126,17 +128,17 @@ export default function ReportList() {
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="truncate font-medium">{r.title || "(제목 없음)"}</span>
+                    <span className="truncate font-medium">{r.title || t("common.untitled")}</span>
                     {isShared && (
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] text-violet-700 dark:text-violet-300">
-                        <Eye className="size-3" /> 읽기 전용
+                        <Eye className="size-3" /> {t("reportList.readOnly")}
                       </span>
                     )}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
                     {isShared
-                      ? `${r.ownerName ? r.ownerName + " · " : ""}${r.groupName ? r.groupName + " · " : ""}${new Date(r.updatedAt).toLocaleString()}`
-                      : `${r.status === "published" ? "게시됨" : "초안"} · ${new Date(r.updatedAt).toLocaleString()}`}
+                      ? `${r.ownerName ? r.ownerName + " · " : ""}${r.groupName ? r.groupName + " · " : ""}${new Date(r.updatedAt).toLocaleString(i18n.language)}`
+                      : `${r.status === "published" ? t("reportList.status.published") : t("reportList.status.draft")} · ${new Date(r.updatedAt).toLocaleString(i18n.language)}`}
                   </div>
                 </button>
                 {!isShared && (
@@ -145,7 +147,7 @@ export default function ReportList() {
                     size="icon"
                     onClick={() => void handleDelete(r.id)}
                     className="text-muted-foreground hover:text-destructive lg:opacity-0 lg:group-hover:opacity-100"
-                    title="삭제"
+                    title={t("common.delete")}
                   >
                     <Trash2 />
                   </Button>

@@ -1,5 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "./store/auth";
 import { useThemeStore, applyTheme } from "./store/theme";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -9,17 +10,23 @@ import { Login } from "./pages/Login";
 import ReportList from "./pages/ReportList";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
+import { Settings } from "./pages/Settings";
 import { CommandPalette } from "./components/Layout/CommandPalette";
 import { Toaster } from "./components/ui/sonner";
 
 // 에디터(TipTap/docx 등)는 초기 번들에서 분리 — 목록/로그인 로드 가벼움.
 const ReportEditor = lazy(() => import("./pages/ReportEditor"));
+// 퍼블릭 공유 뷰도 TipTap 번들을 사용 → lazy 로 분리.
+const PublicReportView = lazy(() => import("./pages/PublicReportView"));
 
-const editorFallback = (
-  <div className="flex h-dvh items-center justify-center text-sm text-muted-foreground">
-    불러오는 중…
-  </div>
-);
+function EditorFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex h-dvh items-center justify-center text-sm text-muted-foreground">
+      {t("common.loading")}
+    </div>
+  );
+}
 
 export default function App() {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -28,9 +35,20 @@ export default function App() {
 
   return (
     <>
-    <ErrorBoundary area="앱">
+    <ErrorBoundary area="app">
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* 퍼블릭 링크 공유 — 로그인 없이 읽기 전용. ProtectedRoute 밖. */}
+      <Route
+        path="/share/:token"
+        element={
+          <ErrorBoundary area="public">
+            <Suspense fallback={<EditorFallback />}>
+              <PublicReportView />
+            </Suspense>
+          </ErrorBoundary>
+        }
+      />
       <Route element={<ProtectedRoute isAuthed={!!accessToken} />}>
         <Route index element={<Navigate to="/reports" replace />} />
         <Route
@@ -58,10 +76,18 @@ export default function App() {
           }
         />
         <Route
+          path="/settings"
+          element={
+            <AppShell>
+              <Settings />
+            </AppShell>
+          }
+        />
+        <Route
           path="/reports/new"
           element={
-            <ErrorBoundary area="편집기">
-              <Suspense fallback={editorFallback}>
+            <ErrorBoundary area="editor">
+              <Suspense fallback={<EditorFallback />}>
                 <ReportEditor />
               </Suspense>
             </ErrorBoundary>
@@ -70,8 +96,8 @@ export default function App() {
         <Route
           path="/reports/:id"
           element={
-            <ErrorBoundary area="편집기">
-              <Suspense fallback={editorFallback}>
+            <ErrorBoundary area="editor">
+              <Suspense fallback={<EditorFallback />}>
                 <ReportEditor />
               </Suspense>
             </ErrorBoundary>

@@ -95,6 +95,24 @@ export async function ensureReportAccess(
 }
 
 /**
+ * 퍼블릭 링크로 보고서 접근(로그인 없음).
+ * share_token 일치 + share_enabled=true 인 보고서만 노출. 그 외는 notFound(존재 은닉).
+ * 토큰은 추측 불가 capability 이므로 열거 공격 불가.
+ */
+export async function ensurePublicReport(
+  db: Database,
+  token: string,
+): Promise<typeof reports.$inferSelect> {
+  const row = await db
+    .select()
+    .from(reports)
+    .where(and(eq(reports.shareToken, token), eq(reports.shareEnabled, true)))
+    .get();
+  if (!row) throw notFound('Report not found');
+  return row;
+}
+
+/**
  * 호출 사용자의 email 에 pending 상태인 초대를 모두 수락(멤버 등록 + 초대 accepted).
  * GET /api/groups(및 :id) 에서 호출 → 로그인만 했으면 초대받은 그룹에 자동 가입.
  * idempotent(이미 멤버면 초대만 accepted 처리).

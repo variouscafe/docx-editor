@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   children: ReactNode;
@@ -53,15 +54,18 @@ function DefaultFallback({
   reset: () => void;
   area?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 p-8 text-center">
       <AlertTriangle className="size-8 text-destructive" />
       <div>
         <p className="text-sm font-semibold">
-          {area ? `${area} 영역에 문제가 발생했습니다` : "문제가 발생했습니다"}
+          {area
+            ? t("errors.areaProblem", { area: t(`areas.${area}` as const) })
+            : t("errors.somethingWrong")}
         </p>
         <p className="mt-1 max-w-md text-xs text-muted-foreground">
-          {error.message || "알 수 없는 오류입니다."}
+          {error.message || t("errors.unknown")}
         </p>
       </div>
       <div className="flex gap-2">
@@ -70,14 +74,14 @@ function DefaultFallback({
           onClick={reset}
           className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
         >
-          <RotateCcw className="size-3.5" /> 다시 시도
+          <RotateCcw className="size-3.5" /> {t("common.retry")}
         </button>
         <button
           type="button"
           onClick={() => window.location.reload()}
           className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
         >
-          새로고침
+          {t("common.refresh")}
         </button>
       </div>
     </div>

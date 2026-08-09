@@ -1,21 +1,28 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, SlidersHorizontal, Loader2, Share2, Eye } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { ArrowLeft, Save, SlidersHorizontal, Loader2, MoreHorizontal, History, Eye, Globe, Users, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ThemeToggle } from "@/components/Layout/ThemeToggle";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { UserMenu } from "@/components/Layout/UserMenu";
 import { toast } from "sonner";
 import type { DocxOptions } from "@shared/options";
 import { defaultOptions, normalizeOptions } from "@shared/options";
 import type { JSONContent } from "@shared/runs";
 import type { Report, ReportPermission } from "@shared/report";
-import HeadingSymbolSelector from "@/components/Editor/HeadingSymbolSelector";
-import AnnotationModeSelector from "@/components/Editor/AnnotationModeSelector";
 import OptionsContent from "@/components/Options/OptionsContent";
 import DocxPreview from "@/components/Preview/DocxPreview";
-import DocxExporter from "@/components/Export/DocxExporter";
 import { ReportShareDialog } from "@/components/Share/ReportShareDialog";
+import { PublicShareDialog } from "@/components/Share/PublicShareDialog";
 import { VersionHistory } from "@/components/VersionHistory";
 import {
   getReport,
@@ -30,25 +37,28 @@ import { decodeJwt } from "@/lib/jwt";
 import { jsonToMarkdown } from "@/utils/jsonToMarkdown";
 import { useDraftBackup } from "@/hooks/useDraftBackup";
 
-const STARTER_DOC: JSONContent = {
-  type: "doc",
-  content: [
-    {
-      type: "title",
-      attrs: { "data-title": "true" },
-      content: [{ type: "text", text: "제목" }],
-    },
-    {
-      type: "heading",
-      attrs: { level: 1 },
-      content: [{ type: "text", text: "첫 번째 헤딩" }],
-    },
-    {
-      type: "paragraph",
-      content: [{ type: "text", text: "여기에 본문을 작성하세요." }],
-    },
-  ],
-};
+/** 신규 보고서 스타터 문서 — UI 언어로 생성. */
+function starterDoc(t: TFunction): JSONContent {
+  return {
+    type: "doc",
+    content: [
+      {
+        type: "title",
+        attrs: { "data-title": "true" },
+        content: [{ type: "text", text: t("starter.title") }],
+      },
+      {
+        type: "heading",
+        attrs: { level: 1 },
+        content: [{ type: "text", text: t("starter.firstHeading") }],
+      },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: t("starter.body") }],
+      },
+    ],
+  };
+}
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -62,18 +72,19 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 /** 저장 실패 에러 메시지 — HttpError.status 가 있으면 코드 포함. */
-function saveErrMsg(e: unknown): string {
+function saveErrMsg(e: unknown, t: TFunction): string {
   const status = e && typeof e === "object" && "status" in e ? (e as { status?: number }).status : undefined;
-  return `저장 실패${status ? ` (${status})` : ""}`;
+  return status ? t("editor.saveFailedStatus", { status }) : t("editor.saveFailed");
 }
 
 export default function ReportEditor() {
+  const { t, i18n } = useTranslation();
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
 
-  const [title, setTitle] = useState("제목 없음");
-  const [editorJson, setEditorJson] = useState<JSONContent>(STARTER_DOC);
+  const [title, setTitle] = useState(t("editor.untitledTitle"));
+  const [editorJson, setEditorJson] = useState<JSONContent>(() => starterDoc(t));
   const [options, setOptions] = useState<DocxOptions>(defaultOptions);
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isNew);
@@ -97,6 +108,8 @@ export default function ReportEditor() {
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [publicShareOpen, setPublicShareOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // 보고서 로드(기존). 신규면 그대로 스타터.
   useEffect(() => {
@@ -216,13 +229,13 @@ export default function ReportEditor() {
       setSaveError(null);
       setSaveErrorAt(null);
       retryCountRef.current = 0;
-      if (opts?.manual) toast.success("저장됨");
+      if (opts?.manual) toast.success(t("editor.saved"));
     } catch (e) {
       console.error("[save failed]", e);
-      setSaveError(saveErrMsg(e));
+      setSaveError(saveErrMsg(e, t));
       setSaveErrorAt(Date.now());
       retryCountRef.current += 1;
-      if (opts?.manual) toast.error(saveErrMsg(e));
+      if (opts?.manual) toast.error(saveErrMsg(e, t));
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -248,14 +261,14 @@ export default function ReportEditor() {
       setSaveErrorAt(null);
       retryCountRef.current = 0;
       navigate(`/reports/${created.id}`, { replace: true });
-      if (opts?.manual) toast.success("저장됨");
+      if (opts?.manual) toast.success(t("editor.saved"));
       return created.id;
     } catch (e) {
       console.error("[create failed]", e);
-      setSaveError(saveErrMsg(e));
+      setSaveError(saveErrMsg(e, t));
       setSaveErrorAt(Date.now());
       retryCountRef.current += 1;
-      if (opts?.manual) toast.error(saveErrMsg(e));
+      if (opts?.manual) toast.error(saveErrMsg(e, t));
       return null;
     } finally {
       savingRef.current = false;
@@ -293,11 +306,11 @@ export default function ReportEditor() {
   useEffect(() => {
     const goOnline = () => {
       setOnline(true);
-      toast.success("온라인 연결 복구 — 저장을 재개합니다");
+      toast.success(t("editor.onlineRestored"));
     };
     const goOffline = () => {
       setOnline(false);
-      toast.warning("오프라인 — 변경 내용은 임시 저장됩니다");
+      toast.warning(t("editor.offlineWarning"));
     };
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
@@ -305,14 +318,14 @@ export default function ReportEditor() {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
     };
-  }, []);
+  }, [t]);
 
   const handleExport = useCallback(async () => {
     const rid = await ensureId();
     if (!rid) return;
     const blob = await exportReport(rid);
     downloadBlob(blob, `${(title || "document").slice(0, 80)}.docx`);
-    toast.success("DOCX 내보내기 완료");
+    toast.success(t("editor.exportDone"));
   }, [ensureId, title]);
 
   // 임시 저장 스냅샷(크래시/오프라인 대비) + 직전 세션 미저장 내용 복구.
@@ -335,18 +348,18 @@ export default function ReportEditor() {
     setTemplateId(draft.value.templateId);
     setDirty(true);
     clearDraft();
-    toast.success("임시 내용을 복구했어요");
+    toast.success(t("editor.draftRestored"));
   }, [draft, clearDraft]);
 
   if (loading) {
     return (
       <div className="flex h-dvh flex-col">
-        <div className="flex h-14 items-center gap-2 border-b bg-background px-4">
+        <div className="flex h-12 items-center gap-2 border-b bg-background px-4">
           <Skeleton className="size-8 rounded" />
           <Skeleton className="h-6 w-1/2" />
         </div>
         <div className="flex flex-1 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 size-4 animate-spin" /> 불러오는 중…
+          <Loader2 className="mr-2 size-4 animate-spin" /> {t("common.loading")}
         </div>
       </div>
     );
@@ -354,20 +367,39 @@ export default function ReportEditor() {
 
   const statusText =
     !online && dirty
-      ? "오프라인(임시 저장)"
-      : saveError ?? (saving ? "저장 중…" : dirty ? "수정됨(저장 대기)" : savedAt ? "저장됨" : "");
-  // 모바일 헤더는 폭이 좁아 저장 중/에러 상태만 컴팩트 노출(저장됨/대기는 버튼 상태로 충분).
-  const mobileStatus = saveError ?? (saving ? "저장 중" : null);
+      ? t("editor.statusOffline")
+      : saveError ?? (saving ? t("editor.savingDots") : dirty ? t("editor.pending") : savedAt ? t("editor.saved") : "");
+  // 상단바 상태 점(●) — 색/스피너 결정용. 모바일/PC 통합 인디케이터.
+  type StatusState = "saving" | "error" | "offline" | "pending" | "saved" | "idle";
+  const statusState: StatusState = saving
+    ? "saving"
+    : saveError
+      ? "error"
+      : !online && dirty
+        ? "offline"
+        : dirty
+          ? "pending"
+          : savedAt
+            ? "saved"
+            : "idle";
+  const statusDotClass: Record<StatusState, string> = {
+    saving: "",
+    error: "bg-destructive",
+    offline: "bg-amber-500",
+    pending: "bg-amber-500",
+    saved: "bg-emerald-500",
+    idle: "bg-muted-foreground/40",
+  };
 
   return (
     <div className="h-dvh flex flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-1 border-b bg-background px-2 sm:gap-2 sm:px-4">
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 sm:gap-2 sm:px-4">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate("/reports")}
           className="shrink-0"
-          title="목록으로"
+          title={t("editor.backToList")}
         >
           <ArrowLeft />
         </Button>
@@ -380,55 +412,77 @@ export default function ReportEditor() {
           }}
           className="flex-1 min-w-0 bg-transparent text-base lg:text-lg font-semibold outline-none border-b border-transparent focus:border-ring read-only:cursor-default"
         />
-        {/* PC: 전체 상태 표시 */}
-        <span className={`hidden lg:block text-xs w-28 text-right shrink-0 ${saveError ? "text-destructive" : "text-muted-foreground"}`}>{isReadOnly ? "읽기 전용" : statusText}</span>
-        {/* 모바일: 저장 중/에러만 컴팩트 노출 */}
-        {mobileStatus && (
-          <span className={`lg:hidden text-xs shrink-0 ${saveError ? "text-destructive" : "text-muted-foreground"}`}>{mobileStatus}</span>
-        )}
-        {!isReadOnly && id && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShareOpen(true)}
-            className="shrink-0"
-            title="공유"
-          >
-            <Share2 />
-            <span className="hidden sm:inline">공유</span>
-          </Button>
-        )}
+        {/* 저장 상태 점(●) 인디케이터 — 모바일/PC 통합. hover 시 전체 상태 텍스트. */}
         {!isReadOnly && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => void ensureId({ manual: true })}
-            className="shrink-0"
-            title="저장"
-          >
-            {saving ? <Loader2 className="animate-spin" /> : <Save />}
-            <span className="hidden sm:inline">{saving ? "저장 중" : "저장"}</span>
-          </Button>
+          <span className="flex shrink-0 items-center gap-1" title={statusText || undefined}>
+            {statusState === "saving" ? (
+              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+            ) : (
+              <span className={`inline-block size-2 rounded-full ${statusDotClass[statusState]}`} />
+            )}
+            <span className="hidden text-xs text-muted-foreground sm:inline">{statusText}</span>
+          </span>
         )}
-        <DocxExporter onExport={() => void handleExport()} disabled={saving} />
-        {!isReadOnly && <VersionHistory reportId={id} onRestored={handleRestored} />}
-        <ThemeToggle />
+        {/* ⋯ 더 보기: 저장·내보내기·공유·버전 기록.
+            읽기 전용(공유받은 문서)에선 내보내기만 노출. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0" title={t("editor.more")}>
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[200px]">
+            {!isReadOnly && (
+              <>
+                <DropdownMenuItem onClick={() => void ensureId({ manual: true })}>
+                  <Save className="size-4" />
+                  <span>{t("editor.save")}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem disabled={saving} onClick={() => void handleExport()}>
+              <Download className="size-4" />
+              <span>{t("export.button")}</span>
+            </DropdownMenuItem>
+            {!isReadOnly && id && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                  <Users className="size-4" />
+                  <span>{t("share.group.title")}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPublicShareOpen(true)}>
+                  <Globe className="size-4" />
+                  <span>{t("share.public.title")}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                  <History className="size-4" />
+                  <span>{t("versionHistory.title")}</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {/* 모바일: 우측 옵션 패널(Sheet) 열기 — PC는 aside 상시 노출 */}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setMobileOptionsOpen(true)}
           className="shrink-0 lg:hidden"
-          title="옵션"
+          title={t("editor.options")}
         >
           <SlidersHorizontal />
         </Button>
+        <UserMenu />
       </header>
 
       {isReadOnly && (
         <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/50 px-4 py-1.5 text-xs text-muted-foreground">
           <Eye className="size-3.5 shrink-0" />
-          <span>공유됨 · 읽기 전용</span>
-          {ownerName && <span>· 작성자 {ownerName}</span>}
+          <span>{t("editor.sharedBanner")}</span>
+          {ownerName && <span>· {t("editor.owner")} {ownerName}</span>}
           {groupName && <span>· {groupName}</span>}
         </div>
       )}
@@ -437,24 +491,21 @@ export default function ReportEditor() {
       {!isReadOnly && draft && (
         <div className="flex flex-wrap items-center gap-2 border-b bg-amber-500/10 px-4 py-1.5 text-xs text-amber-800 dark:text-amber-200">
           <span>
-            저장되지 않은 임시 내용이 있습니다(
-            {draft.ts ? new Date(draft.ts).toLocaleTimeString() : ""}).
+            {t("editor.draftRestoreAt", {
+              time: draft.ts ? new Date(draft.ts).toLocaleTimeString(i18n.language) : "",
+            })}
           </span>
           <button type="button" onClick={restoreDraft} className="font-semibold underline">
-            복구
+            {t("editor.restore")}
           </button>
           <button type="button" onClick={clearDraft} className="underline">
-            삭제
+            {t("editor.discard")}
           </button>
         </div>
       )}
 
       <main className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-hidden flex flex-col border-r">
-          <div className="border-b bg-muted/40 overflow-x-auto">
-            <HeadingSymbolSelector options={options} onOptionsChange={guardedOptionsChange} />
-            <AnnotationModeSelector options={options} onOptionsChange={guardedOptionsChange} />
-          </div>
           <DocxPreview
             json={editorJson}
             options={options}
@@ -476,7 +527,7 @@ export default function ReportEditor() {
         <Sheet open={mobileOptionsOpen} onOpenChange={setMobileOptionsOpen}>
           <SheetContent side="right" className="w-full data-[side=right]:w-full gap-0 p-0">
             <SheetHeader className="flex-row items-center justify-between border-b px-3 py-2.5">
-              <SheetTitle>옵션</SheetTitle>
+              <SheetTitle>{t("editor.options")}</SheetTitle>
             </SheetHeader>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <OptionsContent
@@ -491,6 +542,17 @@ export default function ReportEditor() {
       </main>
 
       {id && <ReportShareDialog reportId={id} open={shareOpen} onOpenChange={setShareOpen} />}
+      {id && (
+        <PublicShareDialog reportId={id} open={publicShareOpen} onOpenChange={setPublicShareOpen} />
+      )}
+      {!isReadOnly && (
+        <VersionHistory
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          reportId={id}
+          onRestored={handleRestored}
+        />
+      )}
     </div>
   );
 }

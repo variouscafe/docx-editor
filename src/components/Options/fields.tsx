@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -12,16 +13,34 @@ import {
 import { cn } from "@/lib/utils";
 import type { DocxOptions, LineSpacing, LineSpacingRule } from "@shared/options";
 
-/** 글꼴 프리셋 — value 는 shared/options.ts 의 기본 폰트 스택과 동일 문자열 사용(매칭 위해). */
+/**
+ * 글꼴 프리셋 — value 는 CSS 폰트 스택. shared/options.ts 의 BATANG 기본값과 동일 문자열(매칭 위해).
+ * 시스템 폰트(OS·Word 내장) + 웹폰트(Google Fonts·Pretendard, index.html 에서 로드) 혼합.
+ * 미리보기는 스택 첫 폰트(웹폰트 우선)로 렌더, DOCX 는 첫 폰트명을 삽입(Word 설치 시 동일 렌더).
+ */
 export const BATANG =
   "Batang, BatangChe, 바탕, 바탕체, 'Batang Che', 'Nanum Myeongjo', AppleMyungjo, serif";
 const GOTHIC = "'Malgun Gothic', 'Nanum Gothic', 'Apple SD Gothic Neo', sans-serif";
 const DOTUM = "'Dotum', 'AppleMyungjo', sans-serif";
+const GULIM = "Gulim, GulimChe, 굴림, 굴림체, sans-serif";
+const GUNGSUH = "Gungsuh, GungsuhChe, 궁서, 궁서체, serif";
+const NOTO_SANS = "'Noto Sans KR', 'Malgun Gothic', sans-serif";
+const NOTO_SERIF = "'Noto Serif KR', Batang, serif";
+const NANUM_GOTHIC = "'Nanum Gothic', 'Malgun Gothic', sans-serif";
+const NANUM_MYEONGJO = "'Nanum Myeongjo', Batang, serif";
+const PRETENDARD = "Pretendard, 'Malgun Gothic', sans-serif";
 
 export const FONT_PRESETS = [
-  { label: "바탕", value: BATANG },
-  { label: "고딕", value: GOTHIC },
-  { label: "돋움", value: DOTUM },
+  { label: "options.font.batang", value: BATANG },
+  { label: "options.font.gothic", value: GOTHIC },
+  { label: "options.font.dotum", value: DOTUM },
+  { label: "options.font.gulim", value: GULIM },
+  { label: "options.font.gungsuh", value: GUNGSUH },
+  { label: "options.font.notoSans", value: NOTO_SANS },
+  { label: "options.font.notoSerif", value: NOTO_SERIF },
+  { label: "options.font.nanumGothic", value: NANUM_GOTHIC },
+  { label: "options.font.nanumMyeongjo", value: NANUM_MYEONGJO },
+  { label: "options.font.pretendard", value: PRETENDARD },
 ];
 
 /** value 와 매칭되는 프리셋 value 반환(없으면 첫 프리셋). select 제어용. */
@@ -94,13 +113,13 @@ export function SegmentedField<T extends string>({
 
 /* ── 줄 간격 ──────────────────────────────────────────────────── */
 const LINE_SPACING_PRESETS: { label: string; value: LineSpacingRule }[] = [
-  { label: "한 줄 (1.0)", value: "single" },
-  { label: "1.15줄", value: "1.15" },
-  { label: "1.5줄", value: "1.5" },
-  { label: "두 줄 (2.0)", value: "double" },
-  { label: "최소값", value: "atLeast" },
-  { label: "정확히", value: "exact" },
-  { label: "배수", value: "multiple" },
+  { label: "options.lineSpacing.single", value: "single" },
+  { label: "options.lineSpacing.1.15", value: "1.15" },
+  { label: "options.lineSpacing.1.5", value: "1.5" },
+  { label: "options.lineSpacing.double", value: "double" },
+  { label: "options.lineSpacing.atLeast", value: "atLeast" },
+  { label: "options.lineSpacing.exact", value: "exact" },
+  { label: "options.lineSpacing.multiple", value: "multiple" },
 ];
 
 /** 줄 간격 — 프리셋 Select + (최소값/정확히/배수일 때) 값 입력(또는 pt). */
@@ -113,8 +132,9 @@ export function LineSpacingField({
   value: LineSpacing;
   onChange: (v: LineSpacing) => void;
 }) {
+  const { t } = useTranslation();
   const needValue = value.rule === "atLeast" || value.rule === "exact" || value.rule === "multiple";
-  const unit = value.rule === "multiple" ? "배" : "pt";
+  const unit = value.rule === "multiple" ? t("options.unit.multiple") : t("options.unit.pt");
   const val = value.rule === "multiple" ? value.value ?? 1.6 : value.value ?? 16;
   return (
     <div className={rowBase}>
@@ -147,7 +167,7 @@ export function LineSpacingField({
           <SelectContent>
             {LINE_SPACING_PRESETS.map((p) => (
               <SelectItem key={p.value} value={p.value}>
-                {p.label}
+                {t(p.label)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -170,27 +190,28 @@ export function SpacingFields({
   options: DocxOptions;
   update: (key: keyof DocxOptions, patch: Record<string, unknown>) => void;
 }) {
+  const { t } = useTranslation();
   const sec = options[section];
   return (
     <>
       <LineSpacingField
-        label="줄 간격"
+        label={t("options.field.lineSpacing")}
         value={sec.lineSpacing}
         onChange={(v) => update(section, { lineSpacing: v })}
       />
       <NumberField
-        label="단락 앞"
+        label={t("options.field.spacingBefore")}
         value={sec.spacingBefore}
         onChange={(v) => update(section, { spacingBefore: v })}
-        unit="pt"
+        unit={t("options.unit.pt")}
         min={0}
         max={120}
       />
       <NumberField
-        label="단락 뒤"
+        label={t("options.field.spacingAfter")}
         value={sec.paragraphSpacing}
         onChange={(v) => update(section, { paragraphSpacing: v })}
-        unit="pt"
+        unit={t("options.unit.pt")}
         min={0}
         max={120}
       />

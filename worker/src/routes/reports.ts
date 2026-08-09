@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { AppEnv } from '../types.js';
 import { createDb } from '../db/index.js';
 import { reports, revisions, reportShares, users, groups } from '../db/schema.js';
-import { newId, isoNow } from '../lib/id.js';
+import { newId, isoNow, newShareToken } from '../lib/id.js';
 import { badRequest, forbidden, notFound, conflict } from '../lib/errors.js';
 import { jwtAuth } from '../middleware/auth.js';
 import { ensureReportAccess, assertGroupMember, getGroupIds } from '../lib/authz.js';
@@ -15,6 +15,7 @@ import type {
   ReportStatus,
   Revision,
   RevisionListItem,
+  PublicShareState,
 } from '@shared/report';
 import type { ReportShare } from '@shared/groups';
 
@@ -332,6 +333,53 @@ reportRoutes.post('/:id/export', async (c) => {
       'content-disposition': `attachment; filename="${encodeURIComponent(safeName)}.docx"`,
     },
   });
+});
+
+/* ── 퍼블릭 링크 공유(로그인 없이 읽기 전용) ───────────────────── */
+
+const publicSharePatchSchema = z.object({
+  enabled: z.boolean().optional(),
+  regenerate: z.boolean().optional(),
+});
+
+/** 퍼블릭 공유 상태 조회(owner). { enabled, token }. */
+reportRoutes.get('/:id/public-share', async (c) => {
+  const userId = c.get('user').userId;
+  const db = createDb(c.env.DB);
+  const row = await ensureOwned(db, c.req.param('id'), userId);
+  return c.json({ enabled: row.shareEnabled, token: row.shareToken } satisfies PublicShareState);
+});
+
+/**
+ * 퍼블릭 공유 토글·토큰 재생성(owner).
+ * - enabled=true: 활성화(토큰 없으면 발급)
+ * - enabled=false: 비활성화(토큰은 유지 → 재활성 시 동일 링크)
+ * - regenerate=true: 새 토큰 발급(활성 상태는 유지, 이전 링크 즉시 무효)
+ */
+reportRoutes.put('/:id/public-share', async (c) => {
+  const userId = c.get('user').userId;
+  const parsed = publicSharePatchSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());
+  const { enabled, regenerate } = parsed.data;
+
+  const db = createDb(c.env.DB);
+  const row = await ensureOwned(db, c.req.param('id'), userId);
+
+  let nextEnabled = row.shareEnabled;
+  let nextToken = row.shareToken;
+  if (enabled === true) nextEnabled = true;
+  if (enabled === false) nextEnabled = false;
+  if (regenerate) nextToken = newShareToken();
+  if (nextEnabled && !nextToken) nextToken = newShareToken();
+
+  const patch: Record<string, unknown> = { updatedAt: isoNow() };
+  if (nextEnabled !== row.shareEnabled) patch.shareEnabled = nextEnabled;
+  if (nextToken !== row.shareToken) patch.shareToken = nextToken;
+  if (Object.keys(patch).length > 1) {
+    await db.update(reports).set(patch).where(eq(reports.id, row.id));
+  }
+
+  return c.json({ enabled: nextEnabled, token: nextToken } satisfies PublicShareState);
 });
 
 /* ── 공유(그룹 단위, 읽기 전용) ─────────────────────────────────── */
