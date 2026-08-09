@@ -31,13 +31,3 @@ export async function updateTemplate(
 export async function deleteTemplate(id: string): Promise<void> {
   await authHttp.del(`/api/templates/${id}`);
 }
-
-/** 복제 — 소스(id)를 새 사본(비공개) 템플릿으로 생성. */
-export async function duplicateTemplate(
-  id: string,
-  name?: string,
-): Promise<ReportTemplateRow> {
-  return authHttp.post<ReportTemplateRow>(`/api/templates/${id}/duplicate`, {
-    body: name ? { name } : {},
-  });
-}

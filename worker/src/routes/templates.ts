@@ -20,9 +20,6 @@ const templateCreateSchema = z.object({
   groupId: z.string().nullable().optional(),
 });
 const templatePatchSchema = templateCreateSchema.partial();
-const templateDuplicateSchema = z.object({
-  name: z.string().min(1).optional(),
-});
 
 export const templateRoutes = new Hono<AppEnv>();
 templateRoutes.use('*', jwtAuth);
@@ -196,48 +193,4 @@ templateRoutes.delete('/:id', async (c) => {
   await db.delete(templates).where(eq(templates.id, row.id));
   // 기본 템플릿이 삭제돼도 자동 재지정 안 함 → GET /default 가 204, FE 는 빌트인 폴백.
   return c.body(null, 204);
-});
-
-/** 복제 — 내 템플릿(모든 visibility) 또는 타인 공개 템플릿을 새 사본(비공개)으로 생성. */
-templateRoutes.post('/:id/duplicate', async (c) => {
-  const userId = c.get('user').userId;
-  const parsed = templateDuplicateSchema.safeParse(await c.req.json().catch(() => ({})));
-  if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());
-
-  const db = createDb(c.env.DB);
-  const gIds = await getGroupIds(db, userId);
-  // 소스 조회 — 호출자에게 보이는 것(내 것 OR 공개 OR 그룹 멤버)만. 타인 private → 404(존재 은닉).
-  const src = await db
-    .select()
-    .from(templates)
-    .where(
-      and(
-        eq(templates.id, c.req.param('id')),
-        or(
-          eq(templates.userId, userId),
-          eq(templates.visibility, 'public'),
-          ...(gIds.length
-            ? [and(eq(templates.visibility, 'group'), inArray(templates.groupId, gIds))]
-            : []),
-        ),
-      ),
-    )
-    .get();
-  if (!src) throw notFound('Template not found');
-
-  const id = newId();
-  const name = (parsed.data.name ?? `${src.name} (사본)`).slice(0, 100);
-  await db.insert(templates).values({
-    id,
-    userId,
-    name,
-    options: src.options, // 이미 stringified JSON
-    visibility: 'private',
-    groupId: null, // 복제본은 항상 비공개
-    isDefault: 0,
-  });
-
-  const row = await db.select().from(templates).where(eq(templates.id, id)).get();
-  if (!row) throw notFound('Template not found');
-  return c.json(serialize(row, true), 201);
 });

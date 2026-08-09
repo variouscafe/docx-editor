@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Save,
-  Copy,
   FilePlus2,
   MoreHorizontal,
   Pencil,
@@ -24,7 +23,6 @@ import {
   createTemplate,
   updateTemplate,
   deleteTemplate,
-  duplicateTemplate,
 } from "@/api/templates";
 import { listGroups } from "@/api/groups";
 import type { Group } from "@shared/groups";
@@ -213,14 +211,6 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       setNameDialog(null);
     });
 
-  const handleDuplicate = () =>
-    run(async () => {
-      if (!templateId) return;
-      const row = await duplicateTemplate(templateId);
-      onApply(clone(row.options), row.id);
-      toast.success(t("templates.duplicated"));
-    });
-
   /** 가시성 변경(인라인 에디터). private/public 은 즉시, group 은 그룹 선택 시 확정. */
   const handleVisibility = (vis: TemplateVisibility, gid?: string | null) =>
     run(async () => {
@@ -323,9 +313,6 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
               </DropdownMenuItem>
               <DropdownMenuItem onClick={openRename}>
                 <Pencil /> {t("templates.rename")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDuplicate}>
-                <Copy /> {t("templates.duplicate")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleToggleDefault}>
