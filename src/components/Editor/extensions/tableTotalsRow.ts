@@ -1,9 +1,9 @@
 import type { Editor } from "@tiptap/react";
-import { buildTableGrid } from "@shared/tableFormula";
+import { buildTableGrid, isNumberFormat, type NumberFormat } from "@shared/tableFormula";
 
 /**
  * 합계 행 자동 추가 — 현재 표의 숫자 열을 감지해 맨 아래에 합계 행을 한 번에 생성.
- * 숫자 열 셀: formula=SUM(ABOVE) + format=currency + 우측정렬. 비숫자 열: 빈 셀.
+ * 숫자 열 셀: formula=SUM(ABOVE) + format=열 포맷 추론 + 우측정렬. 비숫자 열: 빈 셀.
  * 셀 텍스트는 tableFormulaPlugin 이 appendTransaction 으로 실시간 산출(워드/엑셀 합계 행 느낌).
  * 병합 셀이 섞여도 논리 그리드 기반이라 안전.
  */
@@ -43,8 +43,12 @@ export function insertTotalsRow(editor: Editor): void {
     numericCols.push(numeric);
   }
 
-  const cells = numericCols.map((numeric) => {
-    const attrs = numeric ? { formula: "SUM(ABOVE)", format: "currency" } : {};
+  // 열별 합계 셀 포맷 추론 — 같은 열에서 가장 많이 쓰인 유효 NumberFormat.
+  // 없으면 천단위 콤마(number). 합계 행이 본문 셀 포맷과 어울리도록 일관성 부여.
+  const colFormats = numericCols.map((_, c) => dominantFormat(grid, c));
+
+  const cells = numericCols.map((numeric, i) => {
+    const attrs = numeric ? { formula: "SUM(ABOVE)", format: colFormats[i] } : {};
     const para = schema.nodes.paragraph.create(numeric ? { textAlign: "right" } : {});
     return schema.nodes.tableCell.create(attrs, [para]);
   });
@@ -54,4 +58,26 @@ export function insertTotalsRow(editor: Editor): void {
   const tr = state.tr.insert(tablePos + tableAny.nodeSize - 1, newRow);
   view.dispatch(tr);
   view.focus();
+}
+
+/** 한 열에서 가장 많이 쓰인 유효 NumberFormat 반환. 없으면 "number". */
+function dominantFormat(grid: ReturnType<typeof buildTableGrid>, col: number): NumberFormat {
+  const counts = new Map<NumberFormat, number>();
+  for (let r = 0; r < grid.rows; r++) {
+    const cell = grid.matrix[r]?.[col];
+    if (!cell || cell.isHeader) continue;
+    if (!cell.format || !isNumberFormat(cell.format)) continue;
+    // 숫자로 파싱되는 셀의 포맷만 카운트(비숫자 셀의 포맷은 무의미).
+    if (cell.value === null) continue;
+    counts.set(cell.format, (counts.get(cell.format) ?? 0) + 1);
+  }
+  let best: NumberFormat = "number";
+  let bestN = 0;
+  for (const [fmt, n] of counts) {
+    if (n > bestN) {
+      best = fmt;
+      bestN = n;
+    }
+  }
+  return best;
 }

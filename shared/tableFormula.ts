@@ -335,11 +335,15 @@ function collectRefs(
 
   // 방향 연산: 같은 열/행을 따라 이동하며, 빈 칸은 스킵, 비숫자 텍스트에서 정지.
   // ABOVE 는 헤더 행에서 정지(헤더는 합계 대상 아님).
+  // formula 셀(소계/중간계산)은 건너뛴다 — 합계행 SUM(ABOVE)이 위 소계의 표시값을
+  // 다시 더해 2배가 되는(이중 계산) 것을 방지. 명시적 A1 범위(SUM(B2:B8))는 사용자가
+  // 지정한 영역이므로 formula 포함(위 range 분기).
   if (dir === "ABOVE") {
     for (let r = or - 1; r >= 0; r--) {
       const c = grid.matrix[r]?.[oc] ?? null;
       if (!c) continue;
       if (c.isHeader) break;
+      if (c.formula) continue;
       if (c.text === "") continue;
       if (c.value === null) break;
       add(c);
@@ -348,6 +352,7 @@ function collectRefs(
     for (let r = or + 1; r < grid.rows; r++) {
       const c = grid.matrix[r]?.[oc] ?? null;
       if (!c) continue;
+      if (c.formula) continue;
       if (c.text === "") continue;
       if (c.value === null) break;
       add(c);
@@ -356,6 +361,7 @@ function collectRefs(
     for (let c = oc - 1; c >= 0; c--) {
       const cell = grid.matrix[or]?.[c] ?? null;
       if (!cell) continue;
+      if (cell.formula) continue;
       if (cell.text === "") continue;
       if (cell.value === null) break;
       add(cell);
@@ -365,6 +371,7 @@ function collectRefs(
     for (let c = oc + 1; c < grid.cols; c++) {
       const cell = grid.matrix[or]?.[c] ?? null;
       if (!cell) continue;
+      if (cell.formula) continue;
       if (cell.text === "") continue;
       if (cell.value === null) break;
       add(cell);

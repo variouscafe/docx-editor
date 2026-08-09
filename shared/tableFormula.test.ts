@@ -212,6 +212,46 @@ describe("evaluateFormula — 방향 연산", () => {
   });
 });
 
+describe("evaluateFormula — 소계(위쪽 formula) 셀 이중 계산 방지", () => {
+  // 헤더 + 100 + 200 + 소계(SUM(ABOVE)=300) + 총합(SUM(ABOVE))
+  // 총합은 소계의 표시값(300)을 다시 더하지 않고 데이터만 합산 → 300(=100+200).
+  const g = buildTableGrid(
+    table(
+      row(cell("항목"), cell("금액")),
+      row(cell("A"), cell("100")),
+      row(cell("B"), cell("200")),
+      row(cell("소계"), cell("0", { formula: "SUM(ABOVE)", format: "currency" })),
+      row(cell("총합"), cell("0", { formula: "SUM(ABOVE)", format: "currency" })),
+    ),
+  );
+  it("ABOVE 방향 — 위 formula 셀 skip(데이터만 합)", () => {
+    const origin = g.matrix[4][1]!; // 총합행 금액
+    expect(evaluateFormula("SUM(ABOVE)", g, origin).value).toBe(300); // 100+200, 소계 제외
+  });
+  it("ABOVE 방향 — formula 셀 위의 데이터까지 모두 합산", () => {
+    // 소계행 위치에서 ABOVE → 위로 100+200(소계 자신은 origin). formula 없으니 정상 300.
+    const origin = g.matrix[3][1]!;
+    expect(evaluateFormula("SUM(ABOVE)", g, origin).value).toBe(300);
+  });
+  it("명시적 범위 — formula 셀 포함(사용자 지정 영역은 방향 skip 미적용)", () => {
+    // B1 은 formula 셀(text="200", value=200). LEFT 였다면 skip 되어 A1(100)만.
+    // 명시적 범위 SUM(A1:B1) 은 B1(formula) 도 포함 → 300.
+    const g3 = buildTableGrid(
+      table(row(cell("100"), cell("200", { formula: "A1*2", format: "number" }), cell("0", { formula: "SUM(A1:B1)" }))),
+    );
+    const origin = g3.matrix[0][2]!;
+    expect(evaluateFormula("SUM(A1:B1)", g3, origin).value).toBe(300);
+  });
+  it("LEFT 방향 — 같은 행의 formula 셀 skip", () => {
+    const g2 = buildTableGrid(
+      table(row(cell("100"), cell("0", { formula: "A1*2" }), cell("200"), cell("0", { formula: "SUM(LEFT)" }))),
+    );
+    const origin = g2.matrix[0][3]!;
+    // LEFT: col2(200) + col1(formula, skip) + col0(100) = 300
+    expect(evaluateFormula("SUM(LEFT)", g2, origin).value).toBe(300);
+  });
+});
+
 describe("evaluateFormula — LEFT 방향", () => {
   it("같은 행의 왼쪽 숫자 합", () => {
     const g = buildTableGrid(

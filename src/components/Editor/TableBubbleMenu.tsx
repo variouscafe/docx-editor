@@ -110,7 +110,7 @@ export function TableBubbleMenu({ editor }: Props) {
     <button
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
-      className={`flex h-7 min-w-7 items-center justify-center rounded px-2 text-xs transition-colors ${
+      className={`table-calc-opt flex h-7 min-w-7 items-center justify-center rounded px-2 text-xs transition-colors ${
         active
           ? "bg-accent text-accent-foreground"
           : "text-muted-foreground hover:bg-accent"
@@ -171,7 +171,12 @@ export function TableBubbleMenu({ editor }: Props) {
     <BubbleMenu
       editor={editor}
       shouldShow={({ editor }) => editor.isActive("table")}
-      className="flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-lg border bg-background p-1 shadow-md"
+      // 에디터가 transform: scale() 안에 있어 기본 마운트(editor.dom.parentElement)에
+      // 붙으면 모바일에서 버튼이 축소됨 → body 로 빼고 fixed 배치(floating-ui 가 viewport
+      // 좌표 기준으로 보정). tabindex=0 은 플러그인 기본값(제거 시 클릭에 메뉴 닫힘)이라 유지.
+      appendTo={() => document.body}
+      options={{ strategy: "fixed", placement: "top" }}
+      className="table-bubble-menu z-50 flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-lg border bg-background p-1 shadow-md"
     >
       {/* 행 */}
       <Tool onClick={() => editor.chain().focus().addRowBefore().run()} title={t("toolbar.rowAbove")}>
