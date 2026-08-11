@@ -9,7 +9,7 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCellFormat } from "../Editor/extensions/tableCellFormat";
 import { TableDeleteGuard } from "../Editor/extensions/tableDeleteGuard";
 import { TableFormulaPlugin } from "../Editor/extensions/tableFormulaPlugin";
-import { PaginationPlus, PAGE_SIZES } from "tiptap-pagination-plus";
+import { MeasurePagination } from "../Editor/extensions/measurePagination";
 import { BoxBorder } from "../Editor/extensions/boxBorder";
 import { HighlightExtension, highlightColors } from "../Editor/extensions/highlightColors";
 import { AnnotationExtension } from "../Editor/extensions/annotation";
@@ -32,8 +32,10 @@ import { resolveSpacing } from "@shared/options";
 import type { JSONContent } from "@shared/runs";
 import { flattenLists } from "@/utils/flattenLists";
 
-const A4_WIDTH = PAGE_SIZES.A4.pageWidth;
-const A4_HEIGHT = PAGE_SIZES.A4.pageHeight;
+// A4 세로(96DPI px). tiptap-pagination-plus 의존 제거 — 리터럴로 고정.
+// PAGE_SIZES.A4 = getPageSize(1123, 794, ...) → { pageHeight:1123, pageWidth:794 } 와 동일.
+const A4_WIDTH = 794;
+const A4_HEIGHT = 1123;
 
 interface DocxPreviewProps {
   /** 정규 콘텐츠 — ProseMirror JSON. 기호/괄호 등 미리보기 장식은 비영속이므로 제외됨. */
@@ -129,11 +131,10 @@ export default function DocxPreview({
       // 표 계산(포맷/수식) 반응형 — shared 엔진으로 셀 표시 텍스트 실시간 동기화 +
       // 수식 셀 읽기전용 보호. 미리보기 == DOCX 출력.
       TableFormulaPlugin,
-      PaginationPlus.configure({
+      MeasurePagination.configure({
         pageHeight: A4_HEIGHT,
         pageWidth: A4_WIDTH,
         pageGap: 30,
-        pageGapBorderSize: 0,
         pageBreakBackground: "var(--preview-gap)",
         marginTop: (options.common.marginTop / 2.54) * 72,
         marginBottom: (options.common.marginBottom / 2.54) * 72,
@@ -203,7 +204,7 @@ export default function DocxPreview({
     if (editor && !editor.isDestroyed) forceRedecorate(editor);
   }, [editor, options]);
 
-  // 페이지네이션(tiptap-pagination-plus) 보정: DOM 실측 기반으로 페이지 수를 정하는데,
+  // 페이지네이션(MeasurePagination) 보정: DOM 실측 기반으로 페이지 수를 정하는데,
   // 최초 1회 측정 시 장식/폰트/footer 렌더가 덜 끝난 상태면 페이지 수가 부족하게 고정된다.
   // 편집 모드는 사용자 조작 트랜잭션으로 자연히 재측정되지만, 비편집(공유 보기)은
   // 트랜잭션이 없어 잘못된 수(undercount)에 고정된다 → no-op 트랜잭션 dispatch 로 재측정 유도.
