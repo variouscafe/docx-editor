@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "./store/auth";
@@ -13,11 +13,12 @@ import GroupDetail from "./pages/GroupDetail";
 import { Settings } from "./pages/Settings";
 import { CommandPalette } from "./components/Layout/CommandPalette";
 import { Toaster } from "./components/ui/sonner";
+import { lazyChunk } from "./utils/lazyChunk";
 
 // 에디터(TipTap/docx 등)는 초기 번들에서 분리 — 목록/로그인 로드 가벼움.
-const ReportEditor = lazy(() => import("./pages/ReportEditor"));
+const ReportEditor = lazyChunk(() => import("./pages/ReportEditor"));
 // 퍼블릭 공유 뷰도 TipTap 번들을 사용 → lazy 로 분리.
-const PublicReportView = lazy(() => import("./pages/PublicReportView"));
+const PublicReportView = lazyChunk(() => import("./pages/PublicReportView"));
 
 function EditorFallback() {
   const { t } = useTranslation();

@@ -312,7 +312,7 @@ export default function DocxPreview({
           touchAction: "pan-x pan-y",
         }}
       >
-        <style>{getPreviewStyles(options)}</style>
+        <style>{getPreviewStyles(options, editable)}</style>
         <div
           style={{
             width: A4_WIDTH * effectiveScale,
@@ -348,7 +348,7 @@ export default function DocxPreview({
   );
 }
 
-function getPreviewStyles(options: DocxOptions): string {
+function getPreviewStyles(options: DocxOptions, editable: boolean): string {
   // 정규화된 간격(줄 간격/단락 앞/단락 뒤) — DOCX 와 동일 로직(resolveSpacing).
   const sc = resolveSpacing(options.common).css;
   const st = resolveSpacing(options.title).css;
@@ -465,7 +465,11 @@ function getPreviewStyles(options: DocxOptions): string {
       font-weight: 700 !important;
     }
 
-    /* 워드 스타일 엔터 기호(¶) 표시 */
+    ${
+      editable
+        ? `
+    /* 워드 스타일 엔터 기호(¶) 표시 — 편집 모드(미리보기)에서만. 공유 보기에서는 숨김.
+       줄바꿈(Enter)으로 생긴 모든 문단/헤딩 끝에 항상 ¶가 표시된다. */
     .rm-with-pagination.ProseMirror p::after,
     .rm-with-pagination.ProseMirror h1::after,
     .rm-with-pagination.ProseMirror h2::after,
@@ -482,10 +486,10 @@ function getPreviewStyles(options: DocxOptions): string {
       user-select: none !important;
     }
 
-    /* 빈 문단/헤딩(내용 없이 trailingBreak <br>만 있는 경우)에는 ¶를 표시하지 않는다.
-       빈 문단의 ::after ¶가 <br> 뒤로 밀려 별도 줄에 렌더되어 "커서 1줄 + ¶ 1줄 = 2줄"이
-       되는 현상 방지. 표 삽입 직후의 빈 셀(커서가 있는 첫 셀)에서 가장 두드러지며,
-       본문 빈 줄에서도 동일하게 적용된다. ¶는 내용이 있는 문단 끝에만 표시. */
+    /* 빈 문단/헤딩(내용 없이 trailingBreak <br>만 있는 경우)에도 ¶를 항상 표시한다.
+       단, 빈 문단의 ::after ¶는 <br> 뒤로 밀려 별도 줄에 렌더되어 "커서 1줄 + ¶ 1줄 = 2줄"
+       phantom 라인이 생기므로, ::after는 끄고 대신 ::before로 ¶를 커서가 있는 첫 줄에
+       inline 표시한다. (내용이 있는 문단은 위 ::after로 끝에 표시 → 워드의 ¶ 토글과 동일.) */
     .rm-with-pagination.ProseMirror p:has(> br.ProseMirror-trailingBreak:only-child)::after,
     .rm-with-pagination.ProseMirror h1:has(> br.ProseMirror-trailingBreak:only-child)::after,
     .rm-with-pagination.ProseMirror h2:has(> br.ProseMirror-trailingBreak:only-child)::after,
@@ -494,6 +498,32 @@ function getPreviewStyles(options: DocxOptions): string {
     .rm-with-pagination.ProseMirror h5:has(> br.ProseMirror-trailingBreak:only-child)::after,
     .rm-with-pagination.ProseMirror h6:has(> br.ProseMirror-trailingBreak:only-child)::after {
       content: none !important;
+    }
+    .rm-with-pagination.ProseMirror p:has(> br.ProseMirror-trailingBreak:only-child)::before,
+    .rm-with-pagination.ProseMirror h1:has(> br.ProseMirror-trailingBreak:only-child)::before,
+    .rm-with-pagination.ProseMirror h2:has(> br.ProseMirror-trailingBreak:only-child)::before,
+    .rm-with-pagination.ProseMirror h3:has(> br.ProseMirror-trailingBreak:only-child)::before,
+    .rm-with-pagination.ProseMirror h4:has(> br.ProseMirror-trailingBreak:only-child)::before,
+    .rm-with-pagination.ProseMirror h5:has(> br.ProseMirror-trailingBreak:only-child)::before,
+    .rm-with-pagination.ProseMirror h6:has(> br.ProseMirror-trailingBreak:only-child)::before {
+      content: "¶" !important;
+      display: inline !important;
+      color: #b0b0b0 !important;
+      font-size: 0.75em !important;
+      pointer-events: none !important;
+      user-select: none !important;
+    }
+
+    /* 강제 줄바꿈(hardBreak, Shift+Enter) ↵ 기호 — 위젯 Decoration 으로 삽입. 편집 모드에서만. */
+    .rm-with-pagination .rm-hardbreak-mark {
+      display: inline;
+      color: #b0b0b0 !important;
+      font-size: 0.75em !important;
+      pointer-events: none !important;
+      user-select: none !important;
+    }
+    `
+        : ""
     }
 
     .rm-with-pagination [data-border="solid"] {
@@ -570,7 +600,10 @@ function getPreviewStyles(options: DocxOptions): string {
       background: linear-gradient(to right, #333 12px, transparent 12px, transparent calc(100% - 12px), #333 calc(100% - 12px));
     }
 
-    /* 텍스트 선택 시 파란색 하이라이트 */
+    ${
+      editable
+        ? `
+    /* 텍스트 선택 시 파란색 하이라이트 — 편집 모드에서만 */
     .rm-with-pagination.ProseMirror ::selection {
       background: var(--preview-accent);
       color: #ffffff;
@@ -580,7 +613,7 @@ function getPreviewStyles(options: DocxOptions): string {
       color: #ffffff;
     }
 
-    /* 문단 호버 시 연한 파란색 박스 */
+    /* 문단 호버 시 연한 파란색 박스 — 편집 모드에서만 */
     .rm-with-pagination.ProseMirror > h1:hover,
     .rm-with-pagination.ProseMirror > h2:hover,
     .rm-with-pagination.ProseMirror > h3:hover,
@@ -596,13 +629,24 @@ function getPreviewStyles(options: DocxOptions): string {
       cursor: pointer;
     }
 
-    /* 클릭 선택 시 파란색 박스 */
+    /* 클릭 선택 시 파란색 박스 — 편집 모드에서만 */
     .rm-with-pagination.ProseMirror > .preview-block-selected,
     .rm-with-pagination.ProseMirror > .preview-block-selected:hover {
       background-color: color-mix(in oklch, var(--preview-accent) 12%, transparent);
       outline: 2px solid color-mix(in oklch, var(--preview-accent) 40%, transparent);
       outline-offset: -1px;
       border-radius: 2px;
+    }
+    `
+        : `
+    /* 공유(보기 전용) 모드: 텍스트 선택 하이라이트와 블록 박스를 모두 숨겨
+       정적인 문서처럼 보이도록 한다 (엔터 기호 ¶도 표시 안 함). */
+    .rm-with-pagination.ProseMirror ::selection,
+    .rm-with-pagination.ProseMirror::selection {
+      background: transparent !important;
+      color: inherit !important;
+    }
+    `
     }
 
     /* 표 스타일 */

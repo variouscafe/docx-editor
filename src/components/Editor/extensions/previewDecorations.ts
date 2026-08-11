@@ -31,7 +31,7 @@ function collectAnnotations(node: PmNode): string[] {
   return anns;
 }
 
-function buildDecorations(doc: PmNode, options: DocxOptions): DecorationSet {
+function buildDecorations(editor: Editor, doc: PmNode, options: DocxOptions): DecorationSet {
   const decos: Decoration[] = [];
 
   doc.forEach((node, offset) => {
@@ -68,6 +68,29 @@ function buildDecorations(doc: PmNode, options: DocxOptions): DecorationSet {
     }
   });
 
+  // 강제 줄바꿈(hardBreak, Shift+Enter) 위치에 ↵ 표시 — 편집 모드에서만.
+  // <br>은 void 요소라 ::after/::before 로 내용을 넣을 수 없어 위젯으로 렌더.
+  // ↵는 hardBreak 노드 시작 위치(= 줄 끝)에 두어 워드의 강제줄바꿈 표시와 동일하게.
+  if (editor.isEditable) {
+    doc.descendants((node, pos) => {
+      if (node.type.name === "hardBreak") {
+        decos.push(
+          Decoration.widget(
+            pos,
+            () => {
+              const span = document.createElement("span");
+              span.className = "rm-hardbreak-mark";
+              span.textContent = "↵";
+              return span;
+            },
+            { side: -1 }
+          )
+        );
+      }
+      return true;
+    });
+  }
+
   return DecorationSet.create(doc, decos);
 }
 
@@ -80,14 +103,15 @@ export const PreviewDecorations = Extension.create<{ getOptions: () => DocxOptio
 
   addProseMirrorPlugins() {
     const getOptions = this.options.getOptions;
+    const editor = this.editor;
     return [
       new Plugin({
         key: previewDecorationsKey,
         state: {
-          init: (_config, state) => buildDecorations(state.doc, getOptions()),
+          init: (_config, state) => buildDecorations(editor, state.doc, getOptions()),
           apply: (tr, old, _oldState, newState) => {
             if (tr.docChanged || tr.getMeta(previewDecorationsKey)) {
-              return buildDecorations(newState.doc, getOptions());
+              return buildDecorations(editor, newState.doc, getOptions());
             }
             return old;
           },
