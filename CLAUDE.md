@@ -62,6 +62,7 @@ docx-editor/
 - A4 layout (210x297mm) with margins, looks like Word DOCX view
 - Word wrapping without cutting words (explicit line breaks)
 - All formatting (paragraph spacing, fonts, line breaks) exported to DOCX
+- A4 페이지네이션: 자체 `MeasurePagination`(float 폐지, 최상위 블록 offsetHeight 측정 → 원자적 배치). tiptap-pagination-plus(float 기반, 표 BFC 충돌로 찌그러짐/빈 페이지 버그) 대체. **표는 행 단위로 페이지 분할 + 헤더 반복**(워드-like). 장식은 비영속 Decoration.widget → getJSON()/저장/DOCX 내보내기 영향 없음.
 
 ### Right Panel - Options JSON
 - Editable JSON showing current preview options
@@ -149,7 +150,7 @@ docx-editor/
 - 꼬마글씨2: 별도 단락으로 export
 
 ## Tech Stack
-- **FE**: Vite + React + TypeScript, Tailwind CSS, TipTap(editor), react-router-dom, zustand(auth), lucide-react, marked(md 가져오기), tiptap-pagination-plus(A4 페이지)
+- **FE**: Vite + React + TypeScript, Tailwind CSS, TipTap(editor), react-router-dom, zustand(auth), lucide-react, marked(md 가져오기), 자체 MeasurePagination(A4 페이지네이션 — tiptap-pagination-plus 를 float 폐지·DOM 측정 기반 원자적 배치로 대체, `src/components/Editor/extensions/measurePagination.ts`)
 - **BE**: Cloudflare Worker + Hono, drizzle-orm(D1), zod, docx.js(서버사이드 DOCX 생성, DOM-free)
 - **Infra**: Cloudflare D1(`docs`), KV(JWKS 캐시), Pages(FE + OAuth shim)
 - 저장 포맷: TipTap JSON(정규) + 마크다운 미러. 다운로드는 네이티브 anchor(URL.createObjectURL) — file-saver 미사용.
