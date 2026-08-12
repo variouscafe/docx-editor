@@ -650,32 +650,51 @@ function getPreviewStyles(options: DocxOptions, editable: boolean): string {
     `
     }
 
-    /* 표 스타일 */
-    /* tiptap-pagination-plus 가 런타임에 주입하는 table{display:contents} + tbody{max-height:300px}
-       를 원복 — 큰 표가 300px 로 잘리지 않도록. (표는 페이지 경계에서 쪼개지지 않고 한 덩어리로 렌더) */
+    /* 표 스타일 — 행 단위 페이지 분할(워드-like).
+       table/tbody 를 display:contents 로 펴고 각 <tr> 를 flex 컨테이너로 렌더 →
+       MeasurePagination 의 페이지나눔 위젯이 행 사이에 자연 끼임. 열은 flex 균등 분할.
+       테두리는 border-collapse 대신 각 셀 border + 음수 margin 겹침 보정.
+       (display:table 모드에선 위젯이 tr 사이에 못 끼어들어 행 분할이 불가 → 이 방식.) */
     .rm-with-pagination .tableWrapper {
-      overflow-x: auto;
+      /* visible: 행 분할 위젯(gap)이 음수 margin 으로 좌우 여백까지 확장해 100% 분절.
+         auto 면 위젯이 tableWrapper 너비를 초과해 가로 스크롤 유발. (표 자체가 content 보다
+         넓은 경우만 에디터 가로 스크롤 — 일반 양식에선 표가 content 에 맞음.) */
+      overflow-x: visible;
       margin: 8px 0;
     }
     .rm-with-pagination table {
-      border-collapse: collapse;
-      width: 100%;
-      display: table !important;
+      display: contents !important;
       font-family: ${options.common.fontFamily} !important;
     }
     .rm-with-pagination table tbody {
-      display: table-row-group !important;
-      max-height: none !important;
-      overflow: visible !important;
+      display: contents !important;
+    }
+    .rm-with-pagination table tr {
+      display: flex !important;
+      width: 100% !important;
+      break-inside: avoid;
     }
     .rm-with-pagination table td,
     .rm-with-pagination table th {
+      flex: 1 1 0;
+      min-width: 50px;
       border: 1px solid #333;
       padding: 6px 10px;
       text-align: left;
       vertical-align: top;
-      min-width: 50px;
       position: relative;
+      /* 인접 셀 테두리 겹침 보정(border-collapse 흉내). */
+      margin-left: -1px;
+      margin-top: -1px;
+    }
+    .rm-with-pagination table tr > td:first-child,
+    .rm-with-pagination table tr > th:first-child {
+      margin-left: 0;
+    }
+    /* 첫 행 상단 테두리 보정 — margin-top:-1px 이 첫 행(헤더) 위쪽 라인을 잘라먹지 않도록. */
+    .rm-with-pagination table tr:first-child > td,
+    .rm-with-pagination table tr:first-child > th {
+      margin-top: 0;
     }
     .rm-with-pagination table th {
       background-color: #f3f4f6;
