@@ -139,7 +139,8 @@
   },
   "symbols": {
     "startSymbol": "Símbolo inicial",
-    "inUse": "(em uso)"
+    "inUse": "(em uso)",
+    "none": "Nenhum"
   },
   "annotationMode": {
     "label": "Nota lateral",

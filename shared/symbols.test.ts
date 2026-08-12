@@ -68,6 +68,12 @@ describe("buildHeadingPrefix — prefixText 조합", () => {
     expect(p.prefixText).toBe("② ");
     expect(p.bold).toBe(false);
   });
+
+  it("NONE: prefix 없음 → 빈 prefixText", () => {
+    const p = buildHeadingPrefix(LineStartSymbol.NONE, 3, 1);
+    expect(p.prefixText).toBe("");
+    expect(p.bold).toBe(false);
+  });
 });
 
 describe("createCounters", () => {

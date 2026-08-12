@@ -139,7 +139,8 @@
   },
   "symbols": {
     "startSymbol": "Symbole de début",
-    "inUse": "(utilisé)"
+    "inUse": "(utilisé)",
+    "none": "Aucun"
   },
   "annotationMode": {
     "label": "Note en marge",

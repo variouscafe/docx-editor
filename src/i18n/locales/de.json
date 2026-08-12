@@ -139,7 +139,8 @@
   },
   "symbols": {
     "startSymbol": "Startsymbol",
-    "inUse": "(in Verwendung)"
+    "inUse": "(in Verwendung)",
+    "none": "Keine"
   },
   "annotationMode": {
     "label": "Randnotiz",

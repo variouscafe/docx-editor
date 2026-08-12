@@ -40,6 +40,10 @@ describe("resolveCounter — 자동 카운터 기호", () => {
     expect(resolveCounter(LineStartSymbol.DASH, 5)).toBe("-");
     expect(resolveCounter(LineStartSymbol.BULLET, 5)).toBe("•");
   });
+
+  it("NONE 은 빈 문자열 (카운터 무시)", () => {
+    expect(resolveCounter(LineStartSymbol.NONE, 5)).toBe("");
+  });
 });
 
 describe("getSymbolDisplay", () => {
@@ -52,6 +56,7 @@ describe("getSymbolDisplay", () => {
     expect(getSymbolDisplay(LineStartSymbol.DASH)).toBe("-");
     expect(getSymbolDisplay(LineStartSymbol.BULLET)).toBe("•");
     expect(getSymbolDisplay(LineStartSymbol.CONTENT_BRACKET)).toBe("【】");
+    expect(getSymbolDisplay(LineStartSymbol.NONE)).toBe("");
   });
 });
 
@@ -65,6 +70,7 @@ describe("기호 분류 헬퍼", () => {
     expect(isBoldSymbol(LineStartSymbol.BULLET)).toBe(false);
     expect(isBoldSymbol(LineStartSymbol.CIRCLED)).toBe(false);
     expect(isBoldSymbol(LineStartSymbol.CONTENT_BRACKET)).toBe(false);
+    expect(isBoldSymbol(LineStartSymbol.NONE)).toBe(false);
   });
 
   it("isCounterSymbol — NUMBER_DOT/NUMBER_PAREN/ROMAN/CIRCLED 만 카운터", () => {
@@ -76,10 +82,12 @@ describe("기호 분류 헬퍼", () => {
     expect(isCounterSymbol(LineStartSymbol.DASH)).toBe(false);
     expect(isCounterSymbol(LineStartSymbol.BULLET)).toBe(false);
     expect(isCounterSymbol(LineStartSymbol.CONTENT_BRACKET)).toBe(false);
+    expect(isCounterSymbol(LineStartSymbol.NONE)).toBe(false);
   });
 
   it("isContentBracket — CONTENT_BRACKET 만 true", () => {
     expect(isContentBracket(LineStartSymbol.CONTENT_BRACKET)).toBe(true);
     expect(isContentBracket(LineStartSymbol.SQUARE)).toBe(false);
+    expect(isContentBracket(LineStartSymbol.NONE)).toBe(false);
   });
 });

@@ -45,6 +45,8 @@ export function buildHeadingPrefix(
   configured: number,
   count: number
 ): HeadingPrefix {
+  // 기호 없음 — prefix 자체를 붙이지 않음(빈 텍스트 노드 삽입 방지를 위해 호출자도 건너뜀).
+  if (symbol === LineStartSymbol.NONE) return { prefixText: "", bold: false };
   const leading = " ".repeat(getEffectiveLeadingSpaces(symbol, configured));
   // resolveCounter 는 비카운터 기호에 대해 getSymbolDisplay 로 폴백 → h1~h6 모두 동일 처리.
   const symbolText = resolveCounter(symbol, count);

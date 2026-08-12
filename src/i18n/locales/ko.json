@@ -139,7 +139,8 @@
   },
   "symbols": {
     "startSymbol": "시작기호",
-    "inUse": "(사용 중)"
+    "inUse": "(사용 중)",
+    "none": "없음"
   },
   "annotationMode": {
     "label": "꼬마글씨",

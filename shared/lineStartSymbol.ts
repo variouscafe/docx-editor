@@ -3,6 +3,7 @@
  * docx 생성기·미리보기 장식·마크다운 직렬화 모두 동일 로직 사용.
  */
 export const LineStartSymbol = {
+  NONE: "NONE",
   NUMBER_DOT: "NUMBER_DOT",
   NUMBER_PAREN: "NUMBER_PAREN",
   ROMAN: "ROMAN",
@@ -16,6 +17,7 @@ export const LineStartSymbol = {
 export type LineStartSymbol = (typeof LineStartSymbol)[keyof typeof LineStartSymbol];
 
 export const ALL_SYMBOLS: LineStartSymbol[] = [
+  LineStartSymbol.NONE,
   LineStartSymbol.NUMBER_DOT,
   LineStartSymbol.NUMBER_PAREN,
   LineStartSymbol.ROMAN,
@@ -29,6 +31,8 @@ export const ALL_SYMBOLS: LineStartSymbol[] = [
 /** 드롭다운 등 UI에 표시할 대표 문자열 */
 export function getSymbolDisplay(symbol: LineStartSymbol): string {
   switch (symbol) {
+    case LineStartSymbol.NONE:
+      return "";
     case LineStartSymbol.NUMBER_DOT:
       return "1.";
     case LineStartSymbol.NUMBER_PAREN:
@@ -76,6 +80,8 @@ export function isCounterSymbol(symbol: LineStartSymbol): boolean {
 /** 1-based index를 받아 실제 표시할 기호 문자열을 반환 */
 export function resolveCounter(symbol: LineStartSymbol, index: number): string {
   switch (symbol) {
+    case LineStartSymbol.NONE:
+      return "";
     case LineStartSymbol.NUMBER_DOT:
       return `${index}.`;
     case LineStartSymbol.NUMBER_PAREN:

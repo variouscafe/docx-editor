@@ -124,10 +124,11 @@ function HeadingPanel({
           </SelectTrigger>
           <SelectContent>
             {ALL_SYMBOLS.map((symbol) => {
-              const usedByOther = usedSymbols.has(symbol);
+              // NONE(기호 없음)은 여러 헤딩이 동시에 선택 가능.
+              const usedByOther = usedSymbols.has(symbol) && symbol !== LineStartSymbol.NONE;
               return (
                 <SelectItem key={symbol} value={symbol} disabled={usedByOther}>
-                  {getSymbolDisplay(symbol)}
+                  {symbol === LineStartSymbol.NONE ? t("symbols.none") : getSymbolDisplay(symbol)}
                   {usedByOther ? ` ${t("symbols.inUse")}` : ""}
                 </SelectItem>
               );

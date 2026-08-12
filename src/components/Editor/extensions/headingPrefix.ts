@@ -3,7 +3,7 @@ import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/p
 import { Mapping } from "@tiptap/pm/transform";
 import { Fragment, type Node as PmNode, type MarkType } from "@tiptap/pm/model";
 import type { DocxOptions } from "@shared/options";
-import { isContentBracket } from "@shared/lineStartSymbol";
+import { isContentBracket, LineStartSymbol } from "@shared/lineStartSymbol";
 import {
   buildHeadingPrefix,
   createCounters,
@@ -88,6 +88,9 @@ export function ensureHeadingPrefixes(editor: Editor, options: DocxOptions): voi
         ...body,
         schema.text("】", [markType.create()]),
       ];
+    } else if (symbol === LineStartSymbol.NONE) {
+      // 기호 없음 — prefix 없이 본문만 (기존 prefix는 extractBody 로 이미 제거됨).
+      nodes = body;
     } else {
       const effLeading = getEffectiveLeadingSpaces(symbol, configured);
       const { prefixText } = buildHeadingPrefix(symbol, effLeading, h.count);
@@ -163,6 +166,7 @@ export function syncHeadingPrefixes(
   for (const t of targets.reverse()) {
     const key = `h${t.level}` as HeadingKey;
     const symbol = options[key].lineStartSymbol;
+    if (symbol === LineStartSymbol.NONE) continue;
     const configured = options[key].leadingSpaces ?? 0;
     const at = t.pos + 1;
     if (isContentBracket(symbol)) {

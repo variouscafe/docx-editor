@@ -139,7 +139,8 @@
   },
   "symbols": {
     "startSymbol": "起始符號",
-    "inUse": "(使用中)"
+    "inUse": "(使用中)",
+    "none": "無"
   },
   "annotationMode": {
     "label": "批註",
