@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, useReducer, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { Editor } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
+import { CellSelection, cellAround, TableMap } from "@tiptap/pm/tables";
+import type { Node as PmNode } from "@tiptap/pm/model";
 import {
   ArrowUpToLine,
   ArrowDownToLine,
@@ -12,6 +13,9 @@ import {
   TableCellsSplit,
   Rows3,
   Columns3,
+  Rows2,
+  Columns2,
+  Grid3x3,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -75,12 +79,21 @@ const DIR_OPTIONS: { value: Direction; key: string }[] = [
 ];
 
 /**
- * 표 편집용 떠 있는 도구(BubbleMenu). 커서/셀 선택이 표 안에 있을 때만 노출.
- * 행/열 추가·삭제, 셀 병합/분할, 헤더 행/열 토글, 셀 정렬, 셀 배경음영, 표 삭제.
- * 에디터 선택을 잃지 않도록 컨테이너에서 mousedown 기본동작을 막는다.
+ * 표 편집용 상단 고정 도구모음. 커서/셀 선택이 표 안에 있을 때만 상단 문서 도구모음
+ * 바로 아래에 노출된다. 행/열 추가·삭제, 셀 병합/분할, 헤더 행/열 토글, 셀 정렬,
+ * 셀 배경음영, 표 복사/복제/삭제. 에디터 선택을 잃지 않도록 각 버튼이 mousedown 기본동작을 막는다.
  */
-export function TableBubbleMenu({ editor }: Props) {
+export function TableToolbar({ editor }: Props) {
   const { t } = useTranslation();
+  // 표 안(커서/셀 선택)일 때만 노출. 모든 트랜잭션에서 리렌더해 표시 여부와 버튼 active 를 최신화.
+  const [, bump] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    const update = () => bump();
+    editor.on("transaction", update);
+    return () => {
+      editor.off("transaction", update);
+    };
+  }, [editor]);
   const [bgOpen, setBgOpen] = useState(false);
   const [fmtOpen, setFmtOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);
@@ -95,6 +108,52 @@ export function TableBubbleMenu({ editor }: Props) {
   const cellAttrs = editor.getAttributes("tableCell") as {
     format?: string | null;
     formula?: string | null;
+  };
+
+  /** 현재 커서/선택이 속한 셀 기준으로 행·열·전체를 CellSelection 으로 잡는다.
+   *  모바일에선 마우스 드래그 셀 선택이 안 되므로, 한 번 터치로 범위를 선택하게 함.
+   *  이후 가운데 정렬·통화(원) 포맷 등이 선택된 모든 셀에 일괄 적용된다. */
+  const selectCells = (kind: "row" | "col" | "all") => {
+    const { state, view } = editor;
+    // 현재 셀을 견고하게 탐색. 모바일에선 커서($head)가 셀 안을 정확히 가리키지 않을 수 있어
+    // $head → $from → $to 순으로 시도하고, CellSelection 중이면 앵커 셀을 쓴다.
+    const cur = state.selection;
+    const $cell =
+      cur instanceof CellSelection
+        ? cur.$headCell
+        : cellAround(cur.$head) ?? cellAround(cur.$from) ?? cellAround(cur.$to);
+    if (!$cell) return;
+    try {
+      let sel: CellSelection;
+      if (kind === "row") {
+        sel = CellSelection.rowSelection($cell);
+      } else if (kind === "col") {
+        sel = CellSelection.colSelection($cell);
+      } else {
+        // 전체 — 표의 첫 셀 ~ 마지막 셀. TableMap 으로 셀 오프셋 계산.
+        let table: PmNode | null = null;
+        let tableStart = 0;
+        for (let d = $cell.depth; d > 0; d--) {
+          const n = $cell.node(d);
+          if (n.type.name === "table") {
+            table = n;
+            tableStart = $cell.start(d);
+            break;
+          }
+        }
+        if (!table) return;
+        const map = TableMap.get(table);
+        sel = CellSelection.create(
+          state.doc,
+          tableStart + map.map[0],
+          tableStart + map.map[map.map.length - 1]
+        );
+      }
+      view.dispatch(state.tr.setSelection(sel).scrollIntoView());
+      editor.commands.focus();
+    } catch (e) {
+      console.error("[selectCells failed]", e);
+    }
   };
 
   /** 작은 토글 버튼(팝오버 내 옵션용). */
@@ -167,17 +226,10 @@ export function TableBubbleMenu({ editor }: Props) {
 
   const Div = () => <Separator orientation="vertical" className="mx-0.5 h-5" />;
 
+  if (!editor.isActive("table")) return null;
+
   return (
-    <BubbleMenu
-      editor={editor}
-      shouldShow={({ editor }) => editor.isActive("table")}
-      // 에디터가 transform: scale() 안에 있어 기본 마운트(editor.dom.parentElement)에
-      // 붙으면 모바일에서 버튼이 축소됨 → body 로 빼고 fixed 배치(floating-ui 가 viewport
-      // 좌표 기준으로 보정). tabindex=0 은 플러그인 기본값(제거 시 클릭에 메뉴 닫힘)이라 유지.
-      appendTo={() => document.body}
-      options={{ strategy: "fixed", placement: "top" }}
-      className="table-bubble-menu z-50 flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-lg border bg-background p-1 shadow-md"
-    >
+    <div className="flex items-center gap-0.5 overflow-x-auto border-b bg-background px-3 py-1.5 [&>*]:shrink-0">
       {/* 행 */}
       <Tool onClick={() => editor.chain().focus().addRowBefore().run()} title={t("toolbar.rowAbove")}>
         <ArrowUpToLine className="size-4" />
@@ -200,6 +252,19 @@ export function TableBubbleMenu({ editor }: Props) {
       </Tool>
       <Tool onClick={() => editor.chain().focus().deleteColumn().run()} title={t("toolbar.deleteColumn")}>
         <Minus className="size-4" />
+      </Tool>
+
+      <Div />
+
+      {/* 행/열/전체 선택 — 모바일에선 드래그 대신 한 번 터치로 범위를 잡는다 */}
+      <Tool onClick={() => selectCells("row")} title={t("toolbar.selectRow")}>
+        <Rows2 className="size-4" />
+      </Tool>
+      <Tool onClick={() => selectCells("col")} title={t("toolbar.selectColumn")}>
+        <Columns2 className="size-4" />
+      </Tool>
+      <Tool onClick={() => selectCells("all")} title={t("toolbar.selectAll")}>
+        <Grid3x3 className="size-4" />
       </Tool>
 
       <Div />
@@ -526,6 +591,6 @@ export function TableBubbleMenu({ editor }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </BubbleMenu>
+    </div>
   );
 }
