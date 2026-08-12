@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Save,
   FilePlus2,
   MoreHorizontal,
   Pencil,
@@ -170,12 +169,32 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
     }
   };
 
-  const handleSave = () =>
-    run(async () => {
-      if (!templateId || !isOwner) return;
-      await updateTemplate(templateId, { options });
-      toast.success(t("templates.saved"));
-    });
+  // 템플릿 자동저장 — 소유·연결·빌트인 아닌 템플릿의 옵션이 바뀌면 1.5초 후 갱신(저장 버튼 없음).
+  // 저장 성공 시 로컬 템플릿 options 를 낙관 반영 → "수정됨" 배지 해제(추가 GET 없음).
+  // 다른 액션(이름/공개범위/삭제) 진행 중(busy)엔 건너뛰어 PATCH 경쟁을 회피.
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!templateId || !isOwner || !isBound || isBuiltin || !dirty || busy) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      void (async () => {
+        try {
+          await updateTemplate(templateId, { options });
+          setUserTemplates((prev) =>
+            prev.map((tpl) => (tpl.id === templateId ? { ...tpl, options } : tpl)),
+          );
+        } catch (e) {
+          console.error("[template autosave failed]", e);
+        }
+      })();
+    }, 1500);
+    return () => {
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = null;
+      }
+    };
+  }, [templateId, isOwner, isBound, isBuiltin, dirty, busy, options]);
 
   const openCreate = () =>
     setNameDialog({
@@ -246,7 +265,6 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
       setDeleteOpen(false);
     });
 
-  const showSaveButton = isOwner && isBound && !isBuiltin;
   // 비소유자(빌트인/타인 공유)는 DB 행이 없거나 편집 권한이 없으므로, 현재 옵션으로 새 템플릿을 만드는 것만 허용.
   const showCreateButton = !isBound || isDeleted || isBuiltin || isOthersShared;
   const showMenu = isOwner && isBound && !isBuiltin;
@@ -382,20 +400,15 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
         </div>
       )}
 
-      {/* 주요 액션 (예측 가능한 2열 그리드) */}
+      {/* 주요 액션 — 템플릿 저장은 자동(옵션 변경 시 1.5초 후). 남은 액션은 새 템플릿 저장뿐. */}
       <div className="grid grid-cols-2 gap-1.5">
-        {showSaveButton && (
-          <Button size="sm" disabled={!dirty || busy} onClick={() => void handleSave()}>
-            <Save /> {t("common.save")}
-          </Button>
-        )}
         {showCreateButton && (
           <Button
             size="sm"
             variant="outline"
             onClick={openCreate}
             disabled={busy}
-            className={showSaveButton ? "" : "col-span-2"}
+            className="col-span-2"
           >
             <FilePlus2 /> {t("templates.saveNew")}
           </Button>
