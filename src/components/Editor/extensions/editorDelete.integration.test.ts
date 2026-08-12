@@ -14,7 +14,6 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableDeleteGuard } from "./tableDeleteGuard";
 import { HeadingPrefix, HeadingPrefixSync } from "./headingPrefix";
 import { TitleExtension } from "./title";
-import { TrimTrailingEmpty } from "./trimTrailingEmpty";
 import { TextSelection } from "@tiptap/pm/state";
 import { defaultOptions } from "@shared/options";
 import type { Node as PmNode } from "@tiptap/pm/model";
@@ -190,7 +189,6 @@ describe("기호에서 삭제 — 글자 단위(Android delete(pos-1,pos)) 회�
         TitleExtension,
         HeadingPrefix,
         HeadingPrefixSync.configure({ getOptions: () => defaultOptions }),
-        TrimTrailingEmpty,
       ],
       content: {
         type: "doc",

@@ -18,7 +18,6 @@ import { TitleExtension } from "../Editor/extensions/title";
 import { HeadingHardBreak } from "../Editor/extensions/headingHardBreak";
 import { FontSize } from "../Editor/extensions/fontSize";
 import { PreviewDecorations, forceRedecorate } from "../Editor/extensions/previewDecorations";
-import { TrimTrailingEmpty } from "../Editor/extensions/trimTrailingEmpty";
 import {
   HeadingPrefix,
   HeadingPrefixSync,
@@ -120,7 +119,6 @@ export default function DocxPreview({
       HeadingPrefix,
       HeadingPrefixSync.configure({ getOptions: () => optionsRef.current }),
       PreviewDecorations.configure({ getOptions: () => optionsRef.current }),
-      TrimTrailingEmpty,
       Table.configure({ resizable: true }),
       TableRow,
       TableCellFormat,
