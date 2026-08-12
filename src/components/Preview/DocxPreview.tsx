@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { TextSelection } from "@tiptap/pm/state";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import { Table } from "@tiptap/extension-table";
@@ -141,6 +142,35 @@ export default function DocxPreview({
         footerRight: "{page}",
       }),
     ],
+    editorProps: {
+      // 모바일에서 표가 display:contents + flex(행 단위 페이지 분할용)로 렌더링되어
+      // 터치 좌표가 표 밖의 빈 문단이 아니라 표 마지막 셀로 매핑되는(posAtCoords 왜곡)
+      // 현상을 보정. 현재 커서가 표 안이고 실제 터치한 DOM 이 표 밖 블록이면 그 블록으로
+      // 커서를 옮긴다. 커서가 표 밖일 때는 동작하지 않아 일반 편집에 부작용이 없다.
+      handleClick(view, _pos, event) {
+        if (!view.editable) return false;
+        const { state } = view;
+        // (1) 현재 selection 이 표 안인가?
+        let inTable = false;
+        for (let d = state.selection.$from.depth; d > 0; d--) {
+          if (state.selection.$from.node(d).type.name === "table") {
+            inTable = true;
+            break;
+          }
+        }
+        if (!inTable) return false;
+        // (2) 실제 터치한 DOM 이 표 밖 블록인가?
+        const target = event.target as HTMLElement | null;
+        if (!target) return false;
+        const block = target.closest("p, h1, h2, h3, h4, h5, h6, div[data-title]");
+        if (!block || block.closest("table") || !view.dom.contains(block)) return false;
+        // (3) event.target 기반 pos → posAtCoords 왜곡을 우회해 정확히 이동.
+        const blockPos = view.posAtDOM(block, 0);
+        const sel = TextSelection.near(state.doc.resolve(blockPos), 1);
+        view.dispatch(state.tr.setSelection(sel).scrollIntoView());
+        return true;
+      },
+    },
     // ReportEditor 는 React.lazy(Suspense) 로 로드된다. 기본값 immediatelyRender:true 는
     // 렌더 도중 에디터를 선행 생성한 뒤 1ms scheduleDestroy 타이머로 파괴하는데,
     // Suspense 의 reconnectPassiveEffects 경로와 엮여 "파괴된 에디터의 editor.commands 접근"
