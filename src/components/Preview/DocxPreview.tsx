@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EditorContent } from "@tiptap/react";
 import RichTextToolbar from "../Editor/RichTextToolbar";
 import { TableToolbar } from "../Editor/TableToolbar";
+import { CaretHandle } from "../Editor/CaretHandle";
 import { getPreviewStyles } from "./previewStyles";
 import { usePreviewEditor } from "./usePreviewEditor";
 import { usePreviewScale } from "./usePreviewScale";
@@ -71,6 +72,7 @@ export default function DocxPreview({
     <div className="relative h-full flex flex-col">
       {editable && <RichTextToolbar editor={editor} />}
       {editable && editor && <TableToolbar editor={editor} />}
+      {editable && editor && <CaretHandle editor={editor} />}
       <div
         ref={containerRef}
         className="flex-1 overflow-auto"

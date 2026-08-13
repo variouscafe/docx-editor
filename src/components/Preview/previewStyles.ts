@@ -406,5 +406,34 @@ export function getPreviewStyles(options: DocxOptions, editable: boolean): strin
       background-color: var(--preview-accent);
       pointer-events: none;
     }
+
+    /* rowspan(세로 병합) 포함 표: 진짜 테이블 레이아웃으로 전환(rowspan 시각 지원).
+       일반 표(display:contents + flex 행)는 rowspan 을 시각적으로 표현 못하고 열 정렬이
+       깨진다. rowspan 셀이 있는 표는 table/table-row/table-cell 강제 + border-collapse.
+       페이지 분할은 통째(한 페이지에 배치, break-inside: avoid). 열 너비는 colgroup 담당. */
+    .rm-with-pagination .rm-table-rowspan { break-inside: avoid; }
+    .rm-with-pagination .rm-table-rowspan table {
+      display: table !important;
+      border-collapse: collapse;
+      table-layout: fixed;
+      width: 100%;
+    }
+    .rm-with-pagination .rm-table-rowspan table tbody { display: table-row-group !important; }
+    .rm-with-pagination .rm-table-rowspan table tr {
+      display: table-row !important;
+      width: auto !important;
+    }
+    .rm-with-pagination .rm-table-rowspan table td,
+    .rm-with-pagination .rm-table-rowspan table th {
+      display: table-cell !important;
+      flex: initial; /* 기존 flex:1 1 0 무효화 */
+      min-width: 50px;
+      margin: 0; /* 기존 음수 margin(테두리 겹침 보정) 제거 — border-collapse 가 처리 */
+      border: 1px solid #333;
+      padding: 6px 10px;
+      text-align: left;
+      vertical-align: top;
+      position: relative;
+    }
   `;
 }

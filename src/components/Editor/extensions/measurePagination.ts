@@ -174,7 +174,6 @@ function runMeasure(view: EditorView, getOpts: OptionsGetter): void {
     signature: "",
   };
 
-  applyColumnWidths(view);
   const blocks = measureBlocks(view);
   const measuredFooter = measureFooterContentHeight(view);
   const footerContentHeight = measuredFooter || prev.footerContentHeight || 18;
@@ -214,31 +213,15 @@ function rowHasHeader(row: PmNode): boolean {
   return has;
 }
 
-/**
- * 표 열 너비를 각 셀에 inline 고정. display:contents 로 colgroup 이 무력화되므로,
- * colgroup col 의 style.width(updateColumns 가 설정)을 읽어 모든 행의 같은 열 셀에
- * 동일 width 부여. colspan 합산. → 스크롤 방지·열 정렬 유지.
- */
-function applyColumnWidths(view: EditorView): void {
-  const wrappers = view.dom.querySelectorAll<HTMLElement>(".tableWrapper");
-  wrappers.forEach((wrapper) => {
-    const cols = Array.from(wrapper.querySelectorAll<HTMLElement>("colgroup col"));
-    if (!cols.length) return;
-    const widths = cols.map((c) => parseInt(c.style.width, 10) || 0);
-    const totalHasWidth = widths.some((w) => w > 0);
-    const rows = wrapper.querySelectorAll<HTMLElement>("tbody > tr");
-    rows.forEach((row) => {
-      const cells = Array.from(row.children) as HTMLElement[];
-      let col = 0;
-      for (const cell of cells) {
-        const colspan = parseInt(cell.getAttribute("colspan") || "1", 10) || 1;
-        let w = 0;
-        for (let j = 0; j < colspan; j++) w += widths[col + j] || 0;
-        cell.style.width = totalHasWidth && w > 0 ? `${w}px` : "";
-        col += colspan;
-      }
+/** 표에 rowspan>1 셀이 있는지(previewStyles 가 display:table 로 전환할지 결정). */
+function tableHasRowspan(table: PmNode): boolean {
+  let found = false;
+  table.forEach((row) => {
+    row.forEach((cell) => {
+      if ((cell.attrs.rowspan as number | undefined || 1) > 1) found = true;
     });
   });
+  return found;
 }
 
 /** 최상위 블록 측정. table 노드는 행(tableRow) 단위로 분해. */
@@ -271,6 +254,12 @@ function measureBlocks(view: EditorView): MeasuredBlock[] {
 
   view.state.doc.forEach((node, offset) => {
     if (node.type.name === "table") {
+      if (tableHasRowspan(node)) {
+        // rowspan 표: display:table 로 통째 렌더 → 행 단위 분해 불가, 페이지 분할도 통째.
+        // 표 전체를 단일 블록으로 측정/배치.
+        pushBlock(view.nodeDOM(offset), offset, node);
+        return;
+      }
       const tid = ++tableSeq;
       node.forEach((row, rowOffset) => {
         const pos = offset + 1 + rowOffset;

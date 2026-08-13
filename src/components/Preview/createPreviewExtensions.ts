@@ -10,6 +10,7 @@ import { TableCellFormat } from "../Editor/extensions/tableCellFormat";
 import { TableDeleteGuard } from "../Editor/extensions/tableDeleteGuard";
 import { TableCellDragSelect } from "../Editor/extensions/tableCellDragSelect";
 import { TableFormulaPlugin } from "../Editor/extensions/tableFormulaPlugin";
+import { TableColumnWidthMirror } from "../Editor/extensions/tableColumnWidthMirror";
 import { MeasurePagination } from "../Editor/extensions/measurePagination";
 import { BoxBorder } from "../Editor/extensions/boxBorder";
 import { HighlightExtension } from "../Editor/extensions/highlightColors";
@@ -21,6 +22,7 @@ import { FontSize } from "../Editor/extensions/fontSize";
 import { PreviewDecorations } from "../Editor/extensions/previewDecorations";
 import { HeadingPrefix, HeadingPrefixSync } from "../Editor/extensions/headingPrefix";
 import type { DocxOptions } from "@shared/options";
+import { caretPosFromPoint } from "@/utils/caretPos";
 
 // A4 세로(96DPI px). tiptap-pagination-plus 의존 제거 — 리터럴로 고정.
 // PAGE_SIZES.A4 = getPageSize(1123, 794, ...) → { pageHeight:1123, pageWidth:794 } 와 동일.
@@ -79,6 +81,9 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
     // 표 계산(포맷/수식) 반응형 — shared 엔진으로 셀 표시 텍스트 실시간 동기화 +
     // 수식 셀 읽기전용 보호. 미리보기 == DOCX 출력.
     TableFormulaPlugin,
+    // 표 열 너비 미러(display:contents → colgroup 무력화 우회). colgroup 변경 시에만
+    // 셀 flex-grow 적용(텍스트 편집엔 no-op) → 입력 시 표 흔들림/잔상 방지.
+    TableColumnWidthMirror,
     MeasurePagination.configure({
       pageHeight: opts.pageHeight,
       pageWidth: opts.pageWidth,
@@ -93,17 +98,30 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
   ];
 
   const editorProps = {
-    // 모바일(터치)에서 터치한 DOM(event.target) 기반으로 커서를 옮긴다.
-    // 표가 display:contents/flex 로 렌더링·contenteditable 이 transform:scale 안에 있어
-    // PM 기본 posAtCoords(caretFromPoint)가 틀린 위치를 반환하는 것을 우회.
+    // 모바일(터치)에서 터치한 글자 위치에 커서를 정확히 놓는다.
+    // contenteditable 이 transform:scale 안에 있어 PM 기본 posAtCoords 는 왜곡되지만,
+    // caretRangeFromPoint/caretPositionFromPoint 는 시각 트리를 히트테스트하므로 정확 →
+    // caretPosFromPoint 로 터치한 글자의 PM pos 를 얻는다(실패 시 블록 단위 fallback).
     // 데스크탑(coarse pointer 아님)은 return false → PM 기본(정확)에 맡긴다.
-    // return true 로 PM 기본 selection 처리를 스킵해 1순위(posAtCoords 왜곡)·2순위(스크롤 선점) 모두 우회.
     handleClick(view: EditorView, _pos: number, event: MouseEvent) {
       if (!view.editable || !isCoarsePointer()) return false;
       const target = event.target as HTMLElement | null;
       if (!target || !view.dom.contains(target)) return false;
-      // 터치한 편집 블록(문단·헤딩·제목) 또는 셀 — 종전엔 "현재 selection이 표 안일 때"로만
-      // 제한했으나, 일반 문단↔문단 터치에서도 posAtCoords 왜곡이 노출되므로 제한을 제거했다.
+      // 1) 터치한 글자 위치 정확 매핑 — caretRangeFromPoint/caretPositionFromPoint 는
+      //    elementFromPoint 처럼 시각 트리(transform 반영)를 히트테스트하므로 scale 환경에서도
+      //    터치한 글자 사이/끝의 정확한 (노드, offset)을 준다(→ 글자 단위 배치).
+      //    PM 자체 posAtCoords 만 왜곡되는 것이라 이 조합은 안전.
+      const exactPos = caretPosFromPoint(view, event.clientX, event.clientY);
+      if (exactPos != null) {
+        try {
+          const sel = TextSelection.near(view.state.doc.resolve(exactPos), 1);
+          view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
+          return true;
+        } catch {
+          /* fall through to block fallback */
+        }
+      }
+      // 2) fallback: 빈 문단/셀/장식(¶) 위 터치 등 정확 매핑이 실패하면 블록 단위로 안전히 배치.
       const block = target.closest("p, h1, h2, h3, h4, h5, h6, div[data-title], td, th");
       if (!block) return false;
       try {

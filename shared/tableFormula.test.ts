@@ -175,6 +175,27 @@ describe("buildTableGrid — 병합 셀 전개", () => {
     expect(g.matrix[0][2]?.value).toBe(100);
     expect(g.matrix[1][2]?.value).toBe(200);
   });
+  it("rowspan 전개 — 같은 셀 객체가 아래 행 칸을 채움", () => {
+    const g = buildTableGrid(
+      table(
+        row(
+          { type: "tableCell", attrs: { rowspan: 2 }, content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }] },
+          cell("100"),
+          cell("200"),
+        ),
+        row(cell("300"), cell("400")),
+      ),
+    );
+    expect(g.rows).toBe(2);
+    expect(g.cols).toBe(3);
+    // (0,0)과 (1,0)은 같은 병합 셀(rowspan)
+    expect(g.matrix[0][0]).toBe(g.matrix[1][0]);
+    expect(g.matrix[0][0]?.text).toBe("A");
+    expect(g.matrix[0][1]?.value).toBe(100);
+    expect(g.matrix[0][2]?.value).toBe(200);
+    expect(g.matrix[1][1]?.value).toBe(300);
+    expect(g.matrix[1][2]?.value).toBe(400);
+  });
 });
 
 describe("evaluateFormula — 방향 연산", () => {
