@@ -1,4 +1,4 @@
-import { LineStartSymbol } from "./lineStartSymbol";
+import { LineStartSymbol, ALL_SYMBOLS } from "./lineStartSymbol";
 
 /** Word식 줄 간격 규칙. */
 export type LineSpacingRule =
@@ -268,11 +268,27 @@ type RawH4 = AnySection & {
 type RawOptions = Partial<Omit<DocxOptions, "h4">> & { h4?: RawH4 };
 
 const num = (v: unknown, fb: number): number => (typeof v === "number" ? v : fb);
+const str = (v: unknown, fb: string): string => (typeof v === "string" ? v : fb);
+const bool = (v: unknown, fb: boolean): boolean => (typeof v === "boolean" ? v : fb);
+
+/** 유효한 시작 기호 아니면 기본값(JSON 패널 등 외부 입력 보정). */
+const symbolOr = (v: unknown, fb: LineStartSymbol): LineStartSymbol =>
+  ALL_SYMBOLS.includes(v as LineStartSymbol) ? (v as LineStartSymbol) : fb;
+
+/** 유효한 줄 간격 규칙만 통과. */
+const validRules = ["single", "1.15", "1.5", "double", "atLeast", "exact", "multiple"];
+const normLineSpacing = (v: unknown): LineSpacing => {
+  const ls = v as LineSpacing | undefined;
+  if (!ls || typeof ls !== "object" || !validRules.includes(ls.rule ?? "")) {
+    return { ...DEFAULT_LINE_SPACING };
+  }
+  return { rule: ls.rule, ...(typeof ls.value === "number" ? { value: ls.value } : {}) };
+};
 
 const fillSpacing = (s: AnySection | undefined, fb: number): SpacingFields => ({
   paragraphSpacing: num(s?.paragraphSpacing, fb),
   spacingBefore: num(s?.spacingBefore, 0),
-  lineSpacing: s?.lineSpacing ?? { ...DEFAULT_LINE_SPACING },
+  lineSpacing: normLineSpacing(s?.lineSpacing),
 });
 
 /** 구 H4 에서 deprecated single/secondLineSpacing 제거. */
@@ -289,27 +305,64 @@ const stripH4Old = (h4?: RawH4): AnySection => {
 export function normalizeOptions(input: unknown): DocxOptions {
   const o = (input ?? {}) as RawOptions;
   const commonPs = num(o.common?.paragraphSpacing, 12);
+  const h4Raw = stripH4Old(o.h4);
+  const heading = (
+    raw: (AnySection & { lineStartSymbol?: unknown; leadingSpaces?: unknown }) | undefined,
+    def: { lineStartSymbol: LineStartSymbol; leadingSpaces: number },
+  ) => ({
+    lineStartSymbol: symbolOr(raw?.lineStartSymbol, def.lineStartSymbol),
+    leadingSpaces: num(raw?.leadingSpaces, def.leadingSpaces),
+  });
 
   return {
-    ...defaultOptions,
-    ...o,
-    common: { ...defaultOptions.common, ...o.common, ...fillSpacing(o.common, 12) },
-    title: { ...defaultOptions.title, ...o.title, ...fillSpacing(o.title, 24) },
-    h1: { ...defaultOptions.h1, ...o.h1, ...fillSpacing(o.h1, 24) },
-    h2: { ...defaultOptions.h2, ...o.h2, ...fillSpacing(o.h2, 16) },
-    h3: { ...defaultOptions.h3, ...o.h3, ...fillSpacing(o.h3, commonPs) },
+    common: {
+      ...defaultOptions.common,
+      fontSize: num(o.common?.fontSize, defaultOptions.common.fontSize),
+      fontFamily: str(o.common?.fontFamily, defaultOptions.common.fontFamily),
+      marginTop: num(o.common?.marginTop, defaultOptions.common.marginTop),
+      marginBottom: num(o.common?.marginBottom, defaultOptions.common.marginBottom),
+      marginLeft: num(o.common?.marginLeft, defaultOptions.common.marginLeft),
+      marginRight: num(o.common?.marginRight, defaultOptions.common.marginRight),
+      ...fillSpacing(o.common, 12),
+    },
+    title: {
+      ...defaultOptions.title,
+      fontSize: num(o.title?.fontSize, defaultOptions.title.fontSize),
+      bold: bool(o.title?.bold, defaultOptions.title.bold),
+      underline: bool(o.title?.underline, defaultOptions.title.underline),
+      align: o.title?.align === "left" || o.title?.align === "right" ? o.title.align : "center",
+      ...fillSpacing(o.title, 24),
+    },
+    h1: {
+      ...defaultOptions.h1,
+      ...heading(o.h1, defaultOptions.h1),
+      fontSize: num(o.h1?.fontSize, defaultOptions.h1.fontSize),
+      bold: bool(o.h1?.bold, defaultOptions.h1.bold),
+      ...fillSpacing(o.h1, 24),
+    },
+    h2: { ...defaultOptions.h2, ...heading(o.h2, defaultOptions.h2), ...fillSpacing(o.h2, 16) },
+    h3: { ...defaultOptions.h3, ...heading(o.h3, defaultOptions.h3), ...fillSpacing(o.h3, commonPs) },
     h4: {
       ...defaultOptions.h4,
-      ...stripH4Old(o.h4),
+      ...heading(h4Raw, defaultOptions.h4),
       ...fillSpacing(
-        stripH4Old(o.h4),
+        h4Raw,
         num(o.h4?.singleLineSpacing ?? o.h4?.secondLineSpacing, num(commonPs, 16)),
       ),
     },
-    h5: { ...defaultOptions.h5, ...o.h5, ...fillSpacing(o.h5, commonPs) },
-    h6: { ...defaultOptions.h6, ...o.h6, ...fillSpacing(o.h6, commonPs) },
-    annotation1: { ...defaultOptions.annotation1, ...o.annotation1 },
-    annotation2: { ...defaultOptions.annotation2, ...o.annotation2, ...fillSpacing(o.annotation2, 16) },
-    annotationMode: o.annotationMode ?? 1,
+    h5: { ...defaultOptions.h5, ...heading(o.h5, defaultOptions.h5), ...fillSpacing(o.h5, commonPs) },
+    h6: { ...defaultOptions.h6, ...heading(o.h6, defaultOptions.h6), ...fillSpacing(o.h6, commonPs) },
+    annotation1: {
+      fontSize: num(o.annotation1?.fontSize, defaultOptions.annotation1.fontSize),
+      fontFamily: str(o.annotation1?.fontFamily, defaultOptions.annotation1.fontFamily),
+      color: str(o.annotation1?.color, defaultOptions.annotation1.color),
+    },
+    annotation2: {
+      ...defaultOptions.annotation2,
+      fontSize: num(o.annotation2?.fontSize, defaultOptions.annotation2.fontSize),
+      symbol: str(o.annotation2?.symbol, defaultOptions.annotation2.symbol),
+      ...fillSpacing(o.annotation2, 16),
+    },
+    annotationMode: o.annotationMode === 2 ? 2 : 1,
   };
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { LineStartSymbol } from "./lineStartSymbol";
 import {
   normalizeOptions,
   resolveLineSpacing,
@@ -111,5 +112,46 @@ describe("resolveSpacing — 단락 간격 3종", () => {
     expect(r.afterPt).toBe(12);
     expect(r.docx).toEqual({ before: 120, after: 240, line: 240, lineRule: "auto" });
     expect(r.css).toEqual({ marginTop: "6pt", marginBottom: "12pt", lineHeight: "1" });
+  });
+});
+
+describe("normalizeOptions — 외부 입력(JSON 패널) 보정", () => {
+  it("빈 객체/Nullish 입력도 완전한 기본 구조를 반환한다(크래시 방지)", () => {
+    const o = normalizeOptions({});
+    expect(o.common.fontSize).toBe(14);
+    expect(o.h1.lineStartSymbol).toBe(LineStartSymbol.NUMBER_DOT);
+    expect(o.annotationMode).toBe(1);
+    expect(normalizeOptions(null).common.marginTop).toBe(2);
+    expect(normalizeOptions(undefined).title.fontSize).toBe(20);
+  });
+
+  it("잘못된 타입의 필드는 기본값으로 보정된다", () => {
+    const o = normalizeOptions({
+      common: 5 as never,
+      h1: { lineStartSymbol: "NOT_A_SYMBOL" as never, fontSize: "big" as never, bold: "yes" as never },
+      title: { align: "diagonal" as never },
+      annotationMode: 3 as never,
+      h2: { lineSpacing: { rule: "garbage" } as never },
+    });
+    expect(o.common.fontSize).toBe(14);
+    expect(o.h1.lineStartSymbol).toBe(LineStartSymbol.NUMBER_DOT);
+    expect(o.h1.fontSize).toBe(24);
+    expect(o.h1.bold).toBe(true);
+    expect(o.title.align).toBe("center");
+    expect(o.annotationMode).toBe(1);
+    expect(o.h2.lineSpacing).toEqual({ rule: "multiple", value: 1.6 });
+  });
+
+  it("정상 값은 그대로 유지된다", () => {
+    const o = normalizeOptions({
+      common: { marginTop: 3, fontFamily: "Pretendard" },
+      annotationMode: 2,
+      h3: { lineStartSymbol: LineStartSymbol.ROMAN, leadingSpaces: 2 },
+    });
+    expect(o.common.marginTop).toBe(3);
+    expect(o.common.fontFamily).toBe("Pretendard");
+    expect(o.annotationMode).toBe(2);
+    expect(o.h3.lineStartSymbol).toBe(LineStartSymbol.ROMAN);
+    expect(o.h3.leadingSpaces).toBe(2);
   });
 });
