@@ -10,10 +10,12 @@ import { CellSelection, cellAround } from "@tiptap/pm/tables";
  * 동작한다. 모바일 터치는 mouse 이벤트로 충분히 에뮬레이션되지 않고, 문서 컨테이너의
  * touch-action(스크롤)이 터치 이동을 선점해 셀 드래그가 아예 일어나지 않는다.
  *
- * 전략: 표 셀에서 시작한 1손가락 드래그만 가로채 직접 CellSelection 을 만든다.
+ * 전략: 표 셀에서 시작한 1손가락 **가로** 드래그만 가로채 직접 CellSelection 을 만든다.
  *  - touchstart: 시작 셀(anchor) 후보만 기록. 일반 탭(커서 이동)은 그대로 허용.
- *  - touchmove: 이동량이 임계치(8px)를 넘으면 셀 선택 모드 진입 → 스크롤을 막고(preventDefault)
- *    손가락 아래 셀까지 CellSelection.create(anchor, head) 로 확장.
+ *  - touchmove: 이동량이 임계치(8px)를 넘고 **가로 우세(|dx|>|dy|)** 일 때만 셀 선택 모드
+ *    진입 → 제스처를 막고(preventDefault) 손가락 아래 셀까지 CellSelection.create(anchor,
+ *    head) 로 확장. 세로 우세 드래그는 문서 스크롤로 판단해 포기(셀 td/th 는 touch-action:
+ *    pan-y → 브라우저가 세로 스크롤을 정상 처리).
  *  - touchend: 그대로 둔다(선택 유지).
  * 2손가락(핀치줌)·셀 바깥 터치는 무시 → 스크롤/편집에 영향 없음.
  *
@@ -75,13 +77,23 @@ export const TableCellDragSelect = Extension.create({
           const onMove = (e: TouchEvent) => {
             if (!drag || e.touches.length !== 1) return;
             const t = e.touches[0];
-            if (!drag.active && Math.hypot(t.clientX - drag.startX, t.clientY - drag.startY) < DRAG_THRESHOLD) {
-              return; // 아직 일반 탭 범위 — 커서/스크롤 그대로
+            const dx = Math.abs(t.clientX - drag.startX);
+            const dy = Math.abs(t.clientY - drag.startY);
+            if (!drag.active) {
+              if (Math.hypot(dx, dy) < DRAG_THRESHOLD) {
+                return; // 아직 일반 탭 범위 — 커서/스크롤 그대로
+              }
+              if (dy >= dx) {
+                // 세로 우세 → 문서 스크롤 의도. 셀 선택 포기하고 이후 무시
+                // (touch-action: pan-y 로 브라우저가 스크롤을 가져감).
+                drag = null;
+                return;
+              }
+              drag.active = true; // 가로 우세 → 셀 선택 모드 진입
             }
-            e.preventDefault(); // 셀 선택 모드 → 스크롤 억제
+            e.preventDefault(); // 셀 선택 모드 → 나머지 제스처 억제
             const head = cellAt(t.clientX, t.clientY);
             if (head == null) return;
-            drag.active = true;
             const { state } = view;
             try {
               view.dispatch(state.tr.setSelection(CellSelection.create(state.doc, drag.anchor, head)));

@@ -62,7 +62,7 @@ export const measurePaginationKey = new PluginKey<PageState>("measurePagination"
 const MEASURE_META = "measurePagination.measure";
 const STYLE_ID = "rm-measure-pagination-style";
 
-interface MeasuredBlock {
+export interface MeasuredBlock {
   pos: number;
   end: number;
   node: PmNode;
@@ -74,7 +74,7 @@ interface MeasuredBlock {
   tableId?: number;
 }
 
-interface Page {
+export interface Page {
   blocks: MeasuredBlock[];
   used: number;
 }
@@ -96,6 +96,15 @@ const rafTokens = new WeakMap<EditorView, number>();
 const lastDocs = new WeakMap<EditorView, PmNode>();
 // forceRemeasure 가 update 훅(클로저 getOpts) 을 거치지 않고 직접 측정을 예약하기 위한 getter 홀더.
 const optsGetters = new WeakMap<EditorView, OptionsGetter>();
+// 증분 측정 — ProseMirror 구조 공유로 편집되지 않은 노드는 객체 참조가 유지되므로
+// 노드 참조 → 측정값 WeakMap 캐시로 키 입력마다 "전체" 블록을 리플로우 측정하는 비용을 없앤다.
+// 레이아웃이 일괄 변하는 시점(옵션 변경·리사이즈·폰트 로드·강제 재측정)은 강제 플래그로
+// 캐시를 우회해 전측정한다.
+const blockMeasureCache = new WeakMap<
+  PmNode,
+  { marginTop: number; marginBottom: number; height: number }
+>();
+const forceFullMeasure = new WeakMap<EditorView, boolean>();
 
 /** getMargins 가 있으면 최신 마진, 없으면 configure 고정값. */
 function resolveMargins(opts: MeasurePaginationOptions): PageMargins {
@@ -151,12 +160,12 @@ export const MeasurePagination = Extension.create<MeasurePaginationOptions>({
     // 마운트 시점에도 고정값이 아닌 최신 옵션 마진으로 적용(getMargins 우선).
     applyContainerStyles(view.dom, { ...this.options, ...resolveMargins(this.options) });
 
-    const ro = new ResizeObserver(() => scheduleMeasure(view, getOpts));
+    const ro = new ResizeObserver(() => scheduleMeasure(view, getOpts, true));
     ro.observe(view.dom);
     this.storage.resizeObserver = ro;
 
     const fonts = (view.dom.ownerDocument as Document & { fonts?: { ready?: Promise<unknown> } }).fonts;
-    fonts?.ready?.then(() => scheduleMeasure(view, getOpts)).catch(() => {});
+    fonts?.ready?.then(() => scheduleMeasure(view, getOpts, true)).catch(() => {});
 
     scheduleMeasure(view, getOpts);
   },
@@ -207,7 +216,8 @@ export const MeasurePagination = Extension.create<MeasurePaginationOptions>({
   },
 });
 
-function scheduleMeasure(view: EditorView, getOpts: OptionsGetter): void {
+function scheduleMeasure(view: EditorView, getOpts: OptionsGetter, force = false): void {
+  if (force) forceFullMeasure.set(view, true);
   const existing = rafTokens.get(view);
   if (existing !== undefined) cancelAnimationFrame(existing);
   const token = requestAnimationFrame(() => {
@@ -228,7 +238,7 @@ export function forceRemeasure(editor: Editor): void {
   const getOpts = optsGetters.get(view);
   if (!getOpts) return;
   lastDocs.set(view, view.state.doc); // 직후 update 가 중복 예약하지 않도록 기준 갱신.
-  scheduleMeasure(view, getOpts);
+  scheduleMeasure(view, getOpts, true);
 }
 
 function runMeasure(view: EditorView, getOpts: OptionsGetter): void {
@@ -247,7 +257,9 @@ function runMeasure(view: EditorView, getOpts: OptionsGetter): void {
     signature: "",
   };
 
-  const blocks = measureBlocks(view);
+  const force = forceFullMeasure.get(view) ?? true; // 최초 1회는 전측정
+  const blocks = measureBlocks(view, force);
+  forceFullMeasure.set(view, false);
   const measuredFooter = measureFooterContentHeight(view);
   const footerContentHeight = measuredFooter || prev.footerContentHeight || 18;
 
@@ -261,6 +273,8 @@ function runMeasure(view: EditorView, getOpts: OptionsGetter): void {
 
   const signature = JSON.stringify({
     footer: footerContentHeight,
+    // 마진 포함 — 페이지 구조가 같아도 마진 변경 시 leftover(fill 높이)를 다시 계산해야 함.
+    margins,
     pages: pages.map((p) => ({
       end: p.blocks[p.blocks.length - 1]?.end ?? -1,
       used: p.used,
@@ -278,12 +292,18 @@ function runMeasure(view: EditorView, getOpts: OptionsGetter): void {
   );
 }
 
-function rowHasHeader(row: PmNode): boolean {
-  let has = false;
+/**
+ * 행이 "헤더 행"인지 판정 — 행의 **모든** 셀이 tableHeader 일 때만 참.
+ * (기존 ANY 판정은 헤더 "열"(toggleHeaderColumn) 표에서 모든 데이터 행의 첫 셀이
+ * tableHeader 라 모든 행이 헤더로 취급 → 연속 페이지마다 첫 데이터 행이 "반복 헤더"로
+ * 복제되는 버그. 일반적인 헤더 행은 전 셀이 th 이므로 ALL 판정으로 충분.)
+ */
+export function rowHasHeader(row: PmNode): boolean {
+  let all = true;
   row.forEach((cell) => {
-    if (cell.type.name === "tableHeader") has = true;
+    if (cell.type.name !== "tableHeader") all = false;
   });
-  return has;
+  return all;
 }
 
 /** 표에 rowspan>1 셀이 있는지(previewStyles 가 display:table 로 전환할지 결정). */
@@ -297,8 +317,32 @@ function tableHasRowspan(table: PmNode): boolean {
   return found;
 }
 
-/** 최상위 블록 측정. table 노드는 행(tableRow) 단위로 분해. */
-function measureBlocks(view: EditorView): MeasuredBlock[] {
+/**
+ * 꼬마글씨2(annotationMode 2) 위젯 — 블록 뒤 형제 <p data-annotation-paragraph> 들이
+ * 문서 플로우 높이를 실제로 차지하므로 블록 높이에 합산한다.
+ * (측정에서 빠지면 주석이 달린 문단들이 페이지 하단을 넘어간다.)
+ */
+function annotation2WidgetHeight(dom: HTMLElement, win: Window | null): number {
+  let total = 0;
+  let sib = dom.nextElementSibling as HTMLElement | null;
+  while (sib && sib.hasAttribute("data-annotation-paragraph")) {
+    const cs = win?.getComputedStyle(sib);
+    total +=
+      sib.offsetHeight +
+      (cs ? parseFloat(cs.marginTop) || 0 : 0) +
+      (cs ? parseFloat(cs.marginBottom) || 0 : 0);
+    sib = sib.nextElementSibling as HTMLElement | null;
+  }
+  return total;
+}
+
+/**
+ * 최상위 블록 측정. table 노드는 행(tableRow) 단위로 분해.
+ * force=false 면 증분 측정 — 구조 공유로 참조가 유지된(편집되지 않은) 노드는
+ * WeakMap 캐시의 측정값을 재사용하고(getComputedStyle/offsetHeight 리플로우 없음),
+ * 이번 트랜잭션에서 참조가 바뀐(편집된) 블록만 실측한다.
+ */
+function measureBlocks(view: EditorView, force: boolean): MeasuredBlock[] {
   const blocks: MeasuredBlock[] = [];
   const win = view.dom.ownerDocument.defaultView;
   let tableSeq = 0;
@@ -310,16 +354,34 @@ function measureBlocks(view: EditorView): MeasuredBlock[] {
     extra: Partial<MeasuredBlock> = {},
   ) => {
     if (!(dom instanceof HTMLElement)) return;
+    if (!force) {
+      const cached = blockMeasureCache.get(node);
+      if (cached) {
+        blocks.push({
+          pos,
+          end: pos + node.nodeSize,
+          node,
+          ...cached,
+          isTable: false,
+          ...extra,
+        });
+        return;
+      }
+    }
     const cs = win?.getComputedStyle(dom);
     const mt = cs ? parseFloat(cs.marginTop) || 0 : 0;
     const mb = cs ? parseFloat(cs.marginBottom) || 0 : 0;
+    const measured = {
+      marginTop: mt,
+      marginBottom: mb,
+      height: dom.offsetHeight + annotation2WidgetHeight(dom, win),
+    };
+    blockMeasureCache.set(node, measured);
     blocks.push({
       pos,
       end: pos + node.nodeSize,
       node,
-      marginTop: mt,
-      marginBottom: mb,
-      height: dom.offsetHeight,
+      ...measured,
       isTable: false,
       ...extra,
     });
@@ -330,6 +392,12 @@ function measureBlocks(view: EditorView): MeasuredBlock[] {
       if (tableHasRowspan(node)) {
         // rowspan 표: display:table 로 통째 렌더 → 행 단위 분해 불가, 페이지 분할도 통째.
         // 표 전체를 단일 블록으로 측정/배치.
+        //
+        // [설계 한계] 표가 페이지 본문 영역보다 크면 그대로 한 블록으로 배치된다.
+        // 페이지는 고정 프레임이 아니라 fill+footer+gap 위젯이 만드는 연속 플로우라
+        // 콘텐츠 겹침은 없다(leftover=0 → fill 없이 표 바로 아래 footer/gap 이 붙음).
+        // 단 이때 "A4 한 장" 프레임 개념이 깨져 표가 페이지 경계를 시각적으로 무시한
+        // 긴 한 장처럼 보인다 — 원자적(분할 불가) 배치의 의도된 동작.
         pushBlock(view.nodeDOM(offset), offset, node);
         return;
       }
@@ -353,8 +421,8 @@ function measureFooterContentHeight(view: EditorView): number {
   return fc ? fc.clientHeight : 0;
 }
 
-/** 그리디 원자적 배치. 행 포함 모든 단위 atomic. 헤더 반복 높이 선반영. */
-function paginate(blocks: MeasuredBlock[], pageContentAreaHeight: number): Page[] {
+/** 그리디 원자적 배치. 행 포함 모든 단위 atomic. 헤더 반복 높이 선반영. (단위 테스트용 export) */
+export function paginate(blocks: MeasuredBlock[], pageContentAreaHeight: number): Page[] {
   const pages: Page[] = [];
   let cur: Page = { blocks: [], used: 0 };
   let prevMB = 0;
@@ -372,12 +440,13 @@ function paginate(blocks: MeasuredBlock[], pageContentAreaHeight: number): Page[
 
   for (const b of blocks) {
     let outer = outerHeight(b, cur.blocks.length === 0);
-    const continuedTable =
-      cur.blocks.length === 0 &&
-      b.tableId !== undefined &&
-      prevTableId === b.tableId;
-    const headerExtra =
-      continuedTable && b.tableId !== undefined ? (headerHeights.get(b.tableId) ?? 0) : 0;
+    // 페이지 리셋 직후에도 재계산 필요 — 리셋 전(구 cur 기준)의 판정은 항상 거짓이라
+    // 반복 헤더 높이가 페이지 used 에 반영되지 않고 footer/fill 이 하단을 뚫었다.
+    const headerExtraFor = (): number =>
+      cur.blocks.length === 0 && b.tableId !== undefined && prevTableId === b.tableId
+        ? (headerHeights.get(b.tableId) ?? 0)
+        : 0;
+    let headerExtra = headerExtraFor();
 
     const fits =
       cur.blocks.length === 0 || cur.used + outer + headerExtra <= pageContentAreaHeight;
@@ -385,8 +454,9 @@ function paginate(blocks: MeasuredBlock[], pageContentAreaHeight: number): Page[
       pages.push(cur);
       cur = { blocks: [], used: 0 };
       outer = outerHeight(b, true);
+      headerExtra = headerExtraFor();
     }
-    if (cur.blocks.length === 0 && headerExtra) cur.used += headerExtra;
+    if (headerExtra) cur.used += headerExtra;
     cur.used += outer;
     cur.blocks.push(b);
     prevMB = b.marginBottom;
@@ -474,10 +544,10 @@ function makePageBreak(
   footerContent.className = "rm-page-footer-content";
   const fl = document.createElement("div");
   fl.className = "rm-page-footer-left";
-  fl.innerHTML = (o.footerLeft || "").replace("{page}", `<span class="rm-page-number"></span>`);
+  appendFooterTemplate(fl, o.footerLeft || "");
   const fr = document.createElement("div");
   fr.className = "rm-page-footer-right";
-  fr.innerHTML = (o.footerRight || "").replace("{page}", `<span class="rm-page-number"></span>`);
+  appendFooterTemplate(fr, o.footerRight || "");
   footerContent.append(fl, fr);
   footer.appendChild(footerContent);
   wrap.appendChild(footer);
@@ -512,8 +582,30 @@ function makePageBreak(
   return wrap;
 }
 
+/**
+ * 푸터 템플릿 문자열을 DOM 으로 조립 — "{page}" 를 페이지번호 span 으로 치환.
+ * innerHTML 미사용: 옵션 문자열이 그대로 텍스트 노드가 되므로 HTML 파싱/주입면이 없다.
+ */
+function appendFooterTemplate(target: HTMLElement, template: string): void {
+  const parts = template.split("{page}");
+  parts.forEach((part, i) => {
+    if (i > 0) {
+      const num = document.createElement("span");
+      num.className = "rm-page-number";
+      target.appendChild(num);
+    }
+    if (part) target.appendChild(document.createTextNode(part));
+  });
+}
+
+// 문서별 <style> 참조 카운트 — MeasurePagination 에디터가 여러 개 마운트돼도
+// 한쪽 onDestroy 가 다른 쪽이 쓰는 스타일을 제거하지 않도록 한다.
+const styleRefCounts = new WeakMap<Document, number>();
+
 function injectStyles(doc: Document): void {
-  if (doc.getElementById(STYLE_ID)) return;
+  const prev = styleRefCounts.get(doc) ?? 0;
+  styleRefCounts.set(doc, prev + 1);
+  if (prev > 0 || doc.getElementById(STYLE_ID)) return;
   const style = doc.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
@@ -537,6 +629,12 @@ function injectStyles(doc: Document): void {
 }
 
 function removeStyles(doc: Document): void {
+  const next = (styleRefCounts.get(doc) ?? 0) - 1;
+  if (next > 0) {
+    styleRefCounts.set(doc, next);
+    return; // 아직 다른 에디터가 사용 중 — 스타일 유지.
+  }
+  styleRefCounts.delete(doc);
   doc.getElementById(STYLE_ID)?.remove();
 }
 

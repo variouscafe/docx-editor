@@ -1,7 +1,6 @@
 import type { EditorView } from "@tiptap/pm/view";
 import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
@@ -56,7 +55,7 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
       orderedList: false,
       listItem: false,
     }),
-    Underline,
+    // Underline 은 StarterKit(v3) 에 내장 — 별도 추가하면 "Duplicate extension names" 경고.
     TextAlign.configure({ types: ["heading", "paragraph"] }),
     BoxBorder,
     FontSize,
@@ -88,7 +87,7 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
       pageWidth: opts.pageWidth,
       pageGap: 30,
       pageBreakBackground: "var(--preview-gap)",
-      // 마진은 옵션에서 실시간 산출(cm→pt). getMargins 클로저로 넘겨 마운트 고정이 아니라
+      // 마진은 옵션에서 실시간 산출(cm→96DPI px). getMargins 클로저로 넘겨 마운트 고정이 아니라
       // 옵션 변경마다 시각(--rm-margin-* CSS var) + 페이지네이션(pageContentAreaHeight) 이 갱신.
       // 초기 기본값은 getMargins 가 즉시 최신값으로 덮으므로 의미 없음(fallback 전용).
       marginTop: 95,
@@ -97,12 +96,14 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
       marginRight: 76,
       getMargins: () => {
         const c = opts.getOptions().common;
-        const pt = (cm: number) => (cm / 2.54) * 72;
+        // cm → 96DPI px. 페이지(794×1123px)가 96DPI 기준이므로 72(pt)가 아니라 96으로 환산해야
+        // DOCX 트윕스(cm/2.54*1440 = 96DPI px 와 정확히 일치)와 같은 마진이 된다.
+        const px = (cm: number) => (cm / 2.54) * 96;
         return {
-          marginTop: pt(c.marginTop),
-          marginBottom: pt(c.marginBottom),
-          marginLeft: pt(c.marginLeft),
-          marginRight: pt(c.marginRight),
+          marginTop: px(c.marginTop),
+          marginBottom: px(c.marginBottom),
+          marginLeft: px(c.marginLeft),
+          marginRight: px(c.marginRight),
         };
       },
       footerRight: "{page}",

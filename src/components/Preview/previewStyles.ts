@@ -345,10 +345,10 @@ export function getPreviewStyles(options: DocxOptions, editable: boolean): strin
       /* 인접 셀 테두리 겹침 보정(border-collapse 흉내). */
       margin-left: -1px;
       margin-top: -1px;
-      /* 모바일: 셀 터치를 스크롤이 아닌 드래그(셀 범위 선택)로 처리.
-         tap(커서 이동)은 그대로 — touch-action 은 pan/pinch 제스처만 제어한다.
-         컨테이너의 pan-y 가 셀 드래그를 스크롤로 선점하는 것을 막는다. */
-      touch-action: none;
+      /* 모바일: 세로 스크롤(pan-y)은 브라우저에 맡기고, 가로 드래그만 셀 범위 선택으로
+         처리(tableCellDragSelect 가 방향 판별). touch-action:none 이면 표 위에서 문서
+         스크롤 자체가 불가해지므로 pan-y 로 완화 — 세로 드래그=스크롤, 가로 드래그=선택. */
+      touch-action: pan-y;
     }
     .rm-with-pagination table tr > td:first-child,
     .rm-with-pagination table tr > th:first-child {
@@ -388,6 +388,23 @@ export function getPreviewStyles(options: DocxOptions, editable: boolean): strin
       pointer-events: none;
       user-select: none;
       line-height: 1;
+    }
+
+    /* 계산(format/formula) 셀 기본 우측 정렬 — DOCX 출력(금액 관례)과 동일.
+       단락에 명시적 text-align이 있으면 인라인 style 이 상속값을 이기므로 사용자 정렬 우선.
+       (rowspan 표 셀 규칙이 우선순위가 높아 별도 셀렉터 추가 — !important 는 인라인 정렬을
+       덮어써버려 쓰지 않는다.) */
+    .rm-with-pagination td[data-format],
+    .rm-with-pagination th[data-format],
+    .rm-with-pagination td[data-formula],
+    .rm-with-pagination th[data-formula] {
+      text-align: right;
+    }
+    .rm-with-pagination .rm-table-rowspan table td[data-format],
+    .rm-with-pagination .rm-table-rowspan table th[data-format],
+    .rm-with-pagination .rm-table-rowspan table td[data-formula],
+    .rm-with-pagination .rm-table-rowspan table th[data-formula] {
+      text-align: right;
     }
     .rm-with-pagination table .selectedCell::after {
       z-index: 2;

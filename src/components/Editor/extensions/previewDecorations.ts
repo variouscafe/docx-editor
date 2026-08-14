@@ -34,7 +34,30 @@ function collectAnnotations(node: PmNode): string[] {
 function buildDecorations(editor: Editor, doc: PmNode, options: DocxOptions): DecorationSet {
   const decos: Decoration[] = [];
 
-  doc.forEach((node, offset) => {
+  /** 꼬마글씨 Mode 2: 블록 뒤에 ○ 주석 문단 위젯들. */
+  const pushAnnotation2Widgets = (node: PmNode, offset: number) => {
+    if (options.annotationMode !== 2) return;
+    const anns = collectAnnotations(node);
+    for (const a of anns) {
+      decos.push(
+        Decoration.widget(
+          offset + node.nodeSize,
+          () => {
+            const p = document.createElement("p");
+            p.setAttribute("data-annotation-paragraph", "true");
+            p.textContent = `${options.annotation2.symbol} ${a}`;
+            return p;
+          },
+          { side: 1 }
+        )
+      );
+    }
+  };
+
+  // doc.descendants 로 전체 트리 순회 — 표 셀 안 단락·헤딩의 주석도 mode2 위젯으로 렌더.
+  // (기존 최상위 문단만 순회하는 방식은 표 셀/헤딩 내 주석이 미리보기에서 사라졌다.
+  //  DOCX 내보내기는 셀/헤딩 주석을 이미 처리하므로 미리보기 정합성 맞춤.)
+  doc.descendants((node, pos) => {
     const name = node.type.name;
 
     if (name === "heading") {
@@ -44,28 +67,16 @@ function buildDecorations(editor: Editor, doc: PmNode, options: DocxOptions): De
       // prefix(공백+기호)는 이제 실제 텍스트(headingPrefix mark)이므로 위젯 불필요.
       // 굵은 기호(1., 1), □, Ⅰ) 헤딩만 본문까지 굵게 표시.
       if (isBoldSymbol(symbol)) {
-        decos.push(Decoration.node(offset, offset + node.nodeSize, { "data-bold-symbol": "true" }));
+        decos.push(Decoration.node(pos, pos + node.nodeSize, { "data-bold-symbol": "true" }));
       }
-    } else if (name === "paragraph" || name === "title") {
-      // 꼬마글씨 Mode 2: 블록 뒤에 ○ 주석 문단 위젯.
-      if (options.annotationMode === 2) {
-        const anns = collectAnnotations(node);
-        for (const a of anns) {
-          decos.push(
-            Decoration.widget(
-              offset + node.nodeSize,
-              () => {
-                const p = document.createElement("p");
-                p.setAttribute("data-annotation-paragraph", "true");
-                p.textContent = `${options.annotation2.symbol} ${a}`;
-                return p;
-              },
-              { side: 1 }
-            )
-          );
-        }
-      }
+      pushAnnotation2Widgets(node, pos);
+      return true;
     }
+    if (name === "paragraph" || name === "title") {
+      pushAnnotation2Widgets(node, pos);
+    }
+    // 표 셀(tableCell/tableHeader)도 내부 단락을 그대로 순회하게 둔다.
+    return true;
   });
 
   // 강제 줄바꿈(hardBreak, Shift+Enter) 위치에 ↵ 표시 — 편집 모드에서만.
