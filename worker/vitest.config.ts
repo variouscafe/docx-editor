@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+import { fileURLToPath, URL } from "node:url";
 
 /**
  * Worker 통합 테스트 — cloudflareTest 플러그인이 Workers 런타임 + Miniflare D1 구성.
@@ -11,6 +12,11 @@ export default defineConfig({
       wrangler: { configPath: "./wrangler.toml" },
     }),
   ],
+  resolve: {
+    alias: {
+      "@shared": fileURLToPath(new URL("../shared", import.meta.url)),
+    },
+  },
   test: {
     include: ["src/**/*.test.ts"],
   },

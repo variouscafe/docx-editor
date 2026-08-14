@@ -31,7 +31,11 @@ const reportCreateSchema = z.object({
   templateId: z.string().nullable().optional(),
   status: z.enum(['draft', 'published']).optional(),
 });
-const reportPatchSchema = reportCreateSchema.partial();
+const reportPatchSchema = reportCreateSchema.partial().extend({
+  // 낙관적 동시성 제어(선택) — 클라이언트가 마지막으로 알고 있는 updatedAt.
+  // 제공되었는데 현재 값과 다르면 409 conflict 로 저장 거부(다른 탭/기기에서 갱신됨).
+  baseUpdatedAt: z.string().optional(),
+});
 
 export const reportRoutes = new Hono<AppEnv>();
 reportRoutes.use('*', jwtAuth);
@@ -59,6 +63,7 @@ function serializeReport(
 /* ── 리비전 헬퍼 ────────────────────────────────────────────────── */
 const REVISION_AUTO_INTERVAL_MS = 3 * 60 * 1000; // 자동 리비전 최소 간격
 const REVISION_AUTO_LIMIT = 30; // 자동 리비전 보존 한도
+const REVISION_MANUAL_LIMIT = 100; // 수동 리비전 보존 한도
 
 function serializeRevision(row: typeof revisions.$inferSelect): Revision {
   return {
@@ -114,14 +119,23 @@ async function maybeCreateAutoRevision(
     isManual: 0,
   });
 
-  // 한도 초과 자동 리비전 정리(오래된 것부터)
-  const autos = await db
+  await pruneRevisions(db, reportId, 0, REVISION_AUTO_LIMIT);
+}
+
+/** 한도 초과 리비전 정리(오래된 것부터) — 자동/수동 공용. */
+async function pruneRevisions(
+  db: ReturnType<typeof createDb>,
+  reportId: string,
+  isManual: 0 | 1,
+  limit: number,
+) {
+  const rows = await db
     .select({ id: revisions.id })
     .from(revisions)
-    .where(and(eq(revisions.reportId, reportId), eq(revisions.isManual, 0)))
+    .where(and(eq(revisions.reportId, reportId), eq(revisions.isManual, isManual)))
     .orderBy(desc(revisions.createdAt))
     .all();
-  for (const old of autos.slice(REVISION_AUTO_LIMIT)) {
+  for (const old of rows.slice(limit)) {
     await db.delete(revisions).where(eq(revisions.id, old.id));
   }
 }
@@ -268,11 +282,21 @@ reportRoutes.patch('/:id', async (c) => {
   const userId = c.get('user').userId;
   const parsed = reportPatchSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());
-  const { title, content, contentMd, templateOptions, templateId, status } = parsed.data;
+  const { title, content, contentMd, templateOptions, templateId, status, baseUpdatedAt } = parsed.data;
 
   const db = createDb(c.env.DB);
   const { row: existing, isOwner } = await ensureReportAccess(db, c.req.param('id'), userId);
   if (!isOwner) throw forbidden('Report is read-only');
+
+  // 낙관적 동시성 제어 — baseUpdatedAt 불일치 시 저장 거부(응답에 현재 updatedAt 전달).
+  // 미제공 시 기존 동작 유지(하위 호환).
+  if (baseUpdatedAt !== undefined && baseUpdatedAt !== existing.updatedAt) {
+    throw conflict(
+      'Report was modified by another session',
+      'conflict',
+      { updatedAt: existing.updatedAt },
+    );
+  }
 
   // 자동 리비전(content 변경 + 간격 경과 시) — update 전 기존 content 와 비교.
   if (content !== undefined) {
@@ -545,6 +569,8 @@ reportRoutes.post('/:id/revisions', async (c) => {
   });
   const created = await db.select().from(revisions).where(eq(revisions.id, id)).get();
   if (!created) throw notFound('Revision not found');
+  // 수동 리비전도 한도(최근 100개) 초과 시 오래된 것부터 정리 — 무한 증가 방지.
+  await pruneRevisions(db, rep.id, 1, REVISION_MANUAL_LIMIT);
   return c.json(serializeRevision(created), 201);
 });
 
