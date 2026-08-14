@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EditorContent } from "@tiptap/react";
 import RichTextToolbar from "../Editor/RichTextToolbar";
+import SelectionTextTool from "../Editor/SelectionTextTool";
 import { TableToolbar } from "../Editor/TableToolbar";
 import { getPreviewStyles } from "./previewStyles";
 import { usePreviewEditor } from "./usePreviewEditor";
@@ -121,6 +122,8 @@ export default function DocxPreview({
           {Math.round(effectiveScale * 100)}%
         </button>
       )}
+      {/* 텍스트 드래그 선택 시 굵게/밑줄/꼬마글씨 플로팅 도구(편집 모드만) */}
+      {editable && <SelectionTextTool editor={editor} scrollRef={containerRef} />}
     </div>
   );
 }

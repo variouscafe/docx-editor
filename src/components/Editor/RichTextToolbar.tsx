@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Editor } from "@tiptap/react";
 import {
@@ -15,6 +15,7 @@ import {
   Table2,
   Undo2,
   Redo2,
+  StickyNote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,17 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
   const [annotationText, setAnnotationText] = useState("");
   const [tableOpen, setTableOpen] = useState(false);
   const [hoverCell, setHoverCell] = useState<{ r: number; c: number } | null>(null);
+  // 트랜잭션마다 재렌더 — TipTap v3 useEditor 는 기본적으로 transaction 에 재렌더하지 않아
+  // 커서만 옮기면 active/Select 값이 스테일해진다(TableToolbar 와 동일 패턴).
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!editor) return;
+    const rerender = () => setTick((n) => n + 1);
+    editor.on("transaction", rerender);
+    return () => {
+      editor.off("transaction", rerender);
+    };
+  }, [editor]);
 
   // 실행 취소/다시 실행 단축키 툴팁 — macOS(⌘) vs 기타(Ctrl) 표기 분기.
   const isMac =
@@ -55,8 +67,11 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
   if (!editor) return null;
 
   const handleAnnotationConfirm = () => {
+    // 빈 값 확정 = 주석 해제, 값 있으면 덮어쓰기(기존 주석 수정 경로).
     if (annotationText.trim()) {
       editor.chain().focus().setAnnotation(annotationText.trim()).run();
+    } else if (editor.isActive("annotation")) {
+      editor.chain().focus().unsetAnnotation().run();
     }
     setAnnotationMode(false);
     setAnnotationText("");
@@ -71,19 +86,19 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
     {
       icon: <Bold className="size-4" />,
       action: () => editor.chain().focus().toggleBold().run(),
-      title: "Bold",
+      title: t("toolbar.bold"),
       active: editor.isActive("bold"),
     },
     {
       icon: <Italic className="size-4" />,
       action: () => editor.chain().focus().toggleItalic().run(),
-      title: "Italic",
+      title: t("toolbar.italic"),
       active: editor.isActive("italic"),
     },
     {
       icon: <Underline className="size-4" />,
       action: () => editor.chain().focus().toggleUnderline().run(),
-      title: "Underline",
+      title: t("toolbar.underline"),
       active: editor.isActive("underline"),
     },
     { divider: true },
@@ -109,21 +124,24 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
     {
       icon: <Square className="size-4" />,
       action: () => {
-        if (editor.isActive("boxBorder")) editor.chain().focus().unsetBox().run();
+        // 활성 variant 는 해제, 그 외(꺼짐·다른 variant)는 solid 로 전환 — 원클릭 전환.
+        if (editor.isActive("boxBorder", { "data-border": "solid" }))
+          editor.chain().focus().unsetBox().run();
         else editor.chain().focus().setSolidBox().run();
       },
       title: t("toolbar.boxSolid"),
-      active: editor.isActive("boxBorder"),
+      active: editor.isActive("boxBorder", { "data-border": "solid" }),
     },
     {
       icon: <Square className="size-4" />,
       action: () => {
-        if (editor.isActive("boxBorder")) editor.chain().focus().unsetBox().run();
+        if (editor.isActive("boxBorder", { "data-border": "dashed" }))
+          editor.chain().focus().unsetBox().run();
         else editor.chain().focus().setDashedBox().run();
       },
       title: t("toolbar.boxDashed"),
       variant: "dashed" as const,
-      active: editor.isActive("boxBorder"),
+      active: editor.isActive("boxBorder", { "data-border": "dashed" }),
     },
     {
       icon: <span className="text-xs font-bold">[ ]</span>,
@@ -134,13 +152,19 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
     { divider: true },
     {
       icon: (
-        <span className="text-xs font-bold text-primary" title={t("toolbar.annotation")}>
-          주
-        </span>
+        // 언어 중립 아이콘(한글 '주' 글자 대체) — 작게 + primary 색상 의도 유지.
+        <StickyNote className="size-3.5 text-primary" />
       ),
       action: () => {
-        if (editor.isActive("annotation")) editor.chain().focus().unsetAnnotation().run();
-        else setAnnotationMode(true);
+        // 이미 주석이면 해제하지 않고 수정 팝업을 연다(기존 값 프리필).
+        if (editor.isActive("annotation")) {
+          setAnnotationText(
+            String(editor.getAttributes("annotation")["data-annotation"] ?? ""),
+          );
+        } else {
+          setAnnotationText("");
+        }
+        setAnnotationMode(true);
       },
       title: t("toolbar.annotation"),
       active: editor.isActive("annotation"),
@@ -181,6 +205,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
           title={`${t("toolbar.undo")} (${modKey}Z)`}
+          aria-label={t("toolbar.undo")}
         >
           <Undo2 className="size-4" />
         </Button>
@@ -191,6 +216,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
           title={`${t("toolbar.redo")} (${modKey}${shiftKey}Z)`}
+          aria-label={t("toolbar.redo")}
         >
           <Redo2 className="size-4" />
         </Button>
@@ -217,7 +243,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
             <SelectLabel>{t("toolbar.heading")}</SelectLabel>
             {[1, 2, 3, 4, 5, 6].map((l) => (
               <SelectItem key={l} value={String(l)}>
-                Heading {l}
+                {t("toolbar.headingLevel", { level: l })}
               </SelectItem>
             ))}
           </SelectGroup>
@@ -254,7 +280,13 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
         }}
       >
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-8" title={t("toolbar.insertTable")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            title={t("toolbar.insertTable")}
+            aria-label={t("toolbar.insertTable")}
+          >
             <Table2 className="size-4" />
           </Button>
         </PopoverTrigger>
@@ -268,6 +300,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
                     <button
                       key={c}
                       className={`size-3 rounded-sm border ${on ? "bg-primary" : ""}`}
+                      aria-label={`${r + 1} × ${c + 1}`}
                       onMouseEnter={() => setHoverCell({ r, c })}
                       onClick={() => {
                         editor
@@ -302,6 +335,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
             className="size-8"
             onClick={tool.action}
             title={tool.title}
+            aria-label={tool.title}
             style={
               tool.variant === "dashed"
                 ? { border: "1.5px dashed currentColor", borderRadius: 2 }
@@ -320,7 +354,8 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
           <button
             key={hc.color}
             onClick={() => editor.chain().focus().toggleHighlight({ color: hc.color }).run()}
-            title={hc.name}
+            title={t(hc.key)}
+            aria-label={t(hc.key)}
             className="size-6 rounded border transition-transform hover:scale-110"
             style={{ backgroundColor: hc.color }}
           />
@@ -347,6 +382,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
             size="icon"
             className="size-6 text-green-600"
             onClick={handleAnnotationConfirm}
+            aria-label={t("toolbar.annotationConfirm")}
           >
             <Check className="size-3.5" />
           </Button>
@@ -355,6 +391,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
             size="icon"
             className="size-6 text-destructive"
             onClick={handleAnnotationCancel}
+            aria-label={t("common.cancel")}
           >
             <X className="size-3.5" />
           </Button>

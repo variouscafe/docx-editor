@@ -214,6 +214,7 @@ export function TableToolbar({ editor }: Props) {
       className="size-7"
       disabled={disabled}
       title={title}
+      aria-label={title}
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => {
         editor.chain().focus();
@@ -330,6 +331,7 @@ export function TableToolbar({ editor }: Props) {
             size="icon"
             className="size-7"
             title={t("tableCalc.format")}
+            aria-label={t("tableCalc.format")}
             onMouseDown={(e) => e.preventDefault()}
           >
             <Hash className="size-4" />
@@ -376,6 +378,7 @@ export function TableToolbar({ editor }: Props) {
             size="icon"
             className="size-7"
             title={t("tableCalc.formula")}
+            aria-label={t("tableCalc.formula")}
             onMouseDown={(e) => e.preventDefault()}
           >
             <Calculator className="size-4" />
@@ -510,6 +513,7 @@ export function TableToolbar({ editor }: Props) {
             size="icon"
             className="size-7"
             title={t("toolbar.cellBackground")}
+            aria-label={t("toolbar.cellBackground")}
             onMouseDown={(e) => e.preventDefault()}
           >
             <PaintBucket className="size-4" />
@@ -519,6 +523,7 @@ export function TableToolbar({ editor }: Props) {
           <div className="flex flex-wrap gap-1" style={{ maxWidth: 160 }}>
             <button
               title={t("toolbar.noColor")}
+              aria-label={t("toolbar.noColor")}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 editor.chain().focus().unsetCellBackground().run();
@@ -531,7 +536,8 @@ export function TableToolbar({ editor }: Props) {
             {highlightColors.map((hc) => (
               <button
                 key={hc.color}
-                title={hc.name}
+                title={t(hc.key)}
+                aria-label={t(hc.key)}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   editor.chain().focus().setCellBackground(hc.color).run();
@@ -570,6 +576,7 @@ export function TableToolbar({ editor }: Props) {
             size="icon"
             className="size-7 text-destructive hover:text-destructive"
             title={t("toolbar.deleteTable")}
+            aria-label={t("toolbar.deleteTable")}
             onMouseDown={(e) => e.preventDefault()}
           >
             <Trash2 className="size-4" />
