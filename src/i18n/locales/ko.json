@@ -64,6 +64,7 @@
     "untitledTitle": "제목 없음",
     "saveFailed": "저장 실패",
     "saveFailedStatus": "저장 실패 ({{status}})",
+    "conflict": "다른 곳(탭·기기)에서 문서가 수정되어 충돌했습니다. 페이지를 새로고침해 최신 내용을 불러온 뒤 다시 저장해 주세요.",
     "statusOffline": "오프라인(임시 저장)",
     "savingDots": "저장 중…",
     "pending": "수정됨(저장 대기)",
@@ -111,7 +112,19 @@
     "deleteTable": "표 삭제",
     "deleteTableConfirm": "이 표를 삭제하시겠습니까?",
     "copyTable": "표 복사",
-    "duplicateTable": "표 복제"
+    "duplicateTable": "표 복제",
+    "bold": "굵게",
+    "italic": "기울임",
+    "underline": "밑줄",
+    "headingLevel": "헤딩 {{level}}",
+    "annotationConfirm": "확인",
+    "colors": {
+      "yellow": "노란색",
+      "green": "초록색",
+      "blue": "파란색",
+      "red": "빨간색",
+      "purple": "보라색"
+    }
   },
   "tableCalc": {
     "format": "숫자 포맷",
@@ -247,6 +260,7 @@
     "saveCurrent": "현재 버전 저장",
     "namePlaceholder": "버전 이름(선택사항)",
     "restoreConfirmDesc": "현재 편집 내용이 해당 버전으로 교체됩니다. 계속하시겠습니까?",
+    "restoreUnsavedDesc": "저장되지 않은 로컬 편집 내용이 버려집니다. 계속하시겠습니까?",
     "deleteConfirmTitle": "버전 기록 삭제",
     "deleteConfirmDesc": "이 버전 기록을 삭제할까요?",
     "restoreAction": "되돌리기",

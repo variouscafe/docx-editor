@@ -64,6 +64,7 @@
     "untitledTitle": "未命名",
     "saveFailed": "儲存失敗",
     "saveFailedStatus": "儲存失敗 ({{status}})",
+    "conflict": "此文件已在其他分頁或裝置上被修改，發生衝突。請重新整理頁面載入最新內容後再次儲存。",
     "statusOffline": "離線 (草稿)",
     "savingDots": "儲存中…",
     "pending": "已修改 (待儲存)",
@@ -111,7 +112,19 @@
     "deleteTable": "刪除表格",
     "deleteTableConfirm": "確定刪除此表格嗎？",
     "copyTable": "複製表格",
-    "duplicateTable": "複製為副本"
+    "duplicateTable": "複製為副本",
+    "bold": "粗體",
+    "italic": "斜體",
+    "underline": "底線",
+    "headingLevel": "標題 {{level}}",
+    "annotationConfirm": "確定",
+    "colors": {
+      "yellow": "黃色",
+      "green": "綠色",
+      "blue": "藍色",
+      "red": "紅色",
+      "purple": "紫色"
+    }
   },
   "tableCalc": {
     "format": "數字格式",
@@ -247,6 +260,7 @@
     "saveCurrent": "儲存目前版本",
     "namePlaceholder": "版本名稱 (可選)",
     "restoreConfirmDesc": "您目前的編輯將被此版本取代。是否繼續？",
+    "restoreUnsavedDesc": "未儲存的本地編輯內容將被捨棄。是否繼續？",
     "deleteConfirmTitle": "刪除版本",
     "deleteConfirmDesc": "刪除此版本？",
     "restoreAction": "還原",

@@ -64,6 +64,7 @@
     "untitledTitle": "Untitled",
     "saveFailed": "Save failed",
     "saveFailedStatus": "Save failed ({{status}})",
+    "conflict": "This document was modified elsewhere (another tab or device). Refresh the page to load the latest version, then save again.",
     "statusOffline": "Offline (draft)",
     "savingDots": "Saving…",
     "pending": "Modified (pending)",
@@ -111,7 +112,19 @@
     "deleteTable": "Delete table",
     "deleteTableConfirm": "Delete this table?",
     "copyTable": "Copy table",
-    "duplicateTable": "Duplicate table"
+    "duplicateTable": "Duplicate table",
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "headingLevel": "Heading {{level}}",
+    "annotationConfirm": "Confirm",
+    "colors": {
+      "yellow": "Yellow",
+      "green": "Green",
+      "blue": "Blue",
+      "red": "Red",
+      "purple": "Purple"
+    }
   },
   "tableCalc": {
     "format": "Number format",
@@ -247,6 +260,7 @@
     "saveCurrent": "Save current version",
     "namePlaceholder": "Version name (optional)",
     "restoreConfirmDesc": "Your current edits will be replaced with this version. Continue?",
+    "restoreUnsavedDesc": "You have unsaved local edits that will be discarded. Continue?",
     "deleteConfirmTitle": "Delete version",
     "deleteConfirmDesc": "Delete this version?",
     "restoreAction": "Restore",

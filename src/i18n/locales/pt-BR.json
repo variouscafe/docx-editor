@@ -64,6 +64,7 @@
     "untitledTitle": "Sem título",
     "saveFailed": "Falha ao salvar",
     "saveFailedStatus": "Falha ao salvar ({{status}})",
+    "conflict": "Este documento foi modificado em outra aba ou dispositivo (conflito). Recarregue a página para obter a versão mais recente e salve novamente.",
     "statusOffline": "Offline (rascunho)",
     "savingDots": "Salvando…",
     "pending": "Modificado (pendente)",
@@ -111,7 +112,19 @@
     "deleteTable": "Excluir tabela",
     "deleteTableConfirm": "Excluir esta tabela?",
     "copyTable": "Copiar tabela",
-    "duplicateTable": "Duplicar tabela"
+    "duplicateTable": "Duplicar tabela",
+    "bold": "Negrito",
+    "italic": "Itálico",
+    "underline": "Sublinhado",
+    "headingLevel": "Título {{level}}",
+    "annotationConfirm": "Confirmar",
+    "colors": {
+      "yellow": "Amarelo",
+      "green": "Verde",
+      "blue": "Azul",
+      "red": "Vermelho",
+      "purple": "Roxo"
+    }
   },
   "tableCalc": {
     "format": "Formato numérico",
@@ -247,6 +260,7 @@
     "saveCurrent": "Salvar versão atual",
     "namePlaceholder": "Nome da versão (opcional)",
     "restoreConfirmDesc": "Suas edições atuais serão substituídas por esta versão. Continuar?",
+    "restoreUnsavedDesc": "Suas edições locais não salvas serão descartadas. Continuar?",
     "deleteConfirmTitle": "Excluir versão",
     "deleteConfirmDesc": "Excluir esta versão?",
     "restoreAction": "Restaurar",

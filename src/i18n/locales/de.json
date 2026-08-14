@@ -64,6 +64,7 @@
     "untitledTitle": "Unbenannt",
     "saveFailed": "Speichern fehlgeschlagen",
     "saveFailedStatus": "Speichern fehlgeschlagen ({{status}})",
+    "conflict": "Dieses Dokument wurde in einem anderen Tab oder auf einem anderen Gerät geändert (Konflikt). Lade die Seite neu, um die neueste Version zu laden, und speichere dann erneut.",
     "statusOffline": "Offline (Entwurf)",
     "savingDots": "Wird gespeichert…",
     "pending": "Geändert (ausstehend)",
@@ -111,7 +112,19 @@
     "deleteTable": "Tabelle löschen",
     "deleteTableConfirm": "Diese Tabelle löschen?",
     "copyTable": "Tabelle kopieren",
-    "duplicateTable": "Tabelle duplizieren"
+    "duplicateTable": "Tabelle duplizieren",
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "underline": "Unterstrichen",
+    "headingLevel": "Überschrift {{level}}",
+    "annotationConfirm": "Bestätigen",
+    "colors": {
+      "yellow": "Gelb",
+      "green": "Grün",
+      "blue": "Blau",
+      "red": "Rot",
+      "purple": "Lila"
+    }
   },
   "tableCalc": {
     "format": "Zahlenformat",
@@ -247,6 +260,7 @@
     "saveCurrent": "Aktuelle Version speichern",
     "namePlaceholder": "Versionsname (optional)",
     "restoreConfirmDesc": "Deine aktuellen Änderungen werden durch diese Version ersetzt. Fortfahren?",
+    "restoreUnsavedDesc": "Deine ungespeicherten lokalen Änderungen werden verworfen. Fortfahren?",
     "deleteConfirmTitle": "Version löschen",
     "deleteConfirmDesc": "Diese Version löschen?",
     "restoreAction": "Wiederherstellen",

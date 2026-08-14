@@ -64,6 +64,7 @@
     "untitledTitle": "Sans titre",
     "saveFailed": "Échec de l'enregistrement",
     "saveFailedStatus": "Échec de l'enregistrement ({{status}})",
+    "conflict": "Ce document a été modifié dans un autre onglet ou sur un autre appareil (conflit). Rechargez la page pour récupérer la dernière version, puis enregistrez à nouveau.",
     "statusOffline": "Hors ligne (brouillon)",
     "savingDots": "Enregistrement…",
     "pending": "Modifié (en attente)",
@@ -111,7 +112,19 @@
     "deleteTable": "Supprimer le tableau",
     "deleteTableConfirm": "Supprimer ce tableau ?",
     "copyTable": "Copier le tableau",
-    "duplicateTable": "Dupliquer le tableau"
+    "duplicateTable": "Dupliquer le tableau",
+    "bold": "Gras",
+    "italic": "Italique",
+    "underline": "Souligné",
+    "headingLevel": "Titre {{level}}",
+    "annotationConfirm": "Confirmer",
+    "colors": {
+      "yellow": "Jaune",
+      "green": "Vert",
+      "blue": "Bleu",
+      "red": "Rouge",
+      "purple": "Violet"
+    }
   },
   "tableCalc": {
     "format": "Format numérique",
@@ -247,6 +260,7 @@
     "saveCurrent": "Enregistrer la version actuelle",
     "namePlaceholder": "Nom de la version (facultatif)",
     "restoreConfirmDesc": "Vos modifications actuelles seront remplacées par cette version. Continuer ?",
+    "restoreUnsavedDesc": "Vos modifications locales non enregistrées seront perdues. Continuer ?",
     "deleteConfirmTitle": "Supprimer la version",
     "deleteConfirmDesc": "Supprimer cette version ?",
     "restoreAction": "Restaurer",

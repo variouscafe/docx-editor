@@ -64,6 +64,7 @@
     "untitledTitle": "無題",
     "saveFailed": "保存に失敗しました",
     "saveFailedStatus": "保存に失敗しました ({{status}})",
+    "conflict": "別のタブ・デバイスでドキュメントが更新されたため競合が発生しました。ページを再読み込みして最新の内容を取得し、再度保存してください。",
     "statusOffline": "オフライン(下書き)",
     "savingDots": "保存中…",
     "pending": "変更あり(保存待ち)",
@@ -111,7 +112,19 @@
     "deleteTable": "表を削除",
     "deleteTableConfirm": "この表を削除しますか？",
     "copyTable": "表をコピー",
-    "duplicateTable": "表を複製"
+    "duplicateTable": "表を複製",
+    "bold": "太字",
+    "italic": "斜体",
+    "underline": "下線",
+    "headingLevel": "見出し {{level}}",
+    "annotationConfirm": "確認",
+    "colors": {
+      "yellow": "黄色",
+      "green": "緑",
+      "blue": "青",
+      "red": "赤",
+      "purple": "紫"
+    }
   },
   "tableCalc": {
     "format": "数値書式",
@@ -247,6 +260,7 @@
     "saveCurrent": "現在のバージョンを保存",
     "namePlaceholder": "バージョン名(任意)",
     "restoreConfirmDesc": "現在の編集内容がこのバージョンに置き換えられます。続行しますか?",
+    "restoreUnsavedDesc": "保存されていないローカルの編集内容は破棄されます。続行しますか?",
     "deleteConfirmTitle": "バージョンを削除",
     "deleteConfirmDesc": "このバージョンを削除しますか?",
     "restoreAction": "復元",

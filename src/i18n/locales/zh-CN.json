@@ -64,6 +64,7 @@
     "untitledTitle": "未命名",
     "saveFailed": "保存失败",
     "saveFailedStatus": "保存失败（{{status}}）",
+    "conflict": "此文档已在其他标签页或设备上被修改，发生冲突。请刷新页面载入最新内容后重新保存。",
     "statusOffline": "离线（草稿）",
     "savingDots": "保存中…",
     "pending": "已修改（待保存）",
@@ -111,7 +112,19 @@
     "deleteTable": "删除表格",
     "deleteTableConfirm": "确定删除此表格吗？",
     "copyTable": "复制表格",
-    "duplicateTable": "复制为副本"
+    "duplicateTable": "复制为副本",
+    "bold": "粗体",
+    "italic": "斜体",
+    "underline": "下划线",
+    "headingLevel": "标题 {{level}}",
+    "annotationConfirm": "确定",
+    "colors": {
+      "yellow": "黄色",
+      "green": "绿色",
+      "blue": "蓝色",
+      "red": "红色",
+      "purple": "紫色"
+    }
   },
   "tableCalc": {
     "format": "数字格式",
@@ -247,6 +260,7 @@
     "saveCurrent": "保存当前版本",
     "namePlaceholder": "版本名称（可选）",
     "restoreConfirmDesc": "您当前的编辑将被替换为此版本。是否继续？",
+    "restoreUnsavedDesc": "未保存的本地编辑内容将被丢弃。是否继续？",
     "deleteConfirmTitle": "删除版本",
     "deleteConfirmDesc": "删除此版本？",
     "restoreAction": "恢复",
