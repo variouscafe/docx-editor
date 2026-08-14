@@ -64,8 +64,10 @@ export class HttpClient {
     return this.requestWithRetry<T>(path, init, false);
   }
 
-  /** One fetch + JSON parse, no retry logic. */
-  private async send<T>(path: string, init: RequestOptions): Promise<{ res: Response; parsed: unknown }> {
+  /** One fetch + JSON parse, no retry logic.
+   *  본문이 JSON 이 아니면(예: Cloudflare HTML 502/413 페이지) parse 를 실패로
+   *  삼키지 않고 원문 텍스트를 그대로 돌려줘 에러 메시지로 활용할 수 있게 한다. */
+  private async send<T>(path: string, init: RequestOptions): Promise<{ res: Response; parsed: unknown; text: string }> {
     const { query, headers, body, ...rest } = init;
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
     const token = this.opts.getToken?.();
@@ -79,16 +81,23 @@ export class HttpClient {
       body: this.serialize(body),
     });
     const text = res.status === 204 ? '' : await res.text();
-    const parsed = text ? JSON.parse(text) : null;
-    return { res, parsed };
+    let parsed: unknown = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = null; // HTML 에러 페이지 등 — text 스니펫으로 폴백
+      }
+    }
+    return { res, parsed, text };
   }
 
   private async requestWithRetry<T>(path: string, init: RequestOptions, retried: boolean): Promise<T> {
-    let { res, parsed } = await this.send<T>(path, init);
+    let { res, parsed, text } = await this.send<T>(path, init);
     // Access token may have expired — try one silent refresh, then replay.
     if (res.status === 401 && !retried && this.opts.onUnauthorized) {
       const refreshed = await this.opts.onUnauthorized();
-      if (refreshed) ({ res, parsed } = await this.send<T>(path, init));
+      if (refreshed) ({ res, parsed, text } = await this.send<T>(path, init));
     }
     if (res.status === 204) return undefined as unknown as T;
     if (!res.ok) {
@@ -96,7 +105,7 @@ export class HttpClient {
       throw new HttpError(
         res.status,
         err?.code ?? `http_${res.status}`,
-        err?.message ?? res.statusText,
+        err?.message ?? (text ? text.slice(0, 200) : res.statusText),
         parsed,
       );
     }

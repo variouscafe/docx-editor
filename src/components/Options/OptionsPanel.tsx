@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Code,
@@ -25,6 +25,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { DocxOptions } from "@shared/options";
+import { normalizeOptions } from "@shared/options";
 import { LineStartSymbol, ALL_SYMBOLS, getSymbolDisplay } from "@shared/lineStartSymbol";
 import { getEffectiveLeadingSpaces } from "@shared/symbols";
 import {
@@ -187,10 +188,17 @@ export default function OptionsPanel({ options, onOptionsChange }: OptionsPanelP
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<Category>("common");
   const [activeLevel, setActiveLevel] = useState(1);
+  // JSON 직접 입력으로 options 를 바꾼 직후인지 — 외부(UI 패널) 변경과 구분해
+  // textarea 재포맷(커서 점프)을 스킵한다.
+  const selfDrivenRef = useRef(false);
 
   const fontOptions = FONT_PRESETS.map((f) => ({ value: f.value, label: t(f.label) }));
 
   useEffect(() => {
+    if (selfDrivenRef.current) {
+      selfDrivenRef.current = false;
+      return;
+    }
     setJsonText(JSON.stringify(options, null, 2));
     setError(null);
   }, [options]);
@@ -198,7 +206,10 @@ export default function OptionsPanel({ options, onOptionsChange }: OptionsPanelP
   const handleJson = (value: string) => {
     setJsonText(value);
     try {
-      onOptionsChange(JSON.parse(value));
+      // 파싱 가능하면 즉시 정규화 적용 — 잘못된 구조/enum/타입은 기본값으로 보정되어
+      // 에디터 크래시(options.common 접근 등)를 원천 차단한다.
+      selfDrivenRef.current = true;
+      onOptionsChange(normalizeOptions(JSON.parse(value)));
       setError(null);
     } catch {
       setError(t("options.invalidJson"));
@@ -216,9 +227,10 @@ export default function OptionsPanel({ options, onOptionsChange }: OptionsPanelP
 
   const formatJson = () => {
     try {
-      const parsed = JSON.parse(jsonText);
+      const parsed = normalizeOptions(JSON.parse(jsonText));
       const pretty = JSON.stringify(parsed, null, 2);
       setJsonText(pretty);
+      selfDrivenRef.current = true;
       onOptionsChange(parsed);
       setError(null);
     } catch {

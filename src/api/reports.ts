@@ -28,8 +28,18 @@ export async function createReport(body: CreateReportBody): Promise<Report> {
   return authHttp.post<Report>("/api/reports", { body });
 }
 
-export async function updateReport(id: string, body: UpdateReportBody): Promise<Report> {
-  return authHttp.patch<Report>(`/api/reports/${id}`, { body });
+/**
+ * 수정(PATCH). baseUpdatedAt(선택) — 클라이언트가 마지막으로 알고 있는 서버 updatedAt.
+ * 불일치 시 서버가 409 conflict 로 거부(낙관적 동시성 제어, 다른 탭/기기에서 갱신됨).
+ */
+export async function updateReport(
+  id: string,
+  body: UpdateReportBody,
+  baseUpdatedAt?: string,
+): Promise<Report> {
+  return authHttp.patch<Report>(`/api/reports/${id}`, {
+    body: baseUpdatedAt ? { ...body, baseUpdatedAt } : body,
+  });
 }
 
 export async function deleteReport(id: string): Promise<void> {

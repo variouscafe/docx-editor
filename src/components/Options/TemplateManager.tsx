@@ -169,12 +169,25 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
     }
   };
 
+  // 사용자 편집 여부 추적 — 보고서 로드/리비전 복원/템플릿 전환은 templateId·options 가
+  // 한 커밋에 함께 갱신되므로 "편집 아님"으로 간주(기준선 재설정).
+  // 이 템플릿의 옵션과 스냅샷이 달라도(=dirty) 열기만 해서 템플릿을 되돌리지 않게 한다.
+  const baselineRef = useRef<{ templateId: string | null; options: DocxOptions }>({
+    templateId: null,
+    options,
+  });
+  if (baselineRef.current.templateId !== templateId) {
+    baselineRef.current = { templateId, options };
+  }
+  const userEditedOptions =
+    baselineRef.current.templateId === templateId && baselineRef.current.options !== options;
+
   // 템플릿 자동저장 — 소유·연결·빌트인 아닌 템플릿의 옵션이 바뀌면 1.5초 후 갱신(저장 버튼 없음).
   // 저장 성공 시 로컬 템플릿 options 를 낙관 반영 → "수정됨" 배지 해제(추가 GET 없음).
   // 다른 액션(이름/공개범위/삭제) 진행 중(busy)엔 건너뛰어 PATCH 경쟁을 회피.
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!templateId || !isOwner || !isBound || isBuiltin || !dirty || busy) return;
+    if (!templateId || !isOwner || !isBound || isBuiltin || !dirty || busy || !userEditedOptions) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       void (async () => {
@@ -185,6 +198,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
           );
         } catch (e) {
           console.error("[template autosave failed]", e);
+          toast.error(t("templates.actionFailed"));
         }
       })();
     }, 1500);
@@ -194,7 +208,7 @@ export default function TemplateManager({ options, templateId, onApply }: Templa
         autoSaveTimer.current = null;
       }
     };
-  }, [templateId, isOwner, isBound, isBuiltin, dirty, busy, options]);
+  }, [templateId, isOwner, isBound, isBuiltin, dirty, busy, userEditedOptions, options]);
 
   const openCreate = () =>
     setNameDialog({

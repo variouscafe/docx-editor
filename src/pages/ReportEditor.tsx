@@ -32,6 +32,7 @@ import {
 } from "@/api/reports";
 import { getDefaultTemplate } from "@/api/templates";
 import { refreshAccessToken } from "@/api/client";
+import { HttpError } from "@/lib/http-client";
 import { useAuthStore } from "@/store/auth";
 import { decodeJwt } from "@/lib/jwt";
 import { jsonToMarkdown } from "@/utils/jsonToMarkdown";
@@ -102,8 +103,20 @@ export default function ReportEditor() {
   // beforeunload 에서 최신 dirty 를 읽기 위한 ref.
   const dirtyRef = useRef(false);
   dirtyRef.current = dirty;
+  // 저장 완료 판정용 최신 문서 상태 ref — PATCH 진행 중 입력이 있었는지 비교.
+  // (setDirty(false) 가 저장 중 타이핑한 내용까지 "저장됨"으로 만드는 경쟁 방지)
+  const latestDocRef = useRef<{ title: string; content: JSONContent; templateOptions: DocxOptions; templateId: string | null } | null>(null);
+  latestDocRef.current = { title, content: editorJson, templateOptions: options, templateId };
+  // 신규 생성 직후 라우트 이동된 id 는 서버 재취득 스킵 — 생성 요청 중 입력한 내용 보존.
+  const createdIdRef = useRef<string | null>(null);
   // 연속 저장 실패 횟수 → 백오프 지연 계산. 성공 시 0 으로 리셋.
   const retryCountRef = useRef(0);
+  // 마지막으로 알고 있는 서버 updatedAt(낙관적 동시성 제어용) — getReport/생성/PATCH 응답에서 갱신.
+  const updatedAtRef = useRef<string | null>(null);
+  // 409 conflict 발생 플래그 — 충돌 해결(새로고침/되돌리기) 전 자동저장 중단.
+  const conflictRef = useRef(false);
+  // 충돌 토스트 중복 표시 방지(자동저장 재시도 없이 1회만 알림).
+  const conflictToastRef = useRef(false);
   const [permission, setPermission] = useState<ReportPermission>("owner");
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
@@ -118,6 +131,11 @@ export default function ReportEditor() {
       return;
     }
     let active = true;
+    // 이 세션에서 직접 생성한 보고서는 이미 상태에 있음 — 재취득하면 생성 중 입력이 유실됨.
+    if (createdIdRef.current === id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     getReport(id)
       .then((r) => {
@@ -129,6 +147,10 @@ export default function ReportEditor() {
         setPermission(r.permission);
         setOwnerName(r.ownerName ?? null);
         setGroupName(r.groupName ?? null);
+        // 서버 상태 기준점 갱신(낙관적 동시성 제어) + 충돌 상태 해제.
+        updatedAtRef.current = r.updatedAt;
+        conflictRef.current = false;
+        conflictToastRef.current = false;
         setDirty(false);
         setLoading(false);
       })
@@ -180,11 +202,16 @@ export default function ReportEditor() {
   const guardedApply = isReadOnly ? (() => {}) : handleApply;
 
   // 리비전 되돌리기 후 — 해당 버전 content/options/title 로 교체.
+  // 되돌린 서버 상태가 새 기준점이므로 updatedAt 갱신 + 충돌 상태 해제(충돌 복구 경로).
   const handleRestored = useCallback((r: Report) => {
     setTitle(r.title);
     setEditorJson(r.content);
     setOptions(normalizeOptions(r.templateOptions));
     setTemplateId(r.templateId);
+    updatedAtRef.current = r.updatedAt;
+    conflictRef.current = false;
+    conflictToastRef.current = false;
+    setSaveError(null);
     setDirty(false);
   }, []);
 
@@ -214,33 +241,95 @@ export default function ReportEditor() {
     return true;
   }, []);
 
-  const save = useCallback(async (opts?: { manual?: boolean }) => {
-    if (!id) return;
-    // 저장/생성 중이면 무시(수동 탭과 자동저장 경쟁 시 중복 PATCH 방지).
-    // 버튼은 비활성화하지 않아 탭이 항상 인식되고, 진행 중엔 스피너로 피드백.
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-    try {
-      await ensureFreshToken();
-      await updateReport(id, buildBody());
-      setDirty(false);
-      setSavedAt(Date.now());
-      setSaveError(null);
-      setSaveErrorAt(null);
-      retryCountRef.current = 0;
-      if (opts?.manual) toast.success(t("editor.saved"));
-    } catch (e) {
-      console.error("[save failed]", e);
-      setSaveError(saveErrMsg(e, t));
-      setSaveErrorAt(Date.now());
-      retryCountRef.current += 1;
-      if (opts?.manual) toast.error(saveErrMsg(e, t));
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-    }
-  }, [id, buildBody, ensureFreshToken]);
+  // 저장 시작 시점 body 스냅샷이 아직 최신 상태인지(저장 중 새 편집이 없었는지) 참조 비교.
+  const snapshotIsCurrent = useCallback(
+    (body: { title: string; content: JSONContent; templateOptions: DocxOptions; templateId: string | null }) => {
+      const cur = latestDocRef.current;
+      return (
+        !!cur &&
+        cur.title === body.title &&
+        cur.content === body.content &&
+        cur.templateOptions === body.templateOptions &&
+        cur.templateId === body.templateId
+      );
+    },
+    []
+  );
+
+  // 진행 중 저장 Promise — 내보내기 등이 저장 완료를 기다릴 수 있게 추적.
+  const savingPromiseRef = useRef<Promise<void> | null>(null);
+
+  /** 1회 저장 실행(가드 포함). save() 가 flush 루프에서 호출. */
+  const saveOnce = useCallback(
+    async (targetId: string, opts?: { manual?: boolean }) => {
+      // 저장/생성 중이면 무시(수동 탭과 자동저장 경쟁 시 중복 PATCH 방지).
+      // 버튼은 비활성화하지 않아 탭이 항상 인식되고, 진행 중엔 스피너로 피드백.
+      if (savingRef.current) return;
+      savingRef.current = true;
+      setSaving(true);
+      const run = (async () => {
+        try {
+          await ensureFreshToken();
+          const body = buildBody();
+          const saved = await updateReport(targetId, body, updatedAtRef.current ?? undefined);
+          // 저장 중 새 편집이 있으면 dirty 유지 → debounce effect 가 재저장 예약.
+          if (snapshotIsCurrent(body)) setDirty(false);
+          updatedAtRef.current = saved.updatedAt;
+          setSavedAt(Date.now());
+          setSaveError(null);
+          setSaveErrorAt(null);
+          retryCountRef.current = 0;
+          if (opts?.manual) toast.success(t("editor.saved"));
+        } catch (e) {
+          console.error("[save failed]", e);
+          // 낙관적 동시성 충돌(다른 탭/기기에서 갱신) — 재시도 금지, 자동저장 중단 후 안내.
+          if (e instanceof HttpError && e.status === 409 && e.code === "conflict") {
+            conflictRef.current = true;
+            setSaveError(t("editor.conflict"));
+            setSaveErrorAt(Date.now());
+            retryCountRef.current += 1; // save() flush 루프 즉시 탈출용
+            if (!conflictToastRef.current) {
+              conflictToastRef.current = true;
+              toast.error(t("editor.conflict"));
+            }
+          } else {
+            setSaveError(saveErrMsg(e, t));
+            setSaveErrorAt(Date.now());
+            retryCountRef.current += 1;
+            if (opts?.manual) toast.error(saveErrMsg(e, t));
+          }
+        } finally {
+          savingRef.current = false;
+          setSaving(false);
+        }
+      })();
+      savingPromiseRef.current = run;
+      await run;
+      savingPromiseRef.current = null;
+    },
+    [buildBody, ensureFreshToken, snapshotIsCurrent, t]
+  );
+
+  /**
+   * 저장(플러시 보장) — 진행 중 저장이 있으면 종료까지 대기하고, 그 사이 편집이 있으면
+   * 다시 저장해 dirty 가 없는 상태로 수렴시킨다. 내보내기가 이를 await 하므로 항상
+   * 최신 내용의 DOCX 를 받는다(진행 중 early-return 으로 옛 내용을 내보내던 경쟁 방지).
+   */
+  const save = useCallback(
+    async (opts?: { manual?: boolean }) => {
+      const targetId = id;
+      if (!targetId) return;
+      for (let guard = 0; guard < 5; guard++) {
+        while (savingPromiseRef.current) await savingPromiseRef.current.catch(() => {});
+        const retriesBefore = retryCountRef.current;
+        await saveOnce(targetId, opts);
+        if (!dirtyRef.current) return;
+        // 저장 실패(재시도 카운터 증가) 시 즉시 반복하지 않음 — 백오프 자동저장에 맡긴다.
+        if (retryCountRef.current > retriesBefore) return;
+      }
+    },
+    [id, saveOnce]
+  );
 
   // 신규 → 생성 후 라우트 이동. 기존 → 저장 후 id 반환.
   // 신규 생성 경로도 savingRef 로 중복 차단(연타 시 보고서 다중 생성 방지).
@@ -252,33 +341,57 @@ export default function ReportEditor() {
     if (savingRef.current) return null;
     savingRef.current = true;
     setSaving(true);
-    try {
-      await ensureFreshToken();
-      const created = await createReport(buildBody());
-      setDirty(false);
-      setSavedAt(Date.now());
-      setSaveError(null);
-      setSaveErrorAt(null);
-      retryCountRef.current = 0;
-      navigate(`/reports/${created.id}`, { replace: true });
-      if (opts?.manual) toast.success(t("editor.saved"));
-      return created.id;
-    } catch (e) {
-      console.error("[create failed]", e);
-      setSaveError(saveErrMsg(e, t));
-      setSaveErrorAt(Date.now());
-      retryCountRef.current += 1;
-      if (opts?.manual) toast.error(saveErrMsg(e, t));
-      return null;
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
+    const created = await (async () => {
+      try {
+        await ensureFreshToken();
+        const body = buildBody();
+        const row = await createReport(body);
+        if (snapshotIsCurrent(body)) setDirty(false);
+        updatedAtRef.current = row.updatedAt;
+        setSavedAt(Date.now());
+        setSaveError(null);
+        setSaveErrorAt(null);
+        retryCountRef.current = 0;
+        createdIdRef.current = row.id;
+        // 신규 생성 성공 — 'docx-draft:new' 잔존 제거(다음 /reports/new 에서
+        // 직전 세션 draft 배너가 뜨는 현상 방지. 실패해도 치명적이지 않음).
+        try {
+          localStorage.removeItem("docx-draft:new");
+        } catch {
+          /* ignore */
+        }
+        navigate(`/reports/${row.id}`, { replace: true });
+        if (opts?.manual) toast.success(t("editor.saved"));
+        return row.id;
+      } catch (e) {
+        console.error("[create failed]", e);
+        setSaveError(saveErrMsg(e, t));
+        setSaveErrorAt(Date.now());
+        retryCountRef.current += 1;
+        if (opts?.manual) toast.error(saveErrMsg(e, t));
+        return null;
+      } finally {
+        savingRef.current = false;
+        setSaving(false);
+      }
+    })();
+    // 생성 요청 중 편집이 있었으면(dirty) 즉시 flush — 신규 문서에서 바로 내보낼 때
+    // 옛 내용이 DOCX 로 나가는 것을 방지.
+    if (created && dirtyRef.current) {
+      for (let guard = 0; guard < 5 && dirtyRef.current; guard++) {
+        while (savingPromiseRef.current) await savingPromiseRef.current.catch(() => {});
+        const retriesBefore = retryCountRef.current;
+        await saveOnce(created, opts);
+        if (retryCountRef.current > retriesBefore) break;
+      }
     }
-  }, [id, save, buildBody, navigate, ensureFreshToken]);
+    return created;
+  }, [id, save, buildBody, navigate, ensureFreshToken, snapshotIsCurrent, saveOnce, t]);
 
   // 1.5초 debounce 자동저장. 오프라인이면 보류(실패만 양산), 실패 후엔 지수 백오프(최대 30s) 재시도.
+  // 409 충돌 중에는 재시도하지 않음 — 새로고침/되돌리기로 기준점이 갱신돼야 재개.
   useEffect(() => {
-    if (isReadOnly || !dirty || !online) return;
+    if (conflictRef.current || isReadOnly || !dirty || !online) return;
     const delay = saveError
       ? Math.min(1500 * 2 ** Math.min(retryCountRef.current, 4), 30000)
       : 1500;
@@ -327,6 +440,12 @@ export default function ReportEditor() {
     downloadBlob(blob, `${(title || "document").slice(0, 80)}.docx`);
     toast.success(t("editor.exportDone"));
   }, [ensureId, title]);
+
+  // 리비전 되돌리기 직전 — 진행 중/대기 중(debounce) 저장을 flush.
+  // flush 없이 되돌리면 직후 도착하는 PATCH 가 복원된 내용을 덮어쓴다.
+  const handleBeforeRestore = useCallback(async () => {
+    await save();
+  }, [save]);
 
   // 임시 저장 스냅샷(크래시/오프라인 대비) + 직전 세션 미저장 내용 복구.
   const draftKey = `docx-draft:${id ?? "new"}`;
@@ -397,7 +516,12 @@ export default function ReportEditor() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate("/reports")}
+          onClick={() => {
+            // debounce 대기 중인 편집 손실 방지 — flush 저장을 걸어두고 즉시 이동.
+            // PATCH 는 언마운트 후 비동기로 완료돼도 무해(상태 갱신은 no-op).
+            if (!isReadOnly && id) void save();
+            navigate("/reports");
+          }}
           className="shrink-0"
           title={t("editor.backToList")}
         >
@@ -551,6 +675,8 @@ export default function ReportEditor() {
           onOpenChange={setHistoryOpen}
           reportId={id}
           onRestored={handleRestored}
+          onBeforeRestore={handleBeforeRestore}
+          hasUnsavedChanges={dirty}
         />
       )}
     </div>

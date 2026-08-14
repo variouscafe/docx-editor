@@ -33,6 +33,14 @@ import {
 interface Props {
   reportId?: string;
   onRestored: (report: Report) => void;
+  /**
+   * 되돌리기 직전 호출(선택) — 상위에서 진행 중/대기 중 저장(debounce PATCH)을
+   * flush 하도록 await 한다. 늦게 도착하는 PATCH 가 되돌린 내용을 덮어쓰는
+   * 경쟁을 방지한다.
+   */
+  onBeforeRestore?: () => Promise<void>;
+  /** 미저장 로컬 편집(dirty) 존재 여부 — 되돌리기 확인 문구에 경고 추가. */
+  hasUnsavedChanges?: boolean;
   /** 상위 ⋯ 더 보기 메뉴가 열고 닫음(제어형). */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,7 +60,14 @@ type ConfirmAction = { type: "restore" | "delete"; rid: string } | null;
  * - 항목 → 되돌리기(AlertDialog) / 삭제(AlertDialog).
  * 자동 리비전은 BE(PATCH 저장 시 3분 간격)에서 생성됨.
  */
-export function VersionHistory({ reportId, onRestored, open, onOpenChange }: Props) {
+export function VersionHistory({
+  reportId,
+  onRestored,
+  onBeforeRestore,
+  hasUnsavedChanges,
+  open,
+  onOpenChange,
+}: Props) {
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState<RevisionListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,6 +113,9 @@ export function VersionHistory({ reportId, onRestored, open, onOpenChange }: Pro
     setBusy(true);
     try {
       if (action.type === "restore") {
+        // 진행 중/대기 중 저장을 먼저 flush — 이후 도착하는 PATCH 가 되돌린
+        // 내용을 덮어쓰는 경쟁 방지.
+        await onBeforeRestore?.();
         const report = await restoreRevision(reportId, action.rid);
         onRestored(report);
         onOpenChange(false);
@@ -214,7 +232,10 @@ export function VersionHistory({ reportId, onRestored, open, onOpenChange }: Pro
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction?.type === "restore"
-                ? t("versionHistory.restoreConfirmDesc")
+                ? // 미저장 로컬 편집이 있으면 버려짐을 경고하는 별도 문구 사용.
+                  hasUnsavedChanges
+                  ? t("versionHistory.restoreUnsavedDesc")
+                  : t("versionHistory.restoreConfirmDesc")
                 : t("versionHistory.deleteConfirmDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
