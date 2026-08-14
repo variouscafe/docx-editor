@@ -21,7 +21,7 @@ import {
 import { resolveSpacing, normalizeOptions, type DocxOptions, type SpacingFields } from '@shared/options';
 import { isBoldSymbol } from '@shared/lineStartSymbol';
 import { type HeadingKey } from '@shared/symbols';
-import { type JSONContent, type RunData } from '@shared/runs';
+import { type JSONContent, type RunData, getTextContentFromRuns } from '@shared/runs';
 import { buildTableGrid, formatCellValue } from '@shared/tableFormula';
 
 type Mark = { type: string; attrs?: Record<string, any> };
@@ -64,14 +64,21 @@ export async function generateDocx(content: JSONContent, raw: DocxOptions): Prom
 
   for (const node of content.content ?? []) {
     switch (node.type) {
-      case 'title':
-        children.push(buildTitleParagraph(node, options, font));
+      case 'title': {
+        // 제목·헤딩에도 꼬마글씨 주석을 붙인다(문단만 처리하면 표/제목에서 드롭).
+        const runs = buildRuns(node.content ?? []);
+        children.push(buildTitleParagraph(runs, options, font));
+        children.push(...createAnnotationParagraphs(runs, options, font));
         break;
-      case 'heading':
+      }
+      case 'heading': {
+        const runs = buildRuns(node.content ?? []);
         children.push(
-          buildHeadingParagraph(node, (node.attrs?.level ?? 1) as number, options, font, commonSize)
+          buildHeadingParagraph(node, (node.attrs?.level ?? 1) as number, options, font, commonSize, runs)
         );
+        children.push(...createAnnotationParagraphs(runs, options, font));
         break;
+      }
       case 'paragraph': {
         const runs = buildRuns(node.content ?? []);
         if (runs.some((r) => r.coreSummary)) {
@@ -83,7 +90,7 @@ export async function generateDocx(content: JSONContent, raw: DocxOptions): Prom
         break;
       }
       case 'table':
-        children.push(buildTable(node, font, commonSize));
+        children.push(buildTable(node, options, font, commonSize));
         break;
       default: {
         // bulletList / orderedList / unknown → 인라인 평탄화해 단일 문단.
@@ -222,35 +229,34 @@ function runsToTextRuns(runs: RunData[], base: RunBase): TextRun[] {
   });
 }
 
-/** runs 중 border 가 있으면 Paragraph 레벨 border 로 승격. */
+/** runs 중 border 가 있으면 Paragraph 레벨 border 로 승격.
+ *  size 9=1.125pt(미리보기 1.5px 상당), space 8pt=미리보기 padding(12px 16px) 근사. */
 function buildParagraphBorder(runs: RunData[]) {
   const b = runs.find((r) => r.border)?.border;
   if (!b) return undefined;
   const style = b.style === 'solid' ? BorderStyle.SINGLE : BorderStyle.DASHED;
   return {
-    top: { style, size: 1, color: b.color },
-    bottom: { style, size: 1, color: b.color },
-    left: { style, size: 1, color: b.color },
-    right: { style, size: 1, color: b.color },
+    top: { style, size: 9, color: b.color, space: 8 },
+    bottom: { style, size: 9, color: b.color, space: 8 },
+    left: { style, size: 9, color: b.color, space: 8 },
+    right: { style, size: 9, color: b.color, space: 8 },
   };
 }
 
-function buildTitleParagraph(node: JSONContent, options: DocxOptions, font: string): Paragraph {
-  const runs = buildRuns(node.content ?? []);
+function buildTitleParagraph(runs: RunData[], options: DocxOptions, font: string): Paragraph {
+  // runsToTextRuns 로 인라인 mark(굵게/형광펜/fontSize/hardBreak) 보존 —
+  // 옵션 레벨 스타일은 base 로, run mark 가 우선 오버라이드.
   return new Paragraph({
     spacing: buildSpacing(options.title),
-    alignment: AlignmentType.CENTER,
-    children: runs.map(
-      (r) =>
-        new TextRun({
-          text: r.text,
-          bold: options.title.bold,
-          underline: options.title.underline ? {} : undefined,
-          size: options.title.fontSize * 2,
-          font,
-          color: '000000',
-        })
-    ),
+    // 정렬 하드코딩 폐지 — options.title.align 따름(구 옵션 방어로 기본 center).
+    alignment: ALIGN[options.title.align] ?? AlignmentType.CENTER,
+    children: runsToTextRuns(runs, {
+      font,
+      size: options.title.fontSize * 2,
+      bold: options.title.bold,
+      underline: options.title.underline,
+      color: '000000',
+    }),
   });
 }
 
@@ -266,12 +272,12 @@ function buildHeadingParagraph(
   level: number,
   options: DocxOptions,
   font: string,
-  commonSize: number
+  commonSize: number,
+  runs: RunData[]
 ): Paragraph {
   const key = (`h${level}` as HeadingKey);
   const headingOpts = options[key];
   const symbol = headingOpts.lineStartSymbol;
-  const runs = buildRuns(node.content ?? []);
   const alignment = getAlignment(node);
   const border = buildParagraphBorder(runs);
   const spacing = buildSpacing(headingOpts);
@@ -303,12 +309,12 @@ function buildParagraph(
   });
 }
 
-/** 인라인 runs → TextRun(꼬마글씨는 별도 처리). */
+/** 인라인 runs → TextRun(꼬마글씨는 별도 처리). fontSize mark 는 run 단위 크기 오버라이드. */
 function buildAnnotationChildren(runs: RunData[], font: string, size: number): TextRun[] {
   const result: TextRun[] = [];
   for (const r of runs) {
     if (r.break) {
-      result.push(new TextRun({ break: 1, font, size }));
+      result.push(new TextRun({ break: 1, font, size: r.fontSize ? r.fontSize * 2 : size }));
     } else {
       result.push(
         new TextRun({
@@ -317,7 +323,7 @@ function buildAnnotationChildren(runs: RunData[], font: string, size: number): T
           italics: r.italics,
           underline: r.underline ? {} : undefined,
           font,
-          size,
+          size: r.fontSize ? r.fontSize * 2 : size,
           color: '000000',
           shading: getShading(r),
         })
@@ -331,7 +337,8 @@ function buildAnnotationChildren(runs: RunData[], font: string, size: number): T
 function createCoreSummaryTable(runs: RunData[], font: string, commonSize: number): Table {
   const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
   const solidBorder = { style: BorderStyle.SINGLE, size: 1, color: '000000' };
-  const text = runs.map((r) => r.text).join('');
+  // hardBreak(break run) 도 개행으로 반영 — Shift+Enter 2줄 요약이 한 줄로 합쳐지지 않게.
+  const text = getTextContentFromRuns(runs);
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -367,12 +374,13 @@ function createAnnotationParagraphs(runs: RunData[], options: DocxOptions, font:
   if (annotations.length === 0) return [];
 
   if (options.annotationMode === 1) {
-    return annotations.map((r) => {
+    return annotations.map((r, i) => {
       const annFont = options.annotation1.fontFamily.split(',')[0].trim().replace(/'/g, '');
       return new Paragraph({
         frame: {
           type: 'absolute',
-          position: { x: 0, y: 180 },
+          // 같은 문단 내 복수 주석이 같은 y 에 겹치지 않도록 한 줄(12pt=240twips)씩 아래로.
+          position: { x: 0, y: 180 + i * 240 },
           width: 4000,
           height: 300,
           anchor: { horizontal: 'text', vertical: 'text' },
@@ -399,7 +407,8 @@ function createAnnotationParagraphs(runs: RunData[], options: DocxOptions, font:
             text: `${options.annotation2.symbol} ${r.annotation}`,
             font,
             size: options.annotation2.fontSize * 2,
-            color: '000000',
+            // 미리보기(previewStyles #333)와 동일 색상.
+            color: '333333',
           }),
         ],
       })
@@ -415,7 +424,7 @@ function createAnnotationParagraphs(runs: RunData[], options: DocxOptions, font:
  * 미리보기와 동일하게 평가·포맷한다. 수식은 매 내보내기마다 재평가(저장 시점 무관).
  * 숫자 포맷/수식 셀은 명시적 정렬이 없으면 우측 정렬(금액 표기 관례).
  */
-function buildTable(node: JSONContent, font: string, commonSize: number): Table {
+function buildTable(node: JSONContent, options: DocxOptions, font: string, commonSize: number): Table {
   const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: '333333' }; // 4 = 0.5pt
   const tableBorders = {
     top: cellBorder,
@@ -456,10 +465,11 @@ function buildTable(node: JSONContent, font: string, commonSize: number): Table 
       const bg = (isHeader ? '#f3f4f6' : (cell.attrs?.background as string | undefined))?.replace('#', '').toUpperCase();
 
       let paragraphs: Paragraph[];
+      // 셀 원본 단락(계산 셀 표시텍스트 대체와 무관하게 주석 수집용으로 공통 수집).
+      const childParas = (cell.content ?? []).filter((p) => p.type === 'paragraph');
       if (hasCalc && gc) {
         // 계산 셀 — shared 엔진으로 평가·포맷한 표시 텍스트 1문단. 명시 정렬 없으면 우측.
         const display = formatCellValue(gc, grid);
-        const childParas = (cell.content ?? []).filter((p) => p.type === 'paragraph');
         const explicit = childParas[0] ? getAlignment(childParas[0]) : undefined;
         const alignment = explicit ?? ALIGN.right;
         const trs =
@@ -474,7 +484,6 @@ function buildTable(node: JSONContent, font: string, commonSize: number): Table 
         ];
       } else {
         // 일반 셀 — 셀 안 단락들을 각각 Paragraph 로(단락별 정렬 유지). 단락이 없으면 빈 단락 1개.
-        const childParas = (cell.content ?? []).filter((p) => p.type === 'paragraph');
         const sources = childParas.length ? childParas : [null];
         paragraphs = sources.map((p) => {
           const trs = runsToTextRuns(buildRuns(collectInline(p ?? { type: 'paragraph' })), {
@@ -488,6 +497,10 @@ function buildTable(node: JSONContent, font: string, commonSize: number): Table 
           });
         });
       }
+      // 꼬마글씨 — 셀 안에서도 드롭되지 않도록 셀 단락들에서 주석 수집 후 셀 내부에 append.
+      // mode1=TextBox frame, mode2=○ 문단(createAnnotationParagraphs 가 옵션대로 생성).
+      const cellRuns = childParas.flatMap((p) => buildRuns(collectInline(p)));
+      paragraphs.push(...createAnnotationParagraphs(cellRuns, options, font));
 
       const colspan = cell.attrs?.colspan;
       const rowspan = cell.attrs?.rowspan;
