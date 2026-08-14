@@ -220,18 +220,43 @@ const markedInstance = new Marked({
 });
 
 /**
+ * 이스케이프된 커스텀 기호 보호 — marked 커스텀 확장 토크나이저는 정규식 기반이라
+ * 선행 백스케이시를 무시하고 위치 매칭한다(\[ 가 coreSummary 로 오변환 등).
+ * 파싱 전 `\X` 이스케이프를 사립 영역(Private Use Area) 문자로 치환해 토크나이저가
+ * 기호 자체를 못 보게 하고, HTML 생성 후 원문 기호로 복원한다(round-trip 보장).
+ */
+const SHIELD_MAP: Record<string, string> = {
+  "[": "\uE100",
+  "]": "\uE101",
+  "=": "\uE102",
+  "+": "\uE103",
+  "~": "\uE104",
+  "^": "\uE105",
+  "{": "\uE106",
+  "}": "\uE107",
+};
+const UNSHIELD_RE = /[\uE100-\uE107]/g;
+const UNSHIELD_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(SHIELD_MAP).map(([orig, shielded]) => [shielded, orig]),
+);
+function shieldCustomEscapes(md: string): string {
+  // \[ \= \+ \~ \^ \{ — jsonToMarkdown 이 생성하는 커스텀 문법 이스케이프.
+  return md.replace(/\\([\[\]=+~^{}])/g, (_, c: string) => SHIELD_MAP[c] ?? c);
+}
+
+/**
  * Convert markdown text to HTML.
  * Supports custom syntax: ++solid box++, ~~dashed box~~, ==highlight==, ^^underline^^, {{text|annotation}}
  * Line-end alignment: ` >>` = right, ` <>` = center, ` <<` = left
  */
 export function markdownToHtml(md: string): string {
-  const preprocessed = preprocessMarkdown(md);
+  const preprocessed = shieldCustomEscapes(preprocessMarkdown(md));
   const result = markedInstance.parse(preprocessed, { async: false });
   let html = typeof result === "string" ? result : "";
   html = applyAlignmentMarkers(html);
   html = html.replace(/%%BR%%/g, '<br>');
   html = preserveSpacesInHtml(html);
-  return html;
+  return html.replace(UNSHIELD_RE, (c) => UNSHIELD_MAP[c] ?? c);
 }
 
 /**

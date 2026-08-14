@@ -72,14 +72,32 @@ function renderTable(node: JSONContent): string {
   return [header, sep, ...rendered.slice(1)].join("\n") + "\n";
 }
 
+/**
+ * 원문 텍스트의 마크다운 메타문자 이스케이프 — 재반입 시 오변환 방지.
+ * - 쌍자 기호(== ++ ~~ ^^)·{{·[...] 괄호쌍: 커스텀 문법과 충돌 → 백스케이프.
+ *   (markdownToHtml 이 파싱 전 센티넬로 보호 — marked 확장은 백스케이시 무시함)
+ * - *·줄 시작 #: 표준 마크다운 토큰 → 백스케이프(marked 기본 처리).
+ */
+function escapeRaw(text: string): string {
+  return text
+    .replace(/([=+~^])\1/g, "\\$1\\$1")
+    .replace(/\{\{/g, "\\{\\{")
+    .replace(/\[([^\]\n]*)\]/g, "\\[$1\\]")
+    .replace(/\*/g, "\\*");
+}
+
 /** 인라인 노드 → 마크다운 문자열(hardBreak → 줄바꿈, marks → 커스텀 문법 감싸기). */
 function renderInline(nodes: JSONContent[]): string {
   let out = "";
   for (const node of nodes) {
     if (node.type === "text") {
+      const t = node.text ?? "";
       // 헤딩 prefix(공백+기호)는 content_md 에서 제외 — 깨끗한 `# 본문` 미러.
       if ((node.marks ?? []).some((m) => m.type === "headingPrefix")) continue;
-      out += wrapMarks(node.text ?? "", node.marks ?? []);
+      // 줄 시작 # 은 헤딩으로 오변환되므로 이스케이프.
+      const escaped =
+        /^#/.test(t) && (out === "" || out.endsWith("\n")) ? `\\${t}` : t;
+      out += wrapMarks(escapeRaw(escaped), node.marks ?? []);
     } else if (node.type === "hardBreak") {
       out += "\n";
     } else if (node.content?.length) {
