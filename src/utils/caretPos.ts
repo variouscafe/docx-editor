@@ -10,7 +10,7 @@ import type { EditorView } from "@tiptap/pm/view";
  *
  * 실패(브라우저 미구현, 에디터 DOM 바깥, posAtDOM 예외) 시 null → 호출처가 블록 단위 fallback 처리.
  *
- * 소비처: createPreviewExtensions.handleClick(터치 배치), CaretHandle(드래그 핀).
+ * 소비처: createPreviewExtensions.handleClick(터치 배치).
  */
 export function caretPosFromPoint(view: EditorView, x: number, y: number): number | null {
   const doc = view.dom.ownerDocument as Document & {

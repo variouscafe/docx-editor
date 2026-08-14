@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { EditorContent } from "@tiptap/react";
 import RichTextToolbar from "../Editor/RichTextToolbar";
 import { TableToolbar } from "../Editor/TableToolbar";
-import { CaretHandle } from "../Editor/CaretHandle";
 import { getPreviewStyles } from "./previewStyles";
 import { usePreviewEditor } from "./usePreviewEditor";
 import { usePreviewScale } from "./usePreviewScale";
@@ -34,6 +33,11 @@ export default function DocxPreview({
   const editor = usePreviewEditor({ json, options, editable, onContentChange });
   const { containerRef, scaledInnerRef, effectiveScale, userZoom, setUserZoom, unscaledH } =
     usePreviewScale(editor);
+
+  // 미리보기 CSS 는 options/editable 에만 의존. ReportEditor 는 타이핑마다 editorJson 만 바꾸고
+  // options 참조는 안정적 → 타이핑 중엔 캐시 히트로 439줄 CSS 재생성/재주입/재파싱을 생략.
+  // options(또는 editable) 가 실제로 바뀔 때만 재계산.
+  const previewCss = useMemo(() => getPreviewStyles(options, editable), [options, editable]);
 
   // 비편집(공유 보기) 블록 선택 표시 — 편집 모드에서는 동작하지 않는다.
   const [selectedElement, setSelectedElement] = useState<HTMLElement | null>(null);
@@ -72,7 +76,6 @@ export default function DocxPreview({
     <div className="relative h-full flex flex-col">
       {editable && <RichTextToolbar editor={editor} />}
       {editable && editor && <TableToolbar editor={editor} />}
-      {editable && editor && <CaretHandle editor={editor} />}
       <div
         ref={containerRef}
         className="flex-1 overflow-auto"
@@ -86,7 +89,7 @@ export default function DocxPreview({
           touchAction: "pan-y",
         }}
       >
-        <style>{getPreviewStyles(options, editable)}</style>
+        <style>{previewCss}</style>
         <div
           style={{
             width: A4_WIDTH * effectiveScale,

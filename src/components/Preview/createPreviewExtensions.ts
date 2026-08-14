@@ -46,7 +46,6 @@ export interface PreviewExtensionsOptions {
  * useEditor(usePreviewEditor)와 jsdom 통합 테스트 양쪽에서 재사용 가능.
  */
 export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
-  const options = opts.getOptions();
   const extensions = [
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4, 5, 6] },
@@ -89,10 +88,23 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
       pageWidth: opts.pageWidth,
       pageGap: 30,
       pageBreakBackground: "var(--preview-gap)",
-      marginTop: (options.common.marginTop / 2.54) * 72,
-      marginBottom: (options.common.marginBottom / 2.54) * 72,
-      marginLeft: (options.common.marginLeft / 2.54) * 72,
-      marginRight: (options.common.marginRight / 2.54) * 72,
+      // 마진은 옵션에서 실시간 산출(cm→pt). getMargins 클로저로 넘겨 마운트 고정이 아니라
+      // 옵션 변경마다 시각(--rm-margin-* CSS var) + 페이지네이션(pageContentAreaHeight) 이 갱신.
+      // 초기 기본값은 getMargins 가 즉시 최신값으로 덮으므로 의미 없음(fallback 전용).
+      marginTop: 95,
+      marginBottom: 95,
+      marginLeft: 76,
+      marginRight: 76,
+      getMargins: () => {
+        const c = opts.getOptions().common;
+        const pt = (cm: number) => (cm / 2.54) * 72;
+        return {
+          marginTop: pt(c.marginTop),
+          marginBottom: pt(c.marginBottom),
+          marginLeft: pt(c.marginLeft),
+          marginRight: pt(c.marginRight),
+        };
+      },
       footerRight: "{page}",
     }),
   ];
@@ -122,7 +134,25 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
         }
       }
       // 2) fallback: 빈 문단/셀/장식(¶) 위 터치 등 정확 매핑이 실패하면 블록 단위로 안전히 배치.
-      const block = target.closest("p, h1, h2, h3, h4, h5, h6, div[data-title], td, th");
+      const BLOCK_SEL = "p, h1, h2, h3, h4, h5, h6, div[data-title], td, th";
+      let block = target.closest(BLOCK_SEL) as HTMLElement | null;
+      if (!block) {
+        // 블록 사이 마진/여백 빈 공간을 터치한 경우(target 이 에디터 루트 등).
+        // PM 기본(posAtCoords)은 transform:scale 환경에서 왜곡되므로, 터치 Y 에 가장 가까운
+        // 최상위 블록을 찾아 그 안에 배치(빈 공간 터치가 무시되거나 엉뚱한 곳으로 가는 것 방지).
+        const candidates = Array.from(view.dom.querySelectorAll<HTMLElement>(BLOCK_SEL));
+        let best: HTMLElement | null = null;
+        let bestD = Infinity;
+        for (const b of candidates) {
+          const r = b.getBoundingClientRect();
+          const d = Math.abs(r.top + r.height / 2 - event.clientY);
+          if (d < bestD) {
+            bestD = d;
+            best = b;
+          }
+        }
+        block = best;
+      }
       if (!block) return false;
       try {
         const pos = view.posAtDOM(block, 0);

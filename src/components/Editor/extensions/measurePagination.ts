@@ -1,4 +1,5 @@
 import { Extension } from "@tiptap/core";
+import type { Editor } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import type { Node as PmNode } from "@tiptap/pm/model";
@@ -26,6 +27,13 @@ import type { Node as PmNode } from "@tiptap/pm/model";
  * 장식은 비영속(Decoration.widget) → editor.getJSON()/저장/DOCX 내보내기에 영향 없음.
  */
 
+export interface PageMargins {
+  marginTop: number;
+  marginBottom: number;
+  marginLeft: number;
+  marginRight: number;
+}
+
 export interface MeasurePaginationOptions {
   enabled: boolean;
   pageHeight: number;
@@ -41,6 +49,13 @@ export interface MeasurePaginationOptions {
   pageBreakBackground: string;
   footerRight: string;
   footerLeft: string;
+  /**
+   * 마진을 옵션에서 실시간 산출하는 getter. 주어지면 마운트 고정값(marginTop/… ) 대신
+   * 매 측정마다 최신 마진을 사용 → 사용자가 옵션 패널에서 페이지 여백을 바꾸면 시각
+   * (CSS var --rm-margin-*) 과 페이지네이션(pageContentAreaHeight) 이 모두 즉시 갱신.
+   * 미제공 시 기존처럼 configure 시점 고정값 사용.
+   */
+  getMargins?: () => PageMargins;
 }
 
 export const measurePaginationKey = new PluginKey<PageState>("measurePagination");
@@ -77,6 +92,34 @@ interface ResolvedOpts extends MeasurePaginationOptions {
 type OptionsGetter = () => MeasurePaginationOptions;
 
 const rafTokens = new WeakMap<EditorView, number>();
+// 직전 측정 시의 doc 참조. view.update 에서 doc 미변경(선택만 이동) 시 재측정을 스킵하기 위함.
+const lastDocs = new WeakMap<EditorView, PmNode>();
+// forceRemeasure 가 update 훅(클로저 getOpts) 을 거치지 않고 직접 측정을 예약하기 위한 getter 홀더.
+const optsGetters = new WeakMap<EditorView, OptionsGetter>();
+
+/** getMargins 가 있으면 최신 마진, 없으면 configure 고정값. */
+function resolveMargins(opts: MeasurePaginationOptions): PageMargins {
+  return (
+    opts.getMargins?.() ?? {
+      marginTop: opts.marginTop,
+      marginBottom: opts.marginBottom,
+      marginLeft: opts.marginLeft,
+      marginRight: opts.marginRight,
+    }
+  );
+}
+
+/**
+ * 마진 옵션 변경을 시각에 즉시 반영 — 4개 margin CSS var 만 갱신.
+ * paddingTop/Left/Right 는 이 변수들을 참조(calc/var) 하므로 var 갱신만으로 본문 여백이 재계산.
+ * 값이 같으면 브라우저가 reflow 를 유발하지 않아 매 측정마다 호출해도 안전.
+ */
+function syncMarginVars(dom: HTMLElement, m: PageMargins): void {
+  dom.style.setProperty("--rm-margin-top", `${m.marginTop}px`);
+  dom.style.setProperty("--rm-margin-bottom", `${m.marginBottom}px`);
+  dom.style.setProperty("--rm-margin-left", `${m.marginLeft}px`);
+  dom.style.setProperty("--rm-margin-right", `${m.marginRight}px`);
+}
 
 export const MeasurePagination = Extension.create<MeasurePaginationOptions>({
   name: "measurePagination",
@@ -103,8 +146,10 @@ export const MeasurePagination = Extension.create<MeasurePaginationOptions>({
   onCreate() {
     const view = this.editor.view;
     const getOpts: OptionsGetter = () => this.options;
+    optsGetters.set(view, getOpts); // forceRemeasure 가 최신 옵션 getter 에 접근하도록.
     injectStyles(view.dom.ownerDocument);
-    applyContainerStyles(view.dom, this.options);
+    // 마운트 시점에도 고정값이 아닌 최신 옵션 마진으로 적용(getMargins 우선).
+    applyContainerStyles(view.dom, { ...this.options, ...resolveMargins(this.options) });
 
     const ro = new ResizeObserver(() => scheduleMeasure(view, getOpts));
     ro.observe(view.dom);
@@ -146,7 +191,16 @@ export const MeasurePagination = Extension.create<MeasurePaginationOptions>({
           decorations: (state) => measurePaginationKey.getState(state)?.decorations,
         },
         view: () => ({
-          update: (view: EditorView) => scheduleMeasure(view, getOpts),
+          update: (view: EditorView) => {
+            // 문서가 바뀌지 않은(선택만 이동/스크롤) 업데이트는 측정을 스킵 — 대문서에서 클릭·이동
+            // 시마다 전체 블록을 재측정(offsetHeight/getComputedStyle 리플로우) 하는 비용을 없앤다.
+            // 옵션 변경·장식 변경·no-op kick 등 문서 외 원인으로 재측정이 필요하면 forceRemeasure(editor)
+            // 로 예약(이 경로는 이 가드를 우회함).
+            const prevDoc = lastDocs.get(view);
+            lastDocs.set(view, view.state.doc);
+            if (prevDoc === view.state.doc) return;
+            scheduleMeasure(view, getOpts);
+          },
         }),
       }),
     ];
@@ -163,10 +217,29 @@ function scheduleMeasure(view: EditorView, getOpts: OptionsGetter): void {
   rafTokens.set(view, token);
 }
 
+/**
+ * 외부(옵션 변경·no-op kick 등)에서 페이지네이션 재측정을 강제 예약.
+ * view.update 의 "doc 미변경 시 스킵" 가드를 우회해 바로 scheduleMeasure 호출.
+ * 문서를 바꾸지 않고도 블록 높이/마진/장식이 바뀐 경우(옵션 패널 편집, 공유 보기 마운트) 에 사용.
+ */
+export function forceRemeasure(editor: Editor): void {
+  if (editor.isDestroyed) return;
+  const view = editor.view;
+  const getOpts = optsGetters.get(view);
+  if (!getOpts) return;
+  lastDocs.set(view, view.state.doc); // 직후 update 가 중복 예약하지 않도록 기준 갱신.
+  scheduleMeasure(view, getOpts);
+}
+
 function runMeasure(view: EditorView, getOpts: OptionsGetter): void {
   if (!(view as { docView?: unknown }).docView) return;
   const opts = getOpts();
   if (!opts.enabled) return;
+
+  // 마진을 옵션에서 실시간 산출. CSS var 동기화 → 시각 여백 즉시 반영(서명 비교 전에 실행해
+  // 페이지 구조가 동일해 페이지 수가 안 바뀌더라도 여백은 갱신).
+  const margins = resolveMargins(opts);
+  syncMarginVars(view.dom, margins);
 
   const prev = measurePaginationKey.getState(view.state) ?? {
     decorations: DecorationSet.empty,
@@ -178,12 +251,12 @@ function runMeasure(view: EditorView, getOpts: OptionsGetter): void {
   const measuredFooter = measureFooterContentHeight(view);
   const footerContentHeight = measuredFooter || prev.footerContentHeight || 18;
 
-  const headerZone = opts.marginTop + opts.contentMarginTop;
-  const footerZone = opts.contentMarginBottom + opts.marginBottom + footerContentHeight;
+  const headerZone = margins.marginTop + opts.contentMarginTop;
+  const footerZone = opts.contentMarginBottom + margins.marginBottom + footerContentHeight;
   const pageContentAreaHeight = Math.max(1, opts.pageHeight - headerZone - footerZone);
 
   const pages = paginate(blocks, pageContentAreaHeight);
-  const decos = buildDecorations(view, pages, blocks, { ...opts, footerContentHeight });
+  const decos = buildDecorations(view, pages, blocks, { ...opts, ...margins, footerContentHeight });
   const newSet = DecorationSet.create(view.state.doc, decos);
 
   const signature = JSON.stringify({

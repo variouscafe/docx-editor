@@ -5,6 +5,7 @@ import type { JSONContent } from "@shared/runs";
 import { flattenLists } from "@/utils/flattenLists";
 import { forceRedecorate } from "../Editor/extensions/previewDecorations";
 import { ensureHeadingPrefixes, hasAnyHeadingPrefixMark } from "../Editor/extensions/headingPrefix";
+import { forceRemeasure } from "../Editor/extensions/measurePagination";
 import { createPreviewExtensions, A4_HEIGHT, A4_WIDTH } from "./createPreviewExtensions";
 
 export interface UsePreviewEditorArgs {
@@ -101,19 +102,23 @@ export function usePreviewEditor({ json, options, editable, onContentChange }: U
     }
   }, [editor, options]);
 
-  // 옵션 변경 시 장식(기호/카운터/꼬마글씨) 강제 재계산.
+  // 옵션 변경 시 장식(기호/카운터/꼬마글씨) 강제 재계산 + 페이지네이션 재측정.
+  // 마진 변경(pageContentAreaHeight), 꼬마글씨2 위젨 추가(블록 높이) 등 옵션이 페이지 수/경계에
+  // 영향을 주는 경우를 재측정. forceRemeasure 는 view.update 의 "doc 미변경 스킵" 가드를 우회.
   useEffect(() => {
-    if (editor && !editor.isDestroyed) forceRedecorate(editor);
+    if (!editor || editor.isDestroyed) return;
+    forceRedecorate(editor);
+    forceRemeasure(editor);
   }, [editor, options]);
 
   // 페이지네이션(MeasurePagination) 보정: DOM 실측 기반으로 페이지 수를 정하는데, 최초 1회 측정 시
   // 장식/폰트/footer 렌더가 덜 끝난 상태면 페이지 수가 부족하게 고정된다. 편집 모드는 사용자 조작
   // 트랜잭션으로 자연히 재측정되지만, 비편집(공유 보기)은 트랜잭션이 없어 잘못된 수(undercount)에
-  // 고정된다 → no-op 트랜잭션 dispatch 로 재측정 유도.
+  // 고정된다 → forceRemeasure 로 재측정 예약(no-op dispatch 대신 — doc 미변경 스킵 가드 우회).
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
     const kick = () => {
-      if (!editor.isDestroyed && editor.view) editor.view.dispatch(editor.view.state.tr);
+      if (!editor.isDestroyed) forceRemeasure(editor);
     };
     const t1 = window.setTimeout(kick, 0); // 1차: 초기 장식 렌더 후
     const t2 = window.setTimeout(kick, 400); // 2차: 폰트/footer 렌더 후

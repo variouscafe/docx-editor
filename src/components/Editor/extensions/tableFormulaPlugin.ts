@@ -65,9 +65,13 @@ export const TableFormulaPlugin = Extension.create({
 
           const tableIdx = new Map<number, number>(); // table.start → 다음 셀 인덱스
           const updates: CellUpdate[] = [];
+          // cellsAbs·tables 모두 문서 순서 → 단일 포인터 ti 로 O(n) 매칭(기존 tables.find 는
+          // O(tables×cells). 큰 표/다수 표에서 매 트랜잭션마다 비용이 컸음).
+          let ti = 0;
           for (const c of cellsAbs) {
-            const t = tables.find((tb) => c.pos > tb.start && c.pos < tb.end);
-            if (!t) continue;
+            while (ti < tables.length && c.pos >= tables[ti].end) ti++;
+            const t = tables[ti];
+            if (!t || c.pos <= t.start) continue;
             const i = tableIdx.get(t.start) ?? 0;
             tableIdx.set(t.start, i + 1);
             const gc = t.grid.cells[i];

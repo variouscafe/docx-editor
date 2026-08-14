@@ -11,7 +11,19 @@ import type { JSONContent } from "@shared/runs";
  */
 export function flattenLists(doc: JSONContent | null | undefined): JSONContent | null {
   if (!doc) return doc ?? null;
+  // 리스트 노드가 없으면 평탄화 불필요 — 새 객체/배열 생성 없이 원본을 그대로 반환.
+  // 사내 양식은 헤딩 시작기호가 리스트 역할을 하므로 대부분의 문서가 이 경로(매 키입력마다
+  // safeJson 를 재계산하는 usePreviewEditor 에서 의미 있는 절약).
+  if (!hasListNodes(doc.content)) return doc;
   return { ...doc, content: flatBlocks(doc.content) };
+}
+
+/** 최상위 블록 중 bulletList/orderedList 가 있는지. flatBlocks 도 최상위만 처리하므로 범위 일치. */
+function hasListNodes(nodes: JSONContent[] | undefined): boolean {
+  for (const n of nodes ?? []) {
+    if (n.type === "bulletList" || n.type === "orderedList") return true;
+  }
+  return false;
 }
 
 function flatBlocks(nodes: JSONContent[] | undefined): JSONContent[] {
