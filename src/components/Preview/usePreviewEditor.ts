@@ -4,7 +4,7 @@ import type { DocxOptions } from "@shared/options";
 import type { JSONContent } from "@shared/runs";
 import { flattenLists } from "@/utils/flattenLists";
 import { forceRedecorate } from "../Editor/extensions/previewDecorations";
-import { ensureHeadingPrefixes, hasAnyHeadingPrefixMark } from "../Editor/extensions/headingPrefix";
+import { ensureHeadingPrefixes } from "../Editor/extensions/headingPrefix";
 import { forceRemeasure } from "../Editor/extensions/measurePagination";
 import { createPreviewExtensions, A4_HEIGHT, A4_WIDTH } from "./createPreviewExtensions";
 
@@ -75,9 +75,9 @@ export function usePreviewEditor({ json, options, editable, onContentChange }: U
   useEffect(() => {
     if (editor && !editor.isDestroyed && json && json !== lastEditorJsonRef.current) {
       editor.commands.setContent(safeJson, { emitUpdate: false });
-      if (!hasAnyHeadingPrefixMark(editor.state.doc)) {
-        ensureHeadingPrefixes(editor, optionsRef.current);
-      }
+      // 로드 시 prefix 재구축 — 부분적으로 prefix 없는 헤딩(구버전 변환 버그)도 이 경로로 수리.
+      // 이미 올바른 문서는 내부에서 no-op(변경 감지 시에만 dispatch).
+      ensureHeadingPrefixes(editor, optionsRef.current);
     }
   }, [editor, json, safeJson]);
 

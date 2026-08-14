@@ -47,16 +47,24 @@ function extractBody(node: PmNode, bracket: boolean, markType: MarkType): PmNode
 }
 
 /**
- * 모든 헤딩의 prefix를 options 기반으로 재구축(마이그레이션·재적용 공용).
+ * 모든 헤딩의 prefix를 options 기반으로 재구축(마이그레이션·재적용·재번호화 공용).
  * - 비브래킷: [공백+기호(marked)] + 본문
  * - 브래킷(【】): 【(marked) + 본문 + 】(marked)
  * 역순 replaceWith 로 위치 보존. 본문 marks/hardBreak 보존.
+ * 이미 원하는 내용인 헤딩은 Fragment.eq 로 건너뛴다(변경 없으면 null → 재적용 루프 방지).
  */
 export function ensureHeadingPrefixes(editor: Editor, options: DocxOptions): void {
-  const state = editor.state;
+  const tr = rebuildHeadingPrefixTransaction(editor.state, options);
+  if (tr) editor.view.dispatch(tr);
+}
+
+/** 재구축 트랜잭션 계산 — 변경이 필요한 헤딩이 없으면 null. */
+function rebuildHeadingPrefixTransaction(
+  state: EditorState,
+  options: DocxOptions,
+): Transaction | null {
   const markType = state.schema.marks.headingPrefix;
-  if (!markType) return;
-  const tr = state.tr;
+  if (!markType) return null;
   const counters = createCounters();
 
   const targets: { pos: number; node: PmNode; level: number; count: number }[] = [];
@@ -67,10 +75,10 @@ export function ensureHeadingPrefixes(editor: Editor, options: DocxOptions): voi
     targets.push({ pos: offset, node, level, count: counters[`h${level}` as HeadingKey] });
   });
 
-  if (!targets.length) return;
+  if (!targets.length) return null;
 
   // 역순 처리(높은 pos 먼저) → 앞선 헤딩 위치 보존.
-  let modified = false;
+  let tr: Transaction | null = null;
   for (const h of targets.reverse()) {
     const key = `h${h.level}` as HeadingKey;
     const symbol = options[key].lineStartSymbol;
@@ -96,14 +104,14 @@ export function ensureHeadingPrefixes(editor: Editor, options: DocxOptions): voi
       const { prefixText } = buildHeadingPrefix(symbol, effLeading, h.count);
       nodes = [schema.text(prefixText, [markType.create()]), ...body];
     }
+    // 이미 원하는 내용이면 건너뛰기 — 재번호화 시 변경된 헤딩만 교체.
+    if (h.node.content.eq(Fragment.fromArray(nodes))) continue;
+    if (!tr) tr = state.tr;
     tr.replaceWith(start, end, Fragment.from(nodes));
-    modified = true;
   }
 
-  if (modified) {
-    tr.setMeta("addToHistory", false);
-    editor.view.dispatch(tr);
-  }
+  if (tr) tr.setMeta("addToHistory", false);
+  return tr;
 }
 
 /** 문서에 headingPrefix mark가 하나라도 있는지(구 포맷 판별). */
@@ -122,10 +130,12 @@ export function hasAnyHeadingPrefixMark(doc: PmNode): boolean {
 /**
  * 헤딩 prefix 동기화 순수 로직(플러그인 외부에서 단위 테스트 가능).
  *
- * "이번 트랜잭션으로 새로 생성된 빈 헤딩"에만 prefix를 삽입한다.
- * 트랜잭션 매핑으로 oldState 의 헤딩 시작 위치를 newState 위치로 옮겨,
- * '이미 헤딩이던 것을 지워 비운 경우'는 재삽입하지 않는다(삭제 루프 방지).
- * 반환값이 null 이면 삽입할 것이 없는 것.
+ * 헤딩 "구조"(개수·시작 위치·레벨)가 변한 트랜잭션에서만 전체 prefix를 재구축한다.
+ * - 새 헤딩 생성(빈 헤딩 포함) → prefix 부여
+ * - 헤딩 삽입/삭제/순서 변경 → 이후 헤딩 카운터 재번호화
+ * - 문단→헤딩 변환(내용 있는 경우 포함) → prefix 부여
+ * 본문만 편집한 트랜잭션(구조 불변)은 건드리지 않는다 — 사용자가 prefix를 지운 경우
+ * 재삽입하지 않음(삭제 루프 방지, 기존 방침 유지).
  */
 export function syncHeadingPrefixes(
   transactions: readonly Transaction[],
@@ -137,59 +147,34 @@ export function syncHeadingPrefixes(
   const markType = newState.schema.marks.headingPrefix;
   if (!markType) return null;
 
-  // oldState 의 헤딩 시작 위치를 newState 위치로 매핑.
-  // 매핑 결과에 없는 newState 빈 헤딩 = 이번 트랜잭션으로 '새로 생성된' 헤딩.
+  // oldState 헤딩(시작 위치+레벨)을 newState 좌표로 매핑해 비교.
   const mapping = new Mapping();
   for (const t of transactions) mapping.appendMapping(t.mapping);
-  const oldHeadingStarts = new Set<number>();
+  const oldHeads: { pos: number; level: number }[] = [];
   oldState.doc.forEach((node, offset) => {
-    if (node.type.name === "heading") oldHeadingStarts.add(mapping.map(offset));
+    if (node.type.name === "heading") {
+      oldHeads.push({ pos: mapping.map(offset), level: (node.attrs.level ?? 1) as number });
+    }
   });
-
-  const counters = createCounters();
-  const targets: { pos: number; level: number; count: number }[] = [];
+  const newHeads: { pos: number; level: number }[] = [];
   newState.doc.forEach((node, offset) => {
-    if (node.type.name !== "heading") return;
-    const level = (node.attrs.level ?? 1) as number;
-    counters[`h${level}` as HeadingKey]++;
-    // 빈 헤딩 + prefix 없음 + 새로 생성된 헤딩(매핑 결과에 없음) → 삽입 대상.
-    // 이미 헤딩이던 것을 지워 비워진 경우는 제외(삭제 루프 방지).
-    if (node.content.size === 0 && !oldHeadingStarts.has(offset)) {
-      targets.push({ pos: offset, level, count: counters[`h${level}` as HeadingKey] });
+    if (node.type.name === "heading") {
+      newHeads.push({ pos: offset, level: (node.attrs.level ?? 1) as number });
     }
   });
 
-  if (!targets.length) return null;
+  // 구조 불변(본문 편집만) → 재구축 없음.
+  const structuralChange =
+    oldHeads.length !== newHeads.length ||
+    oldHeads.some((h, i) => h.pos !== newHeads[i].pos || h.level !== newHeads[i].level);
+  if (!structuralChange) return null;
 
-  const tr = newState.tr;
-  const schema = newState.schema;
-  for (const t of targets.reverse()) {
-    const key = `h${t.level}` as HeadingKey;
-    const symbol = options[key].lineStartSymbol;
-    if (symbol === LineStartSymbol.NONE) continue;
-    const configured = options[key].leadingSpaces ?? 0;
-    const at = t.pos + 1;
-    if (isContentBracket(symbol)) {
-      tr.insert(at, Fragment.from([schema.text("【", [markType.create()]), schema.text("】", [markType.create()])]));
-    } else {
-      const effLeading = getEffectiveLeadingSpaces(symbol, configured);
-      const { prefixText } = buildHeadingPrefix(symbol, effLeading, t.count);
-      tr.insert(at, schema.text(prefixText, [markType.create()]));
-    }
-  }
-  tr.setMeta("addToHistory", false);
-  return tr;
+  return rebuildHeadingPrefixTransaction(newState, options);
 }
 
 /**
- * 헤딩 생성 동기화 — 새로 생성된 빈 헤딩에 prefix 삽입.
- * 내용이 비어있고 mark 없는 헤딩만 건드림(생성 시점). 본문 수정 중엔 재삽입 안 함.
- *
- * 주의(삭제 루프 방지): 이전엔 "빈 헤딩"이면 무조건 prefix를 재삽입했다.
- * 그러면 헤딩을 Backspace로 지워 비울 때마다 prefix가 다시 끼워져
- * "delete를 눌러도 내용이 계속 생겨난다"는 버그(삭제 루프)가 발생했다.
- * 이제 트랜잭션 매핑으로 oldState 의 헤딩 위치를 newState 로 옮겨,
- * '이미 헤딩이던 것을 비운 경우'는 재삽입하지 않고 '새로 헤딩이 된 경우'에만 삽입한다.
+ * 헤딩 구조 동기화 — 헤딩 생성/삭제/변환 시 prefix 재구축(재번호화 포함).
+ * 본문 수정만 있는 트랜잭션엔 개입하지 않음(사용자가 prefix를 지운 경우 재삽입 안 함 — 삭제 루프 방지).
  */
 export const HeadingPrefixSync = Extension.create<{ getOptions: () => DocxOptions }>({
   name: "headingPrefixSync",

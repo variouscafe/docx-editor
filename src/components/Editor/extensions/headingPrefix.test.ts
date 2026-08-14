@@ -76,3 +76,104 @@ describe("syncHeadingPrefixes — 삭제 루프 방지", () => {
     expect(result).toBeNull();
   });
 });
+
+describe("syncHeadingPrefixes — 재번호화/변환", () => {
+  const doc3 = Node.fromJSON(schema, {
+    type: "doc",
+    content: [
+      {
+        type: "heading",
+        attrs: { level: 1 },
+        content: [
+          { type: "text", text: "1. ", marks: [{ type: "headingPrefix" }] },
+          { type: "text", text: "First" },
+        ],
+      },
+      {
+        type: "heading",
+        attrs: { level: 1 },
+        content: [
+          { type: "text", text: "2. ", marks: [{ type: "headingPrefix" }] },
+          { type: "text", text: "Third" },
+        ],
+      },
+    ],
+  });
+
+  it("중간에 헤딩을 삽입하면 이후 헤딩이 재번호화된다(번호 중복 방지)", () => {
+    const oldState = EditorState.create({
+      doc: Node.fromJSON(schema, {
+        type: "doc",
+        content: [
+          {
+            type: "heading",
+            attrs: { level: 1 },
+            content: [
+              { type: "text", text: "1. ", marks: [{ type: "headingPrefix" }] },
+              { type: "text", text: "First" },
+            ],
+          },
+          {
+            type: "heading",
+            attrs: { level: 1 },
+            content: [
+              { type: "text", text: "2. ", marks: [{ type: "headingPrefix" }] },
+              { type: "text", text: "Third" },
+            ],
+          },
+        ],
+      }),
+    });
+    // 첫 헤딩 뒤에 새 빈 헤딩 삽입(Enter 분할과 동등)
+    const firstSize = oldState.doc.firstChild!.nodeSize;
+    const tr = oldState.tr.split(firstSize - 1); // 첫 헤딩 끝에서 분할 → 빈 헤딩 생성
+    const newState = oldState.apply(tr);
+    const headings = newState.doc.content.content.filter((n) => n.type.name === "heading");
+    expect(headings.length).toBe(3);
+
+    const result = syncHeadingPrefixes([tr], oldState, newState, defaultOptions);
+    expect(result).not.toBeNull();
+    const final = newState.apply(result!);
+    const texts = final.doc.content.content
+      .filter((n) => n.type.name === "heading")
+      .map((n) => n.textContent);
+    expect(texts).toEqual(["1. First", "2. ", "3. Third"]);
+  });
+
+  it("첫 헤딩을 삭제하면 이후 헤딩이 재번호화된다(번호 건너뜸 방지)", () => {
+    const oldState = EditorState.create({ doc: doc3 });
+    const tr = oldState.tr.delete(0, oldState.doc.firstChild!.nodeSize);
+    const newState = oldState.apply(tr);
+    const result = syncHeadingPrefixes([tr], oldState, newState, defaultOptions);
+    expect(result).not.toBeNull();
+    const final = newState.apply(result!);
+    expect(final.doc.firstChild!.textContent).toBe("1. Third");
+  });
+
+  it("내용 있는 문단을 헤딩으로 변환하면 prefix가 부여된다", () => {
+    const oldState = EditorState.create({
+      doc: Node.fromJSON(schema, {
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Hello" }] },
+        ],
+      }),
+    });
+    const tr = oldState.tr.setNodeMarkup(0, schema.nodes.heading, { level: 1 });
+    const newState = oldState.apply(tr);
+    const result = syncHeadingPrefixes([tr], oldState, newState, defaultOptions);
+    expect(result).not.toBeNull();
+    const final = newState.apply(result!);
+    expect(final.doc.firstChild!.textContent).toBe("1. Hello");
+  });
+
+  it("헤딩 본문만 편집(구조 불변) 시 기존 prefix를 유지한다", () => {
+    const oldState = EditorState.create({ doc: doc3 });
+    // 첫 헤딩 본문 끝에 타이핑과 동등: "First" 뒤 "!" 삽입
+    const tr = oldState.tr.insert("1. First".length + 1, schema.text("!"));
+    const newState = oldState.apply(tr);
+    const result = syncHeadingPrefixes([tr], oldState, newState, defaultOptions);
+    expect(result).toBeNull();
+    expect(newState.doc.firstChild!.textContent).toBe("1. First!");
+  });
+});
