@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /reports
+Disallow: /groups
+Disallow: /settings
+Disallow: /share
+Disallow: /login
+
+Sitemap: https://docs.suseona.com/sitemap.xml

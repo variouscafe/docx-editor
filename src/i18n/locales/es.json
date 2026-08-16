@@ -386,7 +386,7 @@
     "public": "informe compartido"
   },
   "auth": {
-    "tagline": "Escribe informes con formato · exporta a DOCX",
+    "tagline": "Crea documentos con plantillas y compártelos con tu grupo",
     "continueWithGoogle": "Continuar con Google",
     "privacyNote": "Al iniciar sesión, el correo y el nombre de tu cuenta de Google los gestiona el servidor de autenticación, y tus informes se guardan de forma segura por cuenta."
   },
@@ -481,5 +481,83 @@
     "descLabel": "Descripción",
     "deleteTitle": "¿Eliminar este grupo?",
     "deleteDesc": "Esta acción no se puede deshacer. Se eliminan miembros, invitaciones y comparticiones de informes, y las plantillas compartidas pasan a ser privadas."
+  },
+  "landing": {
+    "metaTitle": "Suseona Docs — Una herramienta de documentos basada en plantillas",
+    "metaDescription": "Aplica plantillas para crear documentos y compártelas con tu grupo. Vista previa A4, resaltados, cuadros y resumen clave, exportación a DOCX, historial de versiones y 9 idiomas.",
+    "nav": {
+      "features": "Funciones",
+      "howItWorks": "Cómo funciona",
+      "sharing": "Compartir en grupo",
+      "login": "Iniciar sesión",
+      "getStarted": "Empezar"
+    },
+    "hero": {
+      "badge": "Plantillas de documentos · Grupos · Exportación a DOCX",
+      "title": "Una plantilla, todos los documentos de tu equipo",
+      "subtitle": "Suseona Docs es una herramienta que aplica plantillas de estilo a tus documentos y permite compartirlas con grupos. Exporta a DOCX exactamente como se ve en la vista previa A4.",
+      "ctaPrimary": "Empieza gratis con Google",
+      "ctaSecondary": "Ver funciones",
+      "note": "Solo necesitas una cuenta de Google."
+    },
+    "features": {
+      "title": "Funciones",
+      "subtitle": "De la escritura al compartir en grupo y la exportación, todo en el navegador.",
+      "template": {
+        "title": "Plantillas de documentos",
+        "desc": "Aplica una plantilla con títulos, encabezados, fuentes y espaciado para que los documentos de todos se vean iguales. También puedes guardar tus ajustes actuales como plantilla."
+      },
+      "groupShare": {
+        "title": "Plantillas de grupo",
+        "desc": "Comparte plantillas con un grupo para mantener un único estándar de equipo. Los miembros pueden ver, duplicar y aplicar al instante las plantillas compartidas."
+      },
+      "formatting": {
+        "title": "Formatos de documentos avanzados",
+        "desc": "Cinco colores de resaltado, cuadros con línea continua y discontinua, notas pequeñas y bloques de resumen clave: incluso los formatos complejos se muestran en vivo en el editor."
+      },
+      "a4docx": {
+        "title": "Vista previa A4 y exportación a DOCX",
+        "desc": "Observa cómo tu documento se pagina en A4 en tiempo real y exporta un archivo DOCX con todos los estilos conservados."
+      },
+      "history": {
+        "title": "Historial de versiones y autoguardado",
+        "desc": "Las ediciones se guardan automáticamente y el historial de versiones te permite restaurar cualquier estado anterior."
+      },
+      "languages": {
+        "title": "9 idiomas de interfaz",
+        "desc": "Coreano, inglés, japonés, chino (simplificado y tradicional), español, portugués (de Brasil), alemán y francés."
+      }
+    },
+    "how": {
+      "title": "Cómo funciona",
+      "subtitle": "Crea tu primer documento en tres pasos.",
+      "step1": {
+        "title": "Elige una plantilla",
+        "desc": "Empieza con un estilo integrado o aplica una plantilla tuya o de tu grupo."
+      },
+      "step2": {
+        "title": "Escribe tu documento",
+        "desc": "Añade contenido con símbolos de encabezado, cuadros y resaltados: la vista previa A4 se actualiza en vivo y todo se guarda automáticamente."
+      },
+      "step3": {
+        "title": "Exporta o comparte",
+        "desc": "Exporta a DOCX, comparte con un grupo o genera un enlace de solo lectura que cualquiera puede abrir sin iniciar sesión."
+      }
+    },
+    "sharing": {
+      "title": "Plantillas para todo tu grupo",
+      "desc": "Crea un grupo, comparte plantillas y todos escriben con el mismo estilo. Comparte los documentos terminados con el grupo o entrega enlaces de solo lectura a personas ajenas.",
+      "point1": "Visibilidad de plantillas: privada, pública o de grupo",
+      "point2": "Invita a miembros y gestiona roles (propietario, administrador, miembro)",
+      "point3": "Enlaces de solo lectura que funcionan sin iniciar sesión"
+    },
+    "cta": {
+      "title": "Empieza hoy mismo",
+      "desc": "Inicia sesión con tu cuenta de Google y crea tu primer documento en minutos."
+    },
+    "footer": {
+      "tagline": "Una herramienta de documentos basada en plantillas",
+      "copyright": "© {{year}} Suseona Docs. Todos los derechos reservados."
+    }
   }
 }

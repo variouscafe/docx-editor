@@ -7,6 +7,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AppShell } from "./components/Layout/AppShell";
 import { Login } from "./pages/Login";
+import { Landing } from "./pages/Landing";
 import ReportList from "./pages/ReportList";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
@@ -39,6 +40,9 @@ export default function App() {
     <ErrorBoundary area="app">
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* 랜딩 — 비로그인 "/" 노출. 로그인 상태는 Landing 내부에서 /reports 로
+          리다이렉트(OAuth fragment 복귀 포함, 기존 index 리다이렉트와 동일 흐름). */}
+      <Route index element={<Landing />} />
       {/* 퍼블릭 링크 공유 — 로그인 없이 읽기 전용. ProtectedRoute 밖. */}
       <Route
         path="/share/:token"
@@ -51,7 +55,6 @@ export default function App() {
         }
       />
       <Route element={<ProtectedRoute isAuthed={!!accessToken} />}>
-        <Route index element={<Navigate to="/reports" replace />} />
         <Route
           path="/reports"
           element={

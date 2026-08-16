@@ -386,7 +386,7 @@
     "public": "rapport partagé"
   },
   "auth": {
-    "tagline": "Rédigez des rapports mis en forme · exportez en DOCX",
+    "tagline": "Créez des documents à partir de modèles et partagez-les avec votre groupe",
     "continueWithGoogle": "Continuer avec Google",
     "privacyNote": "Lors de la connexion, l'e-mail et le nom de votre compte Google sont traités par le serveur d'authentification, et vos rapports sont stockés de manière sécurisée par compte."
   },
@@ -481,5 +481,83 @@
     "descLabel": "Description",
     "deleteTitle": "Supprimer ce groupe ?",
     "deleteDesc": "Cette action est irréversible. Les membres, invitations et partages de rapports sont supprimés, et les modèles partagés deviennent privés."
+  },
+  "landing": {
+    "metaTitle": "Suseona Docs — Un outil de documents basé sur des modèles",
+    "metaDescription": "Appliquez des modèles pour créer des documents et partagez-les avec votre groupe. Aperçu A4, surlignage, encadrés et résumé essentiel, export DOCX, historique des versions et 9 langues.",
+    "nav": {
+      "features": "Fonctionnalités",
+      "howItWorks": "Comment ça marche",
+      "sharing": "Partage de groupe",
+      "login": "Se connecter",
+      "getStarted": "Commencer"
+    },
+    "hero": {
+      "badge": "Modèles de documents · Partage de groupe · Export DOCX",
+      "title": "Un modèle, tous les documents de votre équipe",
+      "subtitle": "Suseona Docs est un outil qui applique des modèles de mise en forme à vos documents et permet aux groupes de les partager. Exportez en DOCX exactement comme dans l'aperçu A4.",
+      "ctaPrimary": "Commencer gratuitement avec Google",
+      "ctaSecondary": "Découvrir les fonctionnalités",
+      "note": "Un compte Google suffit."
+    },
+    "features": {
+      "title": "Fonctionnalités",
+      "subtitle": "De la rédaction au partage de groupe et à l'export — tout dans le navigateur.",
+      "template": {
+        "title": "Modèles de documents",
+        "desc": "Appliquez un modèle avec titres, niveaux de titre, polices et espacements pour que tous les documents soient identiques. Vos réglages actuels peuvent aussi être enregistrés comme modèle."
+      },
+      "groupShare": {
+        "title": "Modèles partagés de groupe",
+        "desc": "Partagez des modèles avec un groupe pour garder une seule norme d'équipe. Les membres peuvent consulter, dupliquer et appliquer immédiatement les modèles partagés."
+      },
+      "formatting": {
+        "title": "Mise en forme riche",
+        "desc": "Cinq couleurs de surlignage, encadrés pleins ou pointillés, petites annotations et résumés essentiels — même les mises en forme complexes s'affichent en direct dans l'éditeur."
+      },
+      "a4docx": {
+        "title": "Aperçu A4 et export DOCX",
+        "desc": "Suivez en temps réel la pagination A4 de votre document, puis exportez un fichier DOCX avec tous les styles préservés."
+      },
+      "history": {
+        "title": "Historique des versions et sauvegarde auto",
+        "desc": "Les modifications sont enregistrées automatiquement et l'historique permet de restaurer n'importe quel état antérieur."
+      },
+      "languages": {
+        "title": "9 langues d'interface",
+        "desc": "Coréen, anglais, japonais, chinois (simplifié et traditionnel), espagnol, portugais (Brésil), allemand et français."
+      }
+    },
+    "how": {
+      "title": "Comment ça marche",
+      "subtitle": "Créez votre premier document en trois étapes.",
+      "step1": {
+        "title": "Choisissez un modèle",
+        "desc": "Commencez avec un style intégré ou appliquez un modèle personnel ou de groupe."
+      },
+      "step2": {
+        "title": "Rédigez votre document",
+        "desc": "Ajoutez du contenu avec symboles de titre, encadrés et surlignages — l'aperçu A4 se met à jour en direct et tout est sauvegardé automatiquement."
+      },
+      "step3": {
+        "title": "Exportez ou partagez",
+        "desc": "Exportez en DOCX, partagez avec un groupe ou générez un lien en lecture seule ouvrable sans connexion."
+      }
+    },
+    "sharing": {
+      "title": "Des modèles pour tout le groupe",
+      "desc": "Créez un groupe, partagez des modèles, et tout le monde rédige dans le même style. Partagez les documents finis avec le groupe ou remettez des liens en lecture seule à l'extérieur.",
+      "point1": "Visibilité des modèles : privée, publique ou de groupe",
+      "point2": "Invitez des membres et gérez les rôles (propriétaire, admin, membre)",
+      "point3": "Liens en lecture seule accessibles sans connexion"
+    },
+    "cta": {
+      "title": "Commencez dès aujourd'hui",
+      "desc": "Connectez-vous avec votre compte Google et créez votre premier document en quelques minutes."
+    },
+    "footer": {
+      "tagline": "Un outil de documents basé sur des modèles",
+      "copyright": "© {{year}} Suseona Docs. Tous droits réservés."
+    }
   }
 }

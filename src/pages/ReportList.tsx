@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { listReports, deleteReport } from "@/api/reports";
 import type { ReportListItem } from "@shared/report";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -18,6 +19,7 @@ const SCOPES = [
 
 export default function ReportList() {
   const { t, i18n } = useTranslation();
+  usePageMeta({ title: `${t("nav.brand")} · ${t("reportList.title")}` });
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const filter = params.get("filter") ?? "all";

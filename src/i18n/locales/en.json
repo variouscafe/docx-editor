@@ -386,7 +386,7 @@
     "public": "shared report"
   },
   "auth": {
-    "tagline": "Write formatted reports · export to DOCX",
+    "tagline": "Create documents from templates, share them with your group",
     "continueWithGoogle": "Continue with Google",
     "privacyNote": "When you sign in, your Google account email and name are handled by the auth server, and your reports are stored securely per account."
   },
@@ -481,5 +481,83 @@
     "descLabel": "Description",
     "deleteTitle": "Delete this group?",
     "deleteDesc": "This can't be undone. Members, invitations, and report shares are removed, and shared templates become private."
+  },
+  "landing": {
+    "metaTitle": "Suseona Docs — A template-based document tool",
+    "metaDescription": "Apply templates to create documents and share them with your group. A4 pagination preview, highlights, boxes, core summaries, DOCX export, version history, and 9 interface languages.",
+    "nav": {
+      "features": "Features",
+      "howItWorks": "How it works",
+      "sharing": "Group sharing",
+      "login": "Sign in",
+      "getStarted": "Get started"
+    },
+    "hero": {
+      "badge": "Document templates · Group sharing · DOCX export",
+      "title": "One template, every document your team writes",
+      "subtitle": "Suseona Docs is a document tool that applies style templates to your documents and lets groups share them. Export to DOCX exactly as previewed on A4 pages.",
+      "ctaPrimary": "Get started free with Google",
+      "ctaSecondary": "Explore features",
+      "note": "All you need is a Google account."
+    },
+    "features": {
+      "title": "Features",
+      "subtitle": "From writing to group sharing and export — all in the browser.",
+      "template": {
+        "title": "Document templates",
+        "desc": "Apply a template with titles, headings, fonts, and spacing so everyone's documents look the same. You can also save your current settings as a template."
+      },
+      "groupShare": {
+        "title": "Shared group templates",
+        "desc": "Share templates with a group to keep one team-wide standard. Members can read shared templates, duplicate them, and apply them instantly."
+      },
+      "formatting": {
+        "title": "Rich document formatting",
+        "desc": "Five highlight colors, solid and dashed boxes, side notes, and core-summary blocks — even complex formatting renders live in the editor."
+      },
+      "a4docx": {
+        "title": "A4 preview & DOCX export",
+        "desc": "Watch your document paginate onto A4 pages in real time, then export a DOCX file with every style preserved."
+      },
+      "history": {
+        "title": "Version history & auto-save",
+        "desc": "Edits are saved automatically, and version history lets you restore any earlier state whenever you need."
+      },
+      "languages": {
+        "title": "9 interface languages",
+        "desc": "Korean, English, Japanese, Chinese (Simplified and Traditional), Spanish, Portuguese (Brazilian), German, and French."
+      }
+    },
+    "how": {
+      "title": "How it works",
+      "subtitle": "Create your first document in three steps.",
+      "step1": {
+        "title": "Pick a template",
+        "desc": "Start with a built-in style, or apply one of your own or your group's templates."
+      },
+      "step2": {
+        "title": "Write your document",
+        "desc": "Add content with heading symbols, boxes, and highlights — your A4 paginated preview updates live, and edits auto-save."
+      },
+      "step3": {
+        "title": "Export or share",
+        "desc": "Export to DOCX, share with a group, or generate a read-only link anyone can open without signing in."
+      }
+    },
+    "sharing": {
+      "title": "Templates your whole group can use",
+      "desc": "Create a group, share templates, and everyone writes from the same style. Share finished documents with the group, or hand out read-only links to people outside it.",
+      "point1": "Template visibility: private, public, or group",
+      "point2": "Invite members and manage roles (owner, admin, member)",
+      "point3": "Read-only share links that work without sign-in"
+    },
+    "cta": {
+      "title": "Start writing today",
+      "desc": "Sign in with your Google account and create your first document in minutes."
+    },
+    "footer": {
+      "tagline": "A template-based document tool",
+      "copyright": "© {{year}} Suseona Docs. All rights reserved."
+    }
   }
 }

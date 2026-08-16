@@ -2,6 +2,7 @@ import { FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -28,6 +29,7 @@ function GoogleIcon({ className }: { className?: string }) {
 
 export function Login() {
   const { t } = useTranslation();
+  usePageMeta({ title: `${t("nav.brand")} — ${t("auth.tagline")}` });
   return (
     <div className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-background to-muted p-4">
       <Card className="w-full max-w-sm text-center shadow-md">

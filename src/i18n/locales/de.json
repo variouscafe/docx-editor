@@ -386,7 +386,7 @@
     "public": "Geteilter Bericht"
   },
   "auth": {
-    "tagline": "Formatierte Berichte schreiben · als DOCX exportieren",
+    "tagline": "Dokumente aus Vorlagen erstellen und mit der Gruppe teilen",
     "continueWithGoogle": "Mit Google fortfahren",
     "privacyNote": "Wenn du dich anmeldest, werden E-Mail-Adresse und Name deines Google-Kontos vom Authentifizierungsserver verarbeitet und deine Berichte werden sicher pro Konto gespeichert."
   },
@@ -481,5 +481,83 @@
     "descLabel": "Beschreibung",
     "deleteTitle": "Diese Gruppe löschen?",
     "deleteDesc": "Dies kann nicht rückgängig gemacht werden. Mitglieder, Einladungen und Berichtsfreigaben werden entfernt und geteilte Vorlagen werden privat."
+  },
+  "landing": {
+    "metaTitle": "Suseona Docs — Ein vorlagenbasiertes Dokumentwerkzeug",
+    "metaDescription": "Erstellen Sie Dokumente mit Vorlagen und teilen Sie sie mit Ihrer Gruppe. A4-Vorschau, Textmarker-, Rahmen- und Kernzusammenfassungs-Formatierung, DOCX-Export, Versionsverlauf und 9 Sprachen.",
+    "nav": {
+      "features": "Funktionen",
+      "howItWorks": "So funktioniert es",
+      "sharing": "Gruppenfreigabe",
+      "login": "Anmelden",
+      "getStarted": "Loslegen"
+    },
+    "hero": {
+      "badge": "Dokumentvorlagen · Gruppenfreigabe · DOCX-Export",
+      "title": "Eine Vorlage für alle Dokumente Ihres Teams",
+      "subtitle": "Suseona Docs ist ein Dokumentwerkzeug, das Formatvorlagen auf Ihre Dokumente anwendet und Gruppen das Teilen erlaubt. Exportieren Sie genau wie in der A4-Vorschau als DOCX.",
+      "ctaPrimary": "Kostenlos mit Google starten",
+      "ctaSecondary": "Funktionen entdecken",
+      "note": "Sie brauchen nur ein Google-Konto."
+    },
+    "features": {
+      "title": "Funktionen",
+      "subtitle": "Vom Schreiben bis zur Gruppenfreigabe und zum Export — alles im Browser.",
+      "template": {
+        "title": "Dokumentvorlagen",
+        "desc": "Wenden Sie eine Vorlage mit Titeln, Überschriften, Schriftarten und Abständen an, damit alle Dokumente gleich aussehen. Aktuelle Einstellungen lassen sich auch als Vorlage speichern."
+      },
+      "groupShare": {
+        "title": "Geteilte Gruppenvorlagen",
+        "desc": "Teilen Sie Vorlagen mit einer Gruppe für einen einheitlichen Teamstandard. Mitglieder können geteilte Vorlagen ansehen, duplizieren und sofort anwenden."
+      },
+      "formatting": {
+        "title": "Umfangreiche Dokumentformatierung",
+        "desc": "Fünf Textmarkerfarben, durchgezogene und gestrichelte Rahmen, kleine Anmerkungen und Kernzusammenfassungen — auch komplexe Formate erscheinen live im Editor."
+      },
+      "a4docx": {
+        "title": "A4-Vorschau & DOCX-Export",
+        "desc": "Verfolgen Sie in Echtzeit, wie Ihr Dokument auf A4-Seiten umbricht, und exportieren Sie eine DOCX-Datei mit allen erhaltenen Formatierungen."
+      },
+      "history": {
+        "title": "Versionsverlauf & Autospeichern",
+        "desc": "Änderungen werden automatisch gespeichert, und der Versionsverlauf stellt jeden früheren Stand wieder her."
+      },
+      "languages": {
+        "title": "9 Oberflächensprachen",
+        "desc": "Koreanisch, Englisch, Japanisch, Chinesisch (vereinfacht und traditionell), Spanisch, Portugiesisch (Brasilien), Deutsch und Französisch."
+      }
+    },
+    "how": {
+      "title": "So funktioniert es",
+      "subtitle": "Erstellen Sie Ihr erstes Dokument in drei Schritten.",
+      "step1": {
+        "title": "Vorlage wählen",
+        "desc": "Starten Sie mit einem eingebauten Format oder wenden Sie eine eigene oder Gruppenvorlage an."
+      },
+      "step2": {
+        "title": "Dokument schreiben",
+        "desc": "Füllen Sie Inhalte mit Überschriftssymbolen, Rahmen und Markierungen — die A4-Vorschau aktualisiert sich live, und alles wird automatisch gespeichert."
+      },
+      "step3": {
+        "title": "Exportieren oder teilen",
+        "desc": "Exportieren Sie als DOCX, teilen Sie mit einer Gruppe oder erzeugen Sie einen Nur-Lese-Link, den jeder ohne Anmeldung öffnen kann."
+      }
+    },
+    "sharing": {
+      "title": "Vorlagen für die ganze Gruppe",
+      "desc": "Erstellen Sie eine Gruppe, teilen Sie Vorlagen, und alle schreiben im gleichen Stil. Fertige Dokumente teilen Sie mit der Gruppe oder geben Personen außerhalb Nur-Lese-Links.",
+      "point1": "Vorlagensichtbarkeit: privat, öffentlich oder Gruppe",
+      "point2": "Mitglieder einladen und Rollen verwalten (Eigentümer, Administrator, Mitglied)",
+      "point3": "Nur-Lese-Links, die ohne Anmeldung funktionieren"
+    },
+    "cta": {
+      "title": "Jetzt loslegen",
+      "desc": "Melden Sie sich mit Ihrem Google-Konto an und erstellen Sie in Minuten Ihr erstes Dokument."
+    },
+    "footer": {
+      "tagline": "Ein vorlagenbasiertes Dokumentwerkzeug",
+      "copyright": "© {{year}} Suseona Docs. Alle Rechte vorbehalten."
+    }
   }
 }
