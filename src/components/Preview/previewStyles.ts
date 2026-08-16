@@ -54,6 +54,123 @@ export function getPreviewStyles(options: DocxOptions, editable: boolean): strin
       background-color: var(--preview-gap) !important;
     }
 
+    /* 블록 이미지 — NodeView(figure > frame > img + 핸들, figcaption).
+       이미지·캡션 모두 가운데 정렬. width/height attrs 로 로드 전 박스 예약. */
+    .rm-with-pagination .rm-image-figure {
+      margin: 4px 0;
+    }
+
+    /* 이미지 박스(fit-content) — 핸들이 실제 이미지 모서리에 붙고, 중앙 정렬도 여기서. */
+    .rm-with-pagination .rm-image-frame {
+      position: relative;
+      width: fit-content;
+      max-width: 100%;
+      margin-inline: auto;
+    }
+
+    .rm-with-pagination .rm-image-frame img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .rm-with-pagination .rm-image-figure.ProseMirror-selectednode {
+      outline: 2px solid var(--preview-accent);
+      outline-offset: 2px;
+    }
+
+    /* 업로드 진행 중(blob: src + data-upload-id) 표시 — 점선 테두리. */
+    .rm-with-pagination .rm-image-figure img[data-upload-id] {
+      outline: 2px dashed #b0b0b0;
+      outline-offset: 2px;
+    }
+
+    /* 캡션(설명) — 가운데 정렬, 작은 회색 글씨. */
+    .rm-with-pagination .rm-image-caption {
+      font-size: 9pt;
+      color: #595959;
+      text-align: center;
+      margin-top: 2px;
+      min-height: 1.2em;
+      padding: 0 2px;
+      outline: none;
+      word-break: break-all;
+    }
+
+    .rm-with-pagination .rm-image-caption.rm-image-caption-empty::before {
+      content: attr(data-placeholder);
+      color: #b0b0b0;
+    }
+
+    /* 크기 조절 핸들(코너 4개) — 선택 시만 표시. 터치 드래그 지원(touch-action none,
+       히트영역 26px / 터치 기기 34px, 시각 원은 ::after 로 축소). */
+    .rm-with-pagination .rm-image-handle {
+      display: none;
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      z-index: 5;
+    }
+
+    .rm-with-pagination .rm-image-handle::after {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      border-radius: 9999px;
+      background: #ffffff;
+      border: 2px solid var(--preview-accent);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    }
+
+    .rm-with-pagination .rm-image-figure.ProseMirror-selectednode .rm-image-handle {
+      display: block;
+    }
+
+    .rm-with-pagination .rm-image-handle-nw {
+      left: -13px;
+      top: -13px;
+      cursor: nwse-resize;
+    }
+
+    .rm-with-pagination .rm-image-handle-ne {
+      right: -13px;
+      top: -13px;
+      cursor: nesw-resize;
+    }
+
+    .rm-with-pagination .rm-image-handle-sw {
+      left: -13px;
+      bottom: -13px;
+      cursor: nesw-resize;
+    }
+
+    .rm-with-pagination .rm-image-handle-se {
+      right: -13px;
+      bottom: -13px;
+      cursor: nwse-resize;
+    }
+
+    @media (pointer: coarse) {
+      .rm-with-pagination .rm-image-handle {
+        width: 34px;
+        height: 34px;
+      }
+    }
+${
+      editable
+        ? ""
+        : `
+    /* 읽기 전용(공유 보기) — 빈 캡션은 placeholder 도 없이 영역 자체를 숨김. */
+    .rm-with-pagination .rm-image-caption.rm-image-caption-empty {
+      display: none;
+    }
+`
+    }
+
     /* 제목: 20pt, 굵게, 밑줄, 가운데 정렬 */
     .rm-with-pagination [data-title] {
       font-size: ${options.title.fontSize}pt;

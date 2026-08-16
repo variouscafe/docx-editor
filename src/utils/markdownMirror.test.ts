@@ -64,3 +64,44 @@ describe("jsonToMarkdown — 메타문자 이스케이프", () => {
     expect(html).toContain('data-annotation="부연"');
   });
 });
+
+describe("jsonToMarkdown — 블록 이미지", () => {
+  it("이미지 노드 → ![alt](src) 미러 + 재반입 시 <img> 복원", () => {
+    const md = jsonToMarkdown({
+      type: "doc",
+      content: [
+        {
+          type: "image",
+          attrs: { src: "/api/images/00000000-0000-4000-8000-000000000000", alt: "캡처" },
+        },
+      ],
+    });
+    expect(md).toContain(
+      "![캡처](/api/images/00000000-0000-4000-8000-000000000000)",
+    );
+    // marked(GFM) 가 ![alt](src) → <img> 로 렌더 — 마크다운 가져오기 round-trip.
+    const html = markdownToHtml(md);
+    expect(html).toContain("<img");
+    expect(html).toContain('src="/api/images/00000000-0000-4000-8000-000000000000"');
+  });
+
+  it("캡션(설명) attrs 가 alt 보다 우선 미러링된다", () => {
+    const md = jsonToMarkdown({
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "/api/images/x", alt: "파일명", caption: "그림 설명" } }],
+    });
+    expect(md).toContain("![그림 설명](/api/images/x)");
+  });
+
+  it("alt 의 대괄호는 제거해 문법 파손 방지, src 없으면 생략", () => {
+    const md = jsonToMarkdown({
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "/api/images/x", alt: "a[b]" } },
+        { type: "image", attrs: { alt: "no-src" } },
+      ],
+    });
+    expect(md).toContain("![ab](/api/images/x)");
+    expect(md).not.toContain("![no-src]");
+  });
+});

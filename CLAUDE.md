@@ -32,7 +32,18 @@ docx-editor/
 - D1 `docs` 테이블: `reports`, `templates` (인증은 공용 suseona-auth 이므로 users/refresh_sessions 없음; `user_id`는 plain text = JWT.sub). 마이그레이션 `worker/migrations/0001_shared_auth.sql`.
 - FE 수정은 debounce 자동저장(1.5s)+수동 저장으로 `PATCH /api/reports/:id` 갱신.
 
-## DOCX Export (서버사이드)
+## Image Attachments (R2 업로드 이미지)
+- paste/drop/툴바 버튼 → FE 정규화(`src/utils/imageFile.ts`: webp/heic/초대형(>2400px) canvas JPEG 재인코딩, png/jpeg/gif 소형은 원본) → 즉시 placeholder 노드(blob: src + width/height + `data-upload-id`) 삽입 → 백그라운드 `POST /api/uploads` → 성공 시 트랜잭션으로 src 교체.
+- **R2 버킷 `docx-editor-images`**(binding `IMAGES`), key = `uploads/{uuid}`(= D1 `uploads` 테이블 id). D1 행은 소유권/audit 용 — 조회·export 는 R2만 읽음.
+- `GET /api/images/:id` 는 **무인증**(`<img src>` Bearer 불가 + 퍼블릭 공유 보기). UUID 자체가 capability(shareToken 과 동일 신뢰 모델). immutable 캐시 + etag.
+- JSON `src` 는 **상대 경로** `/api/images/{id}` 로 저장(도메인 독립) — FE 렌더 시 `API_URL` 접두(`resolveImageSrc`), content_md 미러는 `![alt](src)`.
+- 저장 무결성: 진행 중 업로드 레지스트리(`src/api/uploads.ts`)를 `saveOnce`/`ensureId` 가 await → `blob:` src 영속화 차단. `ReportEditor` 는 `editorJsonRef`(동기 미러)로 항상 최신 content 저장.
+- DOCX export: `generateDocx(content, options, {loadImage})` — export 라우트가 R2 직접 read(내부 경로)/fetch(외부 URL, 8s·10MB cap). A4 본문 폭 클램프(1px=15twips, 미리보기와 동일 환산), 비율 유지 축소만. 표 셀 내 블록 이미지도 지원.
+- **캡션(설명)**: 이미지 노드 `attrs.caption` — vanilla NodeView(figure+figcaption)로 이미지 아래 인라인 편집(placeholder "설명 추가…", 1줄). 편집 가능 여부는 `editor.options.editable` 소스로 `create`/`update` 이벤트에서 동기화(NodeView 생성 시점 `view.editable` 은 미확정). 미리보기 9pt #595959 ≡ DOCX 캡션 문단(9pt half-point 18, color 595959), content_md 미러는 `![설명](src)`. 이미지 노드 선택 시 툴바의 텍스트 서식 도구(헤딩/폰트크기/굵게 등)는 숨김.
+- **이미지 크기·정렬**: 이미지·캡션 모두 가운데 정렬(preview `margin-inline:auto`/`text-align:center` ≡ DOCX `<w:jc w:val="center"/>`). 크기 조절 — ① NodeView 코너 핸들 4개 드래그(비율 고정, pointer events=터치 지원, 드래그 중 style 즉시 반영→pointerup 시 setNodeMarkup 1회 커밋) ② 툴바 프리셋 25/50/75/100%(`applyImageSizePreset`, 본문 폭 기준 — 모바일 원터치). 핸들은 노드 선택 시만 표시, 히트영역 26px(터치 34px).
+- 알려진 한계: 고아 R2 객체 GC 없음(삽입 취소/보고서 삭제 시).
+
+
 - BE(`worker/src/docx/generator.ts`)가 저장된 `content`(JSON)+`template_options`(스냅샷)을 소비해 **DOM-free**로 `.docx` 생성(`docx` 패키지, `Packer.toBlob`). `POST /api/reports/:id/export`가 Blob 반환.
 - 기호/카운터/선행공백·꼬마글씨(TextBox/○문단)·핵심요약(1×3 표)·박스 보더·형광펜 셰이딩·폰트사이즈(half-point) 등 모두 포팅.
 - FE 미리보기는 비영속 ProseMirror `Decoration`으로 기호/괄호를 렌더(`getJSON()`은 항상 깨끗함).

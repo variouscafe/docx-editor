@@ -70,13 +70,16 @@
     "pending": "変更あり(保存待ち)",
     "exportDone": "DOCXエクスポートが完了しました",
     "draftRestored": "未保存の下書きを復元しました",
+    "imageUploadFailed": "画像のアップロードに失敗しました",
     "onlineRestored": "オンラインに復帰 — 保存を再開します",
     "offlineWarning": "オフライン — 変更内容は一時保存されます",
     "draftRestoreBanner": "未保存の変更があります",
     "draftRestoreAt": "未保存の変更があります ({{time}})。",
     "restore": "復元",
     "discard": "破棄",
-    "more": "その他"
+    "more": "その他",
+    "imageUnsupported": "サポートされていない画像形式です",
+    "imageCaptionPlaceholder": "説明を追加…"
   },
   "toolbar": {
     "undo": "元に戻す",
@@ -94,6 +97,8 @@
     "annotation": "注釈",
     "annotationPlaceholder": "注釈を入力...",
     "insertTable": "表を挿入",
+    "insertImage": "画像を挿入",
+    "imageSize": "画像サイズ",
     "rowAbove": "上に行を追加",
     "rowBelow": "下に行を追加",
     "deleteRow": "行を削除",

@@ -8,6 +8,8 @@ import { reportRoutes } from './routes/reports.js';
 import { templateRoutes } from './routes/templates.js';
 import { groupRoutes } from './routes/groups.js';
 import { publicRoutes } from './routes/public.js';
+import { uploadRoutes } from './routes/uploads.js';
+import { imageRoutes } from './routes/images.js';
 
 // 데이터 API 전용. 인증(구글 로그인/JWT 발급)은 공용 suseona-auth 가 담당.
 // 본 Worker 는 suseona-auth 가 발급한 JWT 를 같은 JWT_SECRET 로 검증(jwtAuth)만 수행.
@@ -49,5 +51,8 @@ app.route('/api/templates', templateRoutes);
 app.route('/api/groups', groupRoutes);
 // 퍼블릭 라우터 — 인증 없음(jwtAuth 미적용). 토큰 capability 로만 접근 제어.
 app.route('/api/public', publicRoutes);
+// 이미지 업로드(jwtAuth 내부 적용) + 이미지 조회(인증 없음 — UUID capability, img 태그용).
+app.route('/api/uploads', uploadRoutes);
+app.route('/api/images', imageRoutes);
 
 export default app;

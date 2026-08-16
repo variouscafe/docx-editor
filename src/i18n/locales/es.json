@@ -70,13 +70,16 @@
     "pending": "Modificado (pendiente)",
     "exportDone": "Exportación DOCX completada",
     "draftRestored": "Borrador sin guardar restaurado",
+    "imageUploadFailed": "Error al subir la imagen",
     "onlineRestored": "De nuevo en línea — reanudando el guardado",
     "offlineWarning": "Sin conexión — los cambios se guardan temporalmente",
     "draftRestoreBanner": "Tienes cambios sin guardar",
     "draftRestoreAt": "Tienes cambios sin guardar ({{time}}).",
     "restore": "Restaurar",
     "discard": "Descartar",
-    "more": "Más"
+    "more": "Más",
+    "imageUnsupported": "Formato de imagen no compatible",
+    "imageCaptionPlaceholder": "Añadir descripción…"
   },
   "toolbar": {
     "undo": "Deshacer",
@@ -94,6 +97,8 @@
     "annotation": "Nota al margen",
     "annotationPlaceholder": "Escribe una nota...",
     "insertTable": "Insertar tabla",
+    "insertImage": "Insertar imagen",
+    "imageSize": "Tamaño de imagen",
     "rowAbove": "Fila arriba",
     "rowBelow": "Fila abajo",
     "deleteRow": "Eliminar fila",

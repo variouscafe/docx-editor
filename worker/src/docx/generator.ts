@@ -17,6 +17,7 @@ import {
   WidthType,
   ShadingType,
   TableLayoutType,
+  ImageRun,
 } from 'docx';
 import { resolveSpacing, normalizeOptions, type DocxOptions, type SpacingFields } from '@shared/options';
 import { isBoldSymbol } from '@shared/lineStartSymbol';
@@ -55,12 +56,97 @@ const ALIGN: Record<string, (typeof AlignmentType)[keyof typeof AlignmentType]> 
   both: AlignmentType.BOTH,
 };
 
-export async function generateDocx(content: JSONContent, raw: DocxOptions): Promise<Blob> {
+/** 로드된 이미지 — loadImage 콜백 결과(호출부가 R2/외부 fetch 를 결정). */
+interface LoadedImage {
+  data: ArrayBuffer | Uint8Array;
+  mime: string;
+  width?: number;
+  height?: number;
+}
+
+export interface GenerateDocxOptions {
+  /** 이미지 src → 바이너리 로더. 없으면 이미지 노드는 스킵. */
+  loadImage?: (src: string) => Promise<LoadedImage | null>;
+}
+
+interface ImageContext extends GenerateDocxOptions {
+  /** 호출 스코프 캐시(같은 src 중복 로드 방지). 값 null = 로드 실패도 캐시. */
+  cache: Map<string, LoadedImage | null>;
+}
+
+/** docx ImageRun 이 지원하는 이미지 타입만 통과(FE 가 webp/heic 를 재인코딩해 업로드). */
+const IMAGE_RUN_TYPE: Record<string, 'jpg' | 'png' | 'gif' | 'bmp'> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/bmp': 'bmp',
+};
+
+/** A4 본문 폭(px) — 마진 옵션 반영. 1px=15twips(96DPI) 로 미리보기 환산과 동일. */
+function usableWidthPx(options: DocxOptions): number {
+  const mL = (options.common.marginLeft / 2.54) * 1440;
+  const mR = (options.common.marginRight / 2.54) * 1440;
+  return Math.max(1, Math.floor((11906 - mL - mR) / 15));
+}
+
+/** 이미지 노드 → docx 문단들(이미지 + 캡션). 치수는 attrs → 로더 폴백 → 480×360. 축소만(비율 유지).
+ *  캡션은 미리보기와 동일 스펙(9pt #595959)으로 이미지 바로 아래 문단. */
+async function buildImageParagraphs(
+  node: JSONContent,
+  options: DocxOptions,
+  ctx: ImageContext,
+  maxWidthPx?: number
+): Promise<Paragraph[]> {
+  const src = typeof node.attrs?.src === 'string' ? node.attrs.src : '';
+  // blob:(업로드 미완료)/data: 인라인은 export 대상 아님.
+  if (!src || src.startsWith('blob:') || src.startsWith('data:')) return [];
+  if (!ctx.loadImage) return [];
+  if (!ctx.cache.has(src)) ctx.cache.set(src, await ctx.loadImage(src));
+  const img = ctx.cache.get(src) ?? null;
+  if (!img) return [];
+  const type = IMAGE_RUN_TYPE[(img.mime || '').toLowerCase()];
+  if (!type) return [];
+
+  let w = Number(node.attrs?.width) || img.width || 0;
+  let h = Number(node.attrs?.height) || img.height || 0;
+  if (!(w > 0) || !(h > 0)) {
+    w = 480;
+    h = 360;
+  }
+  const maxW = maxWidthPx ?? usableWidthPx(options);
+  if (w > maxW) {
+    h = Math.round((h * maxW) / w);
+    w = maxW;
+  }
+  // 미리보기와 동일 — 이미지·캡션 모두 가운데 정렬.
+  const image = new Paragraph({
+    alignment: AlignmentType.CENTER,
+    children: [new ImageRun({ type, data: img.data, transformation: { width: w, height: h } })],
+  });
+  const caption = typeof node.attrs?.caption === 'string' ? node.attrs.caption.trim() : '';
+  if (!caption) return [image];
+  const font = options.common.fontFamily.split(',')[0].trim().replace(/'/g, '');
+  return [
+    image,
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: caption, font, size: 9 * 2, color: '595959' })],
+    }),
+  ];
+}
+
+export async function generateDocx(
+  content: JSONContent,
+  raw: DocxOptions,
+  opts: GenerateDocxOptions = {}
+): Promise<Blob> {
   // 구 스냅샷(필드 누락·구 H4 single/second) 보정 → 현 모델로 정규화.
   const options = normalizeOptions(raw);
   const font = options.common.fontFamily.split(',')[0].trim().replace(/'/g, '');
   const commonSize = options.common.fontSize * 2;
   const children: (Paragraph | Table)[] = [];
+  const imgCtx: ImageContext = { ...opts, cache: new Map() };
 
   for (const node of content.content ?? []) {
     switch (node.type) {
@@ -89,8 +175,13 @@ export async function generateDocx(content: JSONContent, raw: DocxOptions): Prom
         }
         break;
       }
+      case 'image': {
+        const ps = await buildImageParagraphs(node, options, imgCtx);
+        children.push(...ps);
+        break;
+      }
       case 'table':
-        children.push(buildTable(node, options, font, commonSize));
+        children.push(await buildTable(node, options, font, commonSize, imgCtx));
         break;
       default: {
         // bulletList / orderedList / unknown → 인라인 평탄화해 단일 문단.
@@ -103,6 +194,11 @@ export async function generateDocx(content: JSONContent, raw: DocxOptions): Prom
             children: trs.length ? trs : [new TextRun({ text: '', font, size: commonSize })],
           })
         );
+        // 인용문 등 미지원 블록 내 직속 이미지도 드롭하지 않고 이어서 append.
+        for (const child of node.content ?? []) {
+          if (child.type !== 'image') continue;
+          children.push(...(await buildImageParagraphs(child, options, imgCtx)));
+        }
         break;
       }
     }
@@ -424,7 +520,13 @@ function createAnnotationParagraphs(runs: RunData[], options: DocxOptions, font:
  * 미리보기와 동일하게 평가·포맷한다. 수식은 매 내보내기마다 재평가(저장 시점 무관).
  * 숫자 포맷/수식 셀은 명시적 정렬이 없으면 우측 정렬(금액 표기 관례).
  */
-function buildTable(node: JSONContent, options: DocxOptions, font: string, commonSize: number): Table {
+async function buildTable(
+  node: JSONContent,
+  options: DocxOptions,
+  font: string,
+  commonSize: number,
+  imgCtx: ImageContext
+): Promise<Table> {
   const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: '333333' }; // 4 = 0.5pt
   const tableBorders = {
     top: cellBorder,
@@ -455,10 +557,14 @@ function buildTable(node: JSONContent, options: DocxOptions, font: string, commo
 
   // 문서 순서 커서 — buildTableGrid.cells 와 동일 순서로 셀을 순회하기 위함.
   let cellCursor = 0;
-  const rows = rowsArr.map((row) => {
+  const rows: TableRow[] = [];
+  for (const row of rowsArr) {
     const cells = (row.content ?? []).filter((c) => c.type === 'tableCell' || c.type === 'tableHeader');
     const isHeaderRow = cells.some((c) => c.type === 'tableHeader');
-    const tableCells = cells.map((cell) => {
+    const tableCells: TableCell[] = [];
+    // 셀 폭 클램프용 열 커서(병합 셀은 차지한 열 수만큼 전진).
+    let colCursor = 0;
+    for (const cell of cells) {
       const gc = grid.cells[cellCursor++] ?? null;
       const hasCalc = !!gc && (!!gc.formula || !!gc.format);
       const isHeader = cell.type === 'tableHeader';
@@ -504,15 +610,26 @@ function buildTable(node: JSONContent, options: DocxOptions, font: string, commo
 
       const colspan = cell.attrs?.colspan;
       const rowspan = cell.attrs?.rowspan;
-      return new TableCell({
-        columnSpan: colspan && colspan > 1 ? colspan : undefined,
-        rowSpan: rowspan && rowspan > 1 ? rowspan : undefined,
-        shading: bg ? { type: ShadingType.CLEAR, color: 'auto', fill: bg } : undefined,
-        children: paragraphs,
-      });
-    });
-    return new TableRow({ tableHeader: isHeaderRow || undefined, children: tableCells });
-  });
+      // 셀 직속 블록 이미지 — 셀 폭(colwidth twips→px)에 맞춰 클램프해 셀 단락 뒤에 append.
+      const cwTwips = columnWidths?.[colCursor];
+      const cellMaxPx = cwTwips && cwTwips > 0 ? Math.floor(cwTwips / 15) : undefined;
+      colCursor += colspan && colspan > 1 ? colspan : 1;
+      for (const child of cell.content ?? []) {
+        if (child.type !== 'image') continue;
+        paragraphs.push(...(await buildImageParagraphs(child, options, imgCtx, cellMaxPx)));
+      }
+
+      tableCells.push(
+        new TableCell({
+          columnSpan: colspan && colspan > 1 ? colspan : undefined,
+          rowSpan: rowspan && rowspan > 1 ? rowspan : undefined,
+          shading: bg ? { type: ShadingType.CLEAR, color: 'auto', fill: bg } : undefined,
+          children: paragraphs,
+        })
+      );
+    }
+    rows.push(new TableRow({ tableHeader: isHeaderRow || undefined, children: tableCells }));
+  }
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },

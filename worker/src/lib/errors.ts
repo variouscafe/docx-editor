@@ -18,3 +18,4 @@ export const forbidden = (msg: string, code = 'forbidden') => new ApiHttpError(4
 export const notFound = (msg = 'Not found', code = 'not_found') => new ApiHttpError(404, code, msg);
 export const conflict = (msg: string, code = 'conflict', details?: unknown) =>
   new ApiHttpError(409, code, msg, details);
+export const payloadTooLarge = (msg = 'Payload too large') => new ApiHttpError(413, 'too_large', msg);

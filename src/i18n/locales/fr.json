@@ -70,13 +70,16 @@
     "pending": "Modifié (en attente)",
     "exportDone": "Export DOCX terminé",
     "draftRestored": "Brouillon non enregistré restauré",
+    "imageUploadFailed": "Échec du téléversement de l'image",
     "onlineRestored": "De nouveau en ligne — reprise des enregistrements",
     "offlineWarning": "Hors ligne — les modifications sont enregistrées temporairement",
     "draftRestoreBanner": "Vous avez des modifications non enregistrées",
     "draftRestoreAt": "Vous avez des modifications non enregistrées ({{time}}).",
     "restore": "Restaurer",
     "discard": "Annuler",
-    "more": "Plus"
+    "more": "Plus",
+    "imageUnsupported": "Format d'image non pris en charge",
+    "imageCaptionPlaceholder": "Ajouter une description…"
   },
   "toolbar": {
     "undo": "Annuler",
@@ -94,6 +97,8 @@
     "annotation": "Note en marge",
     "annotationPlaceholder": "Saisir une note...",
     "insertTable": "Insérer un tableau",
+    "insertImage": "Insérer une image",
+    "imageSize": "Taille de l'image",
     "rowAbove": "Ligne au-dessus",
     "rowBelow": "Ligne en dessous",
     "deleteRow": "Supprimer la ligne",

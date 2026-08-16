@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Editor } from "@tiptap/react";
 import {
@@ -16,6 +16,7 @@ import {
   Undo2,
   Redo2,
   StickyNote,
+  ImagePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { highlightColors } from "./extensions/highlightColors";
+import {
+  insertImagesFromFiles,
+  IMAGE_SIZE_PRESETS,
+  applyImageSizePreset,
+  imageContentWidthPx,
+} from "./extensions/image";
 
 interface RichTextToolbarProps {
   editor: Editor | null;
@@ -46,6 +53,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
   const [annotationText, setAnnotationText] = useState("");
   const [tableOpen, setTableOpen] = useState(false);
   const [hoverCell, setHoverCell] = useState<{ r: number; c: number } | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   // 트랜잭션마다 재렌더 — TipTap v3 useEditor 는 기본적으로 transaction 에 재렌더하지 않아
   // 커서만 옮기면 active/Select 값이 스테일해진다(TableToolbar 와 동일 패턴).
   const [, setTick] = useState(0);
@@ -192,6 +200,10 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
       .find((pt) => editor.isActive("fontSize", { fontSize: pt }))
       ?.toString() ?? "default";
 
+  // 이미지 노드 선택 시 텍스트 서식 도구(헤딩/폰트크기/굵게·밑줄 등)는 무의미 → 숨김.
+  // 실행취소·표·이미지 삽입은 유지. 트랜잭션마다 재렌더되므로 선택 전환 즉시 반영.
+  const imageActive = editor.isActive("image");
+
   return (
     <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b bg-background px-3 py-2 lg:flex-wrap [&>*]:shrink-0">
       {/* 실행 취소 / 다시 실행 — 도구 모음 최좌측.
@@ -223,6 +235,8 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
       </div>
       <Separator orientation="vertical" className="mx-1 h-6" />
 
+      {!imageActive && (
+      <>
       {/* Heading select */}
       <Select
         value={headingValue}
@@ -270,6 +284,8 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
           ))}
         </SelectContent>
       </Select>
+      </>
+      )}
 
       {/* 표 삽입 — N×M 그리드 선택기 */}
       <Popover
@@ -323,6 +339,62 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
         </PopoverContent>
       </Popover>
 
+      {/* 이미지 삽입 — 파일 선택(모바일은 갤러리/카메라 선택지). paste/drop 과 같은 업로드 파이프라인. */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          e.target.value = ""; // 같은 파일 다시 선택 가능하게 초기화
+          if (files.length) {
+            editor.chain().focus().run();
+            insertImagesFromFiles(editor, files, editor.state.selection.from);
+          }
+        }}
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8"
+        onClick={() => imageInputRef.current?.click()}
+        title={t("toolbar.insertImage")}
+        aria-label={t("toolbar.insertImage")}
+      >
+        <ImagePlus className="size-4" />
+      </Button>
+
+      {/* 이미지 선택 시 — 크기 프리셋(본문 폭 기준 %). 모바일에서 핸들 드래그 대신 원터치. */}
+      {imageActive && (
+        <div className="ml-1 flex items-center gap-0.5">
+          <span className="mr-1 text-xs text-muted-foreground">{t("toolbar.imageSize")}</span>
+          {(() => {
+            const cw = imageContentWidthPx(editor);
+            const w = Number(editor.getAttributes("image").width) || 0;
+            return IMAGE_SIZE_PRESETS.map((pct) => {
+              const target = Math.round(cw * pct);
+              const active = Math.abs(w - target) <= 2;
+              return (
+                <Button
+                  key={pct}
+                  variant={active ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => applyImageSizePreset(editor, pct)}
+                  aria-label={`${t("toolbar.imageSize")} ${Math.round(pct * 100)}%`}
+                >
+                  {Math.round(pct * 100)}%
+                </Button>
+              );
+            });
+          })()}
+        </div>
+      )}
+
+      {!imageActive && (
+      <>
       {tools.map((tool, i) => {
         if ("divider" in tool) {
           return <Separator key={i} orientation="vertical" className="mx-1 h-6" />;
@@ -361,6 +433,8 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
           />
         ))}
       </div>
+      </>
+      )}
 
       {/* Annotation input popup */}
       {annotationMode && (

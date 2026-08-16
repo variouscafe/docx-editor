@@ -34,6 +34,17 @@ function renderBlocks(nodes: JSONContent[]): string {
       case "table":
         out.push(renderTable(node));
         break;
+      case "image": {
+        // 블록 이미지 — ![설명](src). 캡션(설명)을 우선, 없으면 alt. escapeRaw 가 [] 를
+        // 훼손하므로 인라인 경유 없이 직접 출력. 재반입 시 marked 가 alt → parseHTML 캡션 복원.
+        const src = String(node.attrs?.src ?? "");
+        if (src) {
+          const caption = String(node.attrs?.caption ?? "").replace(/[[\]]/g, "");
+          const alt = caption || String(node.attrs?.alt ?? "").replace(/[[\]]/g, "");
+          out.push(`![${alt}](${src})\n`);
+        }
+        break;
+      }
       case "hardBreak":
         break;
       default:

@@ -164,3 +164,26 @@ export const reportShares = sqliteTable(
     groupIdx: index('idx_rs_group').on(t.groupId),
   }),
 );
+
+/**
+ * 업로드 이미지(R2 objects). 실제 바이너리는 R2 `uploads/{id}` — 본 테이블은
+ * 소유권/용량 audit 용(조회 라우트는 R2만 읽음). width/height 는 클라이언트 실측값으로
+ * 에디터 레이아웃·DOCX export 기본 폭/높이로 사용.
+ */
+export const uploads = sqliteTable(
+  'uploads',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    // 매직바이트 스니프 결과(image/png|image/jpeg|image/gif).
+    mime: text('mime').notNull(),
+    bytes: integer('bytes').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    r2Key: text('r2_key').notNull(),
+    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  },
+  (t) => ({
+    userIdx: index('idx_uploads_user').on(t.userId, t.createdAt),
+  }),
+);

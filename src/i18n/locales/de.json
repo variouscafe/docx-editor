@@ -70,13 +70,16 @@
     "pending": "Geändert (ausstehend)",
     "exportDone": "DOCX-Export abgeschlossen",
     "draftRestored": "Ungespeicherter Entwurf wiederhergestellt",
+    "imageUploadFailed": "Bild-Upload fehlgeschlagen",
     "onlineRestored": "Wieder online — Speichern wird fortgesetzt",
     "offlineWarning": "Offline — Änderungen werden temporär gespeichert",
     "draftRestoreBanner": "Du hast ungespeicherte Änderungen",
     "draftRestoreAt": "Du hast ungespeicherte Änderungen ({{time}}).",
     "restore": "Wiederherstellen",
     "discard": "Verwerfen",
-    "more": "Mehr"
+    "more": "Mehr",
+    "imageUnsupported": "Nicht unterstütztes Bildformat",
+    "imageCaptionPlaceholder": "Beschreibung hinzufügen…"
   },
   "toolbar": {
     "undo": "Rückgängig",
@@ -94,6 +97,8 @@
     "annotation": "Randnotiz",
     "annotationPlaceholder": "Notiz eingeben...",
     "insertTable": "Tabelle einfügen",
+    "insertImage": "Bild einfügen",
+    "imageSize": "Bildgröße",
     "rowAbove": "Zeile oben",
     "rowBelow": "Zeile unten",
     "deleteRow": "Zeile löschen",

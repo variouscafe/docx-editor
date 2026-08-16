@@ -32,7 +32,7 @@ export default function DocxPreview({
   onContentChange,
 }: DocxPreviewProps) {
   const editor = usePreviewEditor({ json, options, editable, onContentChange });
-  const { containerRef, scaledInnerRef, effectiveScale, userZoom, setUserZoom, unscaledH } =
+  const { containerRef, scaledInnerRef, effectiveScale, userZoom, setUserZoom, unscaledH, touchAction } =
     usePreviewScale(editor);
 
   // 미리보기 CSS 는 options/editable 에만 의존. ReportEditor 는 타이핑마다 editorJson 만 바꾸고
@@ -85,9 +85,12 @@ export default function DocxPreview({
           backgroundColor: "var(--preview-canvas)",
           paddingTop: 20,
           paddingBottom: 20,
-          // pan-y(세로 스크롤만 허용) — 가로 미세 흔들림이 스크롤로 오인돼 모바일 탭 selection 이
-          // 포기되는 것(PM MouseDown.up allowDefault)을 줄인다. 핀치줌은 별도(2손가락), 표 셀은 touch-action:none.
-          touchAction: "pan-y",
+          // touch-action 은 usePreviewScale 이 기하(가로 overflow)에서 파생해 내려준다(단일 소스).
+          //  - 미확대: "pan-y" — 가로 미세 흔들림이 스크롤로 오인돼 모바일 탭 selection 이 포기되는
+          //    것(PM MouseDown.up allowDefault)을 줄인다(기존 동작 유지).
+          //  - 확대로 넘침: "pan-x pan-y" — 1손가락 드래그로 좌우 패닝. 표 셀은 td/th 의
+          //    touch-action: pan-y(previewStyles) 가 더 안쪽에서 이기므로 셀 드래그 선택은 유지.
+          touchAction,
         }}
       >
         <style>{previewCss}</style>

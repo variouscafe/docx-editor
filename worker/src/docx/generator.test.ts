@@ -33,8 +33,12 @@ async function readZipEntryText(buf: ArrayBuffer, name: string): Promise<string>
   throw new Error(`zip entry not found: ${name}`);
 }
 
-async function documentXml(content: object, options: unknown = defaultOptions): Promise<string> {
-  const blob = await generateDocx(content as never, options as never);
+async function documentXml(
+  content: object,
+  options: unknown = defaultOptions,
+  opts?: { loadImage?: (src: string) => Promise<{ data: ArrayBuffer | Uint8Array; mime: string; width?: number; height?: number } | null> },
+): Promise<string> {
+  const blob = await generateDocx(content as never, options as never, opts);
   return readZipEntryText(await blob.arrayBuffer(), "word/document.xml");
 }
 
@@ -249,5 +253,149 @@ describe("generateDocx — 포맷 패리티", () => {
   it("빈 문서·빈 옵션도 크래시 없이 생성된다", async () => {
     const blob = await generateDocx({ type: "doc", content: [] }, {} as never);
     expect(blob.size).toBeGreaterThan(0);
+  });
+});
+
+describe("generateDocx — 이미지 노드", () => {
+  /** 이미지 바이트 내용은 생성기가 해석하지 않음(원본 삽입) — 임의 PNG 헤더 바이트. */
+  const FAKE_PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+  const loadImage = async () => ({ data: FAKE_PNG, mime: "image/png" });
+  const imageNode = (attrs: Record<string, unknown>) => ({ type: "image", attrs });
+  const EMU_PER_PX = 9525;
+  /** 기본 마진(2cm) 기준 A4 본문 폭 px — generator 와 동일 환산식(1px=15twips). */
+  const usablePx = Math.floor(
+    (11906 - ((defaultOptions.common.marginLeft + defaultOptions.common.marginRight) / 2.54) * 1440) / 15,
+  );
+
+  it("attrs 치수의 이미지 → w:drawing + wp:extent(px×9525 EMU)", async () => {
+    const xml = await documentXml(
+      { type: "doc", content: [imageNode({ src: "/api/images/x", width: 100, height: 50 })] },
+      defaultOptions,
+      { loadImage },
+    );
+    expect(xml).toContain("<w:drawing>");
+    expect(xml).toContain(`cx="${100 * EMU_PER_PX}"`);
+    expect(xml).toContain(`cy="${50 * EMU_PER_PX}"`);
+  });
+
+  it("본문 폭 초과 → usable 폭으로 클램프(비율 유지, 확대 없음)", async () => {
+    const xml = await documentXml(
+      { type: "doc", content: [imageNode({ src: "/api/images/x", width: 5000, height: 3000 })] },
+      defaultOptions,
+      { loadImage },
+    );
+    expect(xml).toContain(`cx="${usablePx * EMU_PER_PX}"`);
+    expect(xml).toContain(`cy="${Math.round((3000 * usablePx) / 5000) * EMU_PER_PX}"`);
+  });
+
+  it("attrs 치수 없음 → 로더(R2 customMetadata) 치수로 폴백", async () => {
+    const xml = await documentXml(
+      { type: "doc", content: [imageNode({ src: "/api/images/x" })] },
+      defaultOptions,
+      { loadImage: async () => ({ data: FAKE_PNG, mime: "image/png", width: 80, height: 40 }) },
+    );
+    expect(xml).toContain(`cx="${80 * EMU_PER_PX}"`);
+  });
+
+  it("loadImage 가 null → drawing 없이 정상 생성(스킵)", async () => {
+    const xml = await documentXml(
+      { type: "doc", content: [imageNode({ src: "/api/images/missing", width: 10, height: 10 })] },
+      defaultOptions,
+      { loadImage: async () => null },
+    );
+    expect(xml).not.toContain("<w:drawing>");
+  });
+
+  it("opts 미제공(레거시 호출) → 이미지 스킵, 예외 없음", async () => {
+    const xml = await documentXml({
+      type: "doc",
+      content: [imageNode({ src: "/api/images/x", width: 10, height: 10 })],
+    });
+    expect(xml).not.toContain("<w:drawing>");
+  });
+
+  it("blob:/data: src → export 대상 아님(로더 호출 없음)", async () => {
+    let called = 0;
+    const xml = await documentXml(
+      { type: "doc", content: [imageNode({ src: "blob:https://x/y", width: 10, height: 10 })] },
+      defaultOptions,
+      {
+        loadImage: async () => {
+          called += 1;
+          return { data: FAKE_PNG, mime: "image/png" };
+        },
+      },
+    );
+    expect(called).toBe(0);
+    expect(xml).not.toContain("<w:drawing>");
+  });
+
+  it("표 셀 내 블록 이미지 → 셀 안에 렌더(드롭 방지)", async () => {
+    const xml = await documentXml(
+      {
+        type: "doc",
+        content: [
+          {
+            type: "table",
+            content: [
+              {
+                type: "tableRow",
+                content: [
+                  {
+                    type: "tableCell",
+                    content: [
+                      { type: "paragraph", content: [text("셀")] },
+                      imageNode({ src: "/api/images/x", width: 60, height: 30 }),
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      defaultOptions,
+      { loadImage },
+    );
+    expect(xml).toContain("<w:drawing>");
+    expect(xml).toContain(`cx="${60 * EMU_PER_PX}"`);
+  });
+
+  it("캡션(설명) attrs → 이미지 아래 9pt 회색 문단으로 export(이미지·캡션 가운데 정렬)", async () => {
+    const xml = await documentXml(
+      {
+        type: "doc",
+        content: [imageNode({ src: "/api/images/x", width: 100, height: 50, caption: "그림 1. 캡처 설명" })],
+      },
+      defaultOptions,
+      { loadImage },
+    );
+    expect(xml).toContain("<w:drawing>");
+    expect(xml).toContain("그림 1. 캡처 설명");
+    expect(xml).toMatch(/<w:sz w:val="18".{0,200}?그림 1/); // 9pt = 18 half-point
+    expect(xml).toMatch(/w:val="595959"/);
+    // 이미지 문단 + 캡션 문단 모두 center 정렬(미리보기와 동일).
+    expect((xml.match(/<w:jc w:val="center"\/>/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("같은 src 반복 → 로더 1회(호출 스코프 캐시)", async () => {
+    let called = 0;
+    await documentXml(
+      {
+        type: "doc",
+        content: [
+          imageNode({ src: "/api/images/same", width: 10, height: 10 }),
+          imageNode({ src: "/api/images/same", width: 10, height: 10 }),
+        ],
+      },
+      defaultOptions,
+      {
+        loadImage: async () => {
+          called += 1;
+          return { data: FAKE_PNG, mime: "image/png" };
+        },
+      },
+    );
+    expect(called).toBe(1);
   });
 });

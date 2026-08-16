@@ -32,6 +32,7 @@ import {
 } from "@/api/reports";
 import { getDefaultTemplate } from "@/api/templates";
 import { refreshAccessToken } from "@/api/client";
+import { waitForPendingImageUploads } from "@/api/uploads";
 import { HttpError } from "@/lib/http-client";
 import { useAuthStore } from "@/store/auth";
 import { decodeJwt } from "@/lib/jwt";
@@ -78,6 +79,23 @@ function saveErrMsg(e: unknown, t: TFunction): string {
   return status ? t("editor.saveFailedStatus", { status }) : t("editor.saveFailed");
 }
 
+/** blob: src 이미지 노드(업로드 미완료) 제거 — draft 복구 시 세션 종료로 죽은 URL 정리. */
+function stripBlobImages(node: JSONContent): JSONContent {
+  if (!node.content?.length) return node;
+  let changed = false;
+  const content: JSONContent[] = [];
+  for (const child of node.content) {
+    if (child.type === "image" && String(child.attrs?.src ?? "").startsWith("blob:")) {
+      changed = true;
+      continue;
+    }
+    const cleaned = stripBlobImages(child);
+    if (cleaned !== child) changed = true;
+    content.push(cleaned);
+  }
+  return changed ? { ...node, content } : node;
+}
+
 export default function ReportEditor() {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
@@ -107,6 +125,14 @@ export default function ReportEditor() {
   // (setDirty(false) 가 저장 중 타이핑한 내용까지 "저장됨"으로 만드는 경쟁 방지)
   const latestDocRef = useRef<{ title: string; content: JSONContent; templateOptions: DocxOptions; templateId: string | null } | null>(null);
   latestDocRef.current = { title, content: editorJson, templateOptions: options, templateId };
+  // 에디터 JSON 동기 미러 ref — buildBody 가 항상 최신 content 를 읽게 한다. setState 는
+  // 재렌더 전 클로저에 옛 값을 남기므로, 이미지 업로드 src 교체 트랜잭션이 저장(PATCH)과
+  // 경합할 때 blob: src 가 영속화되는 갭을 이 ref 로 막는다.
+  const editorJsonRef = useRef(editorJson);
+  const applyEditorJson = useCallback((json: JSONContent) => {
+    editorJsonRef.current = json;
+    setEditorJson(json);
+  }, []);
   // 신규 생성 직후 라우트 이동된 id 는 서버 재취득 스킵 — 생성 요청 중 입력한 내용 보존.
   const createdIdRef = useRef<string | null>(null);
   // 연속 저장 실패 횟수 → 백오프 지연 계산. 성공 시 0 으로 리셋.
@@ -141,7 +167,7 @@ export default function ReportEditor() {
       .then((r) => {
         if (!active) return;
         setTitle(r.title);
-        setEditorJson(r.content);
+        applyEditorJson(r.content);
         setOptions(normalizeOptions(r.templateOptions));
         setTemplateId(r.templateId);
         setPermission(r.permission);
@@ -179,10 +205,13 @@ export default function ReportEditor() {
     };
   }, [id]);
 
-  const onContentChange = useCallback((json: JSONContent) => {
-    setEditorJson(json);
-    setDirty(true);
-  }, []);
+  const onContentChange = useCallback(
+    (json: JSONContent) => {
+      applyEditorJson(json);
+      setDirty(true);
+    },
+    [applyEditorJson]
+  );
 
   const onOptionsChange = useCallback((o: DocxOptions) => {
     setOptions(o);
@@ -205,7 +234,7 @@ export default function ReportEditor() {
   // 되돌린 서버 상태가 새 기준점이므로 updatedAt 갱신 + 충돌 상태 해제(충돌 복구 경로).
   const handleRestored = useCallback((r: Report) => {
     setTitle(r.title);
-    setEditorJson(r.content);
+    applyEditorJson(r.content);
     setOptions(normalizeOptions(r.templateOptions));
     setTemplateId(r.templateId);
     updatedAtRef.current = r.updatedAt;
@@ -213,18 +242,19 @@ export default function ReportEditor() {
     conflictToastRef.current = false;
     setSaveError(null);
     setDirty(false);
-  }, []);
+  }, [applyEditorJson]);
 
-  const buildBody = useCallback(
-    () => ({
+  const buildBody = useCallback(() => {
+    // ref 에서 읽어 항상 최신 content 사용(재렌더 전 클로저 스테일 방지).
+    const content = editorJsonRef.current;
+    return {
       title,
-      content: editorJson,
-      contentMd: jsonToMarkdown(editorJson),
+      content,
+      contentMd: jsonToMarkdown(content),
       templateOptions: options,
       templateId,
-    }),
-    [title, editorJson, options, templateId]
-  );
+    };
+  }, [title, options, templateId]);
 
   // 저장 직전 액세스 토큰 만료(60s 이내) 선제 갱신 → 토큰 만료로 인한 401 저장 실패 방지.
   const ensureFreshToken = useCallback(async (): Promise<boolean> => {
@@ -270,6 +300,9 @@ export default function ReportEditor() {
       const run = (async () => {
         try {
           await ensureFreshToken();
+          // 진행 중 이미지 업로드가 끝날 때까지 대기 — blob: src 저장 영속화 방지.
+          // 각 업로드 promise 는 src 교체 dispatch 까지 커버 → 대기 해제 시 ref 가 최신.
+          await waitForPendingImageUploads();
           const body = buildBody();
           const saved = await updateReport(targetId, body, updatedAtRef.current ?? undefined);
           // 저장 중 새 편집이 있으면 dirty 유지 → debounce effect 가 재저장 예약.
@@ -344,6 +377,7 @@ export default function ReportEditor() {
     const created = await (async () => {
       try {
         await ensureFreshToken();
+        await waitForPendingImageUploads(); // blob: src 저장 방지(saveOnce 와 동일)
         const body = buildBody();
         const row = await createReport(body);
         if (snapshotIsCurrent(body)) setDirty(false);
@@ -462,13 +496,14 @@ export default function ReportEditor() {
   const restoreDraft = useCallback(() => {
     if (!draft) return;
     setTitle(draft.value.title);
-    setEditorJson(draft.value.content);
+    // 세션이 끊겨 죽은 blob: 이미지(업로드 미완료 노드)는 제거 후 복구 — 빈 박스 방지.
+    applyEditorJson(stripBlobImages(draft.value.content));
     setOptions(normalizeOptions(draft.value.templateOptions));
     setTemplateId(draft.value.templateId);
     setDirty(true);
     clearDraft();
     toast.success(t("editor.draftRestored"));
-  }, [draft, clearDraft]);
+  }, [draft, clearDraft, applyEditorJson, t]);
 
   if (loading) {
     return (

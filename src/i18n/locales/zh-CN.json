@@ -70,13 +70,16 @@
     "pending": "已修改（待保存）",
     "exportDone": "DOCX 导出完成",
     "draftRestored": "已恢复未保存的草稿",
+    "imageUploadFailed": "图片上传失败",
     "onlineRestored": "已恢复在线 —— 继续保存",
     "offlineWarning": "离线 —— 更改已临时保存",
     "draftRestoreBanner": "您有未保存的更改",
     "draftRestoreAt": "您有未保存的更改（{{time}}）。",
     "restore": "恢复",
     "discard": "放弃",
-    "more": "更多"
+    "more": "更多",
+    "imageUnsupported": "不支持的图片格式",
+    "imageCaptionPlaceholder": "添加说明…"
   },
   "toolbar": {
     "undo": "撤销",
@@ -94,6 +97,8 @@
     "annotation": "批注",
     "annotationPlaceholder": "输入批注…",
     "insertTable": "插入表格",
+    "insertImage": "插入图片",
+    "imageSize": "图片大小",
     "rowAbove": "在上方插入行",
     "rowBelow": "在下方插入行",
     "deleteRow": "删除行",

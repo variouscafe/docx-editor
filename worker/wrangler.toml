@@ -14,5 +14,11 @@ database_name = "docs"
 database_id = "0606012f-3d13-40d2-ae2a-3298c2e4474a"
 migrations_dir = "migrations"
 
+# R2 — 보고서 삽입용 업로드 이미지. key = uploads/{uuid}(= D1 uploads.id).
+# 버킷 생성(1회): npx wrangler r2 bucket create docx-editor-images
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "docx-editor-images"
+
 # Secrets (npx wrangler secret put ... 로 설정):
 #   JWT_SECRET — suseona-auth 의 JWT_SECRET 와 '동일한 값'으로 설정(같은 토큰을 검증하기 위해).

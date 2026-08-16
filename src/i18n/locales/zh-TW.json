@@ -70,13 +70,16 @@
     "pending": "已修改 (待儲存)",
     "exportDone": "DOCX 匯出完成",
     "draftRestored": "已還原未儲存的草稿",
+    "imageUploadFailed": "圖片上傳失敗",
     "onlineRestored": "已恢復連線 — 繼續儲存",
     "offlineWarning": "離線 — 變更將暫時儲存",
     "draftRestoreBanner": "您有未儲存的變更",
     "draftRestoreAt": "您有未儲存的變更 ({{time}})。",
     "restore": "還原",
     "discard": "捨棄",
-    "more": "更多"
+    "more": "更多",
+    "imageUnsupported": "不支援的圖片格式",
+    "imageCaptionPlaceholder": "新增說明…"
   },
   "toolbar": {
     "undo": "復原",
@@ -94,6 +97,8 @@
     "annotation": "批註",
     "annotationPlaceholder": "輸入批註...",
     "insertTable": "插入表格",
+    "insertImage": "插入圖片",
+    "imageSize": "圖片大小",
     "rowAbove": "在上方插入列",
     "rowBelow": "在下方插入列",
     "deleteRow": "刪除列",

@@ -338,6 +338,41 @@ reportRoutes.delete('/:id', async (c) => {
   return c.body(null, 204);
 });
 
+/** DOCX export 용 이미지 로더 — 내부(/api/images/)는 R2 직접 read, 외부 URL 은 fetch. */
+const IMAGE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const IMAGES_PATH = '/api/images/';
+const FETCH_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+async function loadExportImage(env: AppEnv['Bindings'], src: string) {
+  if (src.startsWith(IMAGES_PATH)) {
+    const id = src.slice(IMAGES_PATH.length);
+    if (!IMAGE_ID_RE.test(id)) return null;
+    const obj = await env.IMAGES.get(`uploads/${id}`);
+    if (!obj) return null;
+    return {
+      data: await obj.arrayBuffer(),
+      mime: obj.httpMetadata?.contentType ?? 'application/octet-stream',
+      width: Number(obj.customMetadata?.width) || undefined,
+      height: Number(obj.customMetadata?.height) || undefined,
+    };
+  }
+  if (/^https?:\/\//i.test(src)) {
+    // 마크다운 가져오기 등 외부 이미지. 용량/시간 제한.
+    try {
+      const res = await fetch(src, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) return null;
+      const len = Number(res.headers.get('content-length') ?? 0);
+      if (len > FETCH_IMAGE_MAX_BYTES) return null;
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength > FETCH_IMAGE_MAX_BYTES) return null;
+      return { data: buf, mime: res.headers.get('content-type') ?? 'application/octet-stream' };
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 /**
  * DOCX 내보내기 — 저장된 content(JSON) + templateOptions(스냅샷) 로 BE 에서 생성.
  * DOM-free. docx 패키지는 이 핸들러에서만 lazy import(다른 라우트 콜드스타트 회피).
@@ -348,7 +383,9 @@ reportRoutes.post('/:id/export', async (c) => {
   const { row } = await ensureReportAccess(db, c.req.param('id'), userId);
 
   const { generateDocx } = await import('../docx/generator.js');
-  const buf = await generateDocx(JSON.parse(row.content), JSON.parse(row.templateOptions));
+  const buf = await generateDocx(JSON.parse(row.content), JSON.parse(row.templateOptions), {
+    loadImage: (src) => loadExportImage(c.env, src),
+  });
 
   const safeName = (row.title || 'document').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
   return new Response(buf, {

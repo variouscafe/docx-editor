@@ -70,13 +70,16 @@
     "pending": "Modified (pending)",
     "exportDone": "DOCX export complete",
     "draftRestored": "Restored unsaved draft",
+    "imageUploadFailed": "Image upload failed",
     "onlineRestored": "Back online — resuming saves",
     "offlineWarning": "Offline — changes are saved temporarily",
     "draftRestoreBanner": "You have unsaved changes",
     "draftRestoreAt": "You have unsaved changes ({{time}}).",
     "restore": "Restore",
     "discard": "Discard",
-    "more": "More"
+    "more": "More",
+    "imageUnsupported": "Unsupported image format",
+    "imageCaptionPlaceholder": "Add a description…"
   },
   "toolbar": {
     "undo": "Undo",
@@ -94,6 +97,8 @@
     "annotation": "Side note",
     "annotationPlaceholder": "Enter a note...",
     "insertTable": "Insert table",
+    "insertImage": "Insert image",
+    "imageSize": "Image size",
     "rowAbove": "Add row above",
     "rowBelow": "Add row below",
     "deleteRow": "Delete row",

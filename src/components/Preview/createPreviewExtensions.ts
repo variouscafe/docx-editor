@@ -20,6 +20,7 @@ import { HeadingHardBreak } from "../Editor/extensions/headingHardBreak";
 import { FontSize } from "../Editor/extensions/fontSize";
 import { PreviewDecorations } from "../Editor/extensions/previewDecorations";
 import { HeadingPrefix, HeadingPrefixSync } from "../Editor/extensions/headingPrefix";
+import { EditorImage, ImageUpload } from "../Editor/extensions/image";
 import type { DocxOptions } from "@shared/options";
 import { caretPosFromPoint } from "@/utils/caretPos";
 
@@ -82,6 +83,10 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
     // 표 열 너비 미러(display:contents → colgroup 무력화 우회). colgroup 변경 시에만
     // 셀 flex-grow 적용(텍스트 편집엔 no-op) → 입력 시 표 흔들림/잔상 방지.
     TableColumnWidthMirror,
+    // 블록 이미지(R2 업로드) + paste/drop 업로드 파이프라인. 표 익스텐션 뒤에 등록해
+    // 수식 셀 보호 핸들러(tableFormulaPlugin)가 드롭을 먼저 가로채도록 한다.
+    EditorImage,
+    ImageUpload,
     MeasurePagination.configure({
       pageHeight: opts.pageHeight,
       pageWidth: opts.pageWidth,
