@@ -141,6 +141,9 @@ export default function ReportEditor() {
   const updatedAtRef = useRef<string | null>(null);
   // 409 conflict 발생 플래그 — 충돌 해결(새로고침/되돌리기) 전 자동저장 중단.
   const conflictRef = useRef(false);
+  // 리비전 되돌리기 진행 중 — flush 완료~복원 커밋 사이 창구에 예약돼 있던 debounce
+  // 자동저장이 발사돼 복원 직전 내용으로 덮어쓰는 경쟁 방지(대화상자 닫힘 시 해제).
+  const restoringRef = useRef(false);
   // 충돌 토스트 중복 표시 방지(자동저장 재시도 없이 1회만 알림).
   const conflictToastRef = useRef(false);
   const [permission, setPermission] = useState<ReportPermission>("owner");
@@ -180,11 +183,17 @@ export default function ReportEditor() {
         setDirty(false);
         setLoading(false);
       })
-      .catch(() => navigate("/reports", { replace: true }));
+      .catch((e) => {
+        if (!active) return;
+        // 무음 리다이렉트 금지 — 네트워크 오류/로그아웃/500 을 사용자가 알 수 있게.
+        console.error("[load report failed]", e);
+        toast.error(saveErrMsg(e, t));
+        navigate("/reports", { replace: true });
+      });
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   // 신규 보고서 — 사용자 기본 템플릿으로 초기화. 미지정(204)이면 defaultOptions(빌트인 기본 양식) 유지.
   useEffect(() => {
@@ -256,6 +265,15 @@ export default function ReportEditor() {
     };
   }, [title, options, templateId]);
 
+  /** 저장 전송용 body — blob: 이미지 노드(업로드 미완료 잔존)를 제거하는 방어선.
+   *  레지스트리 대기 후에도 blob: 노드가 남는 경로(에디터 파괴로 src 교체 누락 등)에서
+   *  서버에 죽은 src 가 영속화되는 것을 막는다. 원본 body 는 그대로(dirty 판정 참조 비교용). */
+  const buildSanitizedBody = useCallback((body: ReturnType<typeof buildBody>) => {
+    const content = stripBlobImages(body.content);
+    if (content === body.content) return body;
+    return { ...body, content, contentMd: jsonToMarkdown(content) };
+  }, []);
+
   // 저장 직전 액세스 토큰 만료(60s 이내) 선제 갱신 → 토큰 만료로 인한 401 저장 실패 방지.
   const ensureFreshToken = useCallback(async (): Promise<boolean> => {
     const { accessToken } = useAuthStore.getState();
@@ -287,23 +305,25 @@ export default function ReportEditor() {
   );
 
   // 진행 중 저장 Promise — 내보내기 등이 저장 완료를 기다릴 수 있게 추적.
-  const savingPromiseRef = useRef<Promise<void> | null>(null);
+  const savingPromiseRef = useRef<Promise<boolean> | null>(null);
 
-  /** 1회 저장 실행(가드 포함). save() 가 flush 루프에서 호출. */
+  /** 1회 저장 실행(가드 포함). save() 가 flush 루프에서 호출. 성공 여부 반환. */
   const saveOnce = useCallback(
-    async (targetId: string, opts?: { manual?: boolean }) => {
+    async (targetId: string, opts?: { manual?: boolean }): Promise<boolean> => {
       // 저장/생성 중이면 무시(수동 탭과 자동저장 경쟁 시 중복 PATCH 방지).
       // 버튼은 비활성화하지 않아 탭이 항상 인식되고, 진행 중엔 스피너로 피드백.
-      if (savingRef.current) return;
+      // 진행 중 저장이 있으면 그 결과를 그대로 반환(중복 실행하지 않음).
+      if (savingRef.current) return (await savingPromiseRef.current) ?? true;
       savingRef.current = true;
       setSaving(true);
       const run = (async () => {
         try {
-          await ensureFreshToken();
+          // 토큰 갱신 실패(로그아웃됨)면 도단 401 왕복 없이 즉시 저장 실패로 처리.
+          if (!(await ensureFreshToken())) throw new Error("Not signed in");
           // 진행 중 이미지 업로드가 끝날 때까지 대기 — blob: src 저장 영속화 방지.
           // 각 업로드 promise 는 src 교체 dispatch 까지 커버 → 대기 해제 시 ref 가 최신.
           await waitForPendingImageUploads();
-          const body = buildBody();
+          const body = buildSanitizedBody(buildBody());
           const saved = await updateReport(targetId, body, updatedAtRef.current ?? undefined);
           // 저장 중 새 편집이 있으면 dirty 유지 → debounce effect 가 재저장 예약.
           if (snapshotIsCurrent(body)) setDirty(false);
@@ -313,6 +333,7 @@ export default function ReportEditor() {
           setSaveErrorAt(null);
           retryCountRef.current = 0;
           if (opts?.manual) toast.success(t("editor.saved"));
+          return true;
         } catch (e) {
           console.error("[save failed]", e);
           // 낙관적 동시성 충돌(다른 탭/기기에서 갱신) — 재시도 금지, 자동저장 중단 후 안내.
@@ -331,45 +352,51 @@ export default function ReportEditor() {
             retryCountRef.current += 1;
             if (opts?.manual) toast.error(saveErrMsg(e, t));
           }
+          return false;
         } finally {
           savingRef.current = false;
           setSaving(false);
         }
       })();
       savingPromiseRef.current = run;
-      await run;
+      const ok = await run;
       savingPromiseRef.current = null;
+      return ok;
     },
-    [buildBody, ensureFreshToken, snapshotIsCurrent, t]
+    [buildBody, buildSanitizedBody, ensureFreshToken, snapshotIsCurrent, t]
   );
 
   /**
    * 저장(플러시 보장) — 진행 중 저장이 있으면 종료까지 대기하고, 그 사이 편집이 있으면
    * 다시 저장해 dirty 가 없는 상태로 수렴시킨다. 내보내기가 이를 await 하므로 항상
    * 최신 내용의 DOCX 를 받는다(진행 중 early-return 으로 옛 내용을 내보내던 경쟁 방지).
+   * 반환값: 서버가 최신 상태로 저장됐는지(실패·충돌 시 false).
    */
   const save = useCallback(
-    async (opts?: { manual?: boolean }) => {
+    async (opts?: { manual?: boolean }): Promise<boolean> => {
       const targetId = id;
-      if (!targetId) return;
+      if (!targetId) return false;
+      // 비수동 호출(자동저장·되돌리기 flush·뒤로가기)은 변경이 없고 진행 중 저장도 없으면
+      // 스킵 — 불필요한 PATCH 가 리비전 복원/재오픈 로드와 경합하는 것을 방지한다.
+      if (!opts?.manual && !dirtyRef.current && !savingPromiseRef.current) return true;
       for (let guard = 0; guard < 5; guard++) {
         while (savingPromiseRef.current) await savingPromiseRef.current.catch(() => {});
-        const retriesBefore = retryCountRef.current;
-        await saveOnce(targetId, opts);
-        if (!dirtyRef.current) return;
-        // 저장 실패(재시도 카운터 증가) 시 즉시 반복하지 않음 — 백오프 자동저장에 맡긴다.
-        if (retryCountRef.current > retriesBefore) return;
+        const ok = await saveOnce(targetId, opts);
+        // 실패(예외·409) 시 즉시 반복하지 않음 — 백오프 자동저장에 맡긴다.
+        if (!ok) return false;
+        if (!dirtyRef.current) return true;
       }
+      return !dirtyRef.current;
     },
     [id, saveOnce]
   );
 
-  // 신규 → 생성 후 라우트 이동. 기존 → 저장 후 id 반환.
+  // 신규 → 생성 후 라우트 이동. 기존 → 저장 후 id 반환(저장 실패 시 null — 내보내기 중단용).
   // 신규 생성 경로도 savingRef 로 중복 차단(연타 시 보고서 다중 생성 방지).
   const ensureId = useCallback(async (opts?: { manual?: boolean }): Promise<string | null> => {
     if (id) {
-      await save(opts);
-      return id;
+      const ok = await save(opts);
+      return ok ? id : null;
     }
     if (savingRef.current) return null;
     savingRef.current = true;
@@ -378,7 +405,7 @@ export default function ReportEditor() {
       try {
         await ensureFreshToken();
         await waitForPendingImageUploads(); // blob: src 저장 방지(saveOnce 와 동일)
-        const body = buildBody();
+        const body = buildSanitizedBody(buildBody());
         const row = await createReport(body);
         if (snapshotIsCurrent(body)) setDirty(false);
         updatedAtRef.current = row.updatedAt;
@@ -420,7 +447,7 @@ export default function ReportEditor() {
       }
     }
     return created;
-  }, [id, save, buildBody, navigate, ensureFreshToken, snapshotIsCurrent, saveOnce, t]);
+  }, [id, save, buildBody, buildSanitizedBody, navigate, ensureFreshToken, snapshotIsCurrent, saveOnce, t]);
 
   // 1.5초 debounce 자동저장. 오프라인이면 보류(실패만 양산), 실패 후엔 지수 백오프(최대 30s) 재시도.
   // 409 충돌 중에는 재시도하지 않음 — 새로고침/되돌리기로 기준점이 갱신돼야 재개.
@@ -430,6 +457,9 @@ export default function ReportEditor() {
       ? Math.min(1500 * 2 ** Math.min(retryCountRef.current, 4), 30000)
       : 1500;
     const t = setTimeout(() => {
+      // 리비전 되돌리기 창구(flush 완료~복원 커밋) 중 발사 차단 — 복원 직전 내용이
+      // 복원된 문서를 PATCH 로 덮어쓰는 경쟁 방지.
+      if (restoringRef.current) return;
       if (id) void save();
       else void ensureId();
     }, delay);
@@ -467,19 +497,37 @@ export default function ReportEditor() {
     };
   }, [t]);
 
+  /** 내보내기 — 저장 flush 후 서버의 최신 내용으로 DOCX 생성. 저장/생성 실패 시 중단. */
   const handleExport = useCallback(async () => {
-    const rid = await ensureId();
-    if (!rid) return;
-    const blob = await exportReport(rid);
-    downloadBlob(blob, `${(title || "document").slice(0, 80)}.docx`);
-    toast.success(t("editor.exportDone"));
-  }, [ensureId, title]);
+    try {
+      const rid = await ensureId();
+      if (!rid) {
+        // 생성 또는 플러시 저장 실패 — 서버의 낡은 내용을 내보내는 것을 막는다.
+        toast.error(t("editor.exportUnsaved"));
+        return;
+      }
+      const blob = await exportReport(rid);
+      downloadBlob(blob, `${(title || "document").slice(0, 80)}.docx`);
+      toast.success(t("editor.exportDone"));
+    } catch (e) {
+      console.error("[export failed]", e);
+      toast.error(saveErrMsg(e, t));
+    }
+  }, [ensureId, title, t]);
 
   // 리비전 되돌리기 직전 — 진행 중/대기 중(debounce) 저장을 flush.
   // flush 없이 되돌리면 직후 도착하는 PATCH 가 복원된 내용을 덮어쓴다.
+  // restoringRef 로 flush 완료~복원 커밋 사이에 예약된 debounce 자동저장까지 차단.
+  // (해제는 대화상자 닫힘 effect — save 는 예외를 밖으로 던지지 않음)
   const handleBeforeRestore = useCallback(async () => {
+    restoringRef.current = true;
     await save();
   }, [save]);
+
+  // 버전 기록 대화상자가 닫히면(복원 완료·실패 후 종료 모두) 되돌리기 창구 해제.
+  useEffect(() => {
+    if (!historyOpen) restoringRef.current = false;
+  }, [historyOpen]);
 
   // 임시 저장 스냅샷(크래시/오프라인 대비) + 직전 세션 미저장 내용 복구.
   const draftKey = `docx-draft:${id ?? "new"}`;

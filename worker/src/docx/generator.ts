@@ -22,7 +22,7 @@ import {
 import { resolveSpacing, normalizeOptions, type DocxOptions, type SpacingFields } from '@shared/options';
 import { isBoldSymbol } from '@shared/lineStartSymbol';
 import { type HeadingKey } from '@shared/symbols';
-import { type JSONContent, type RunData, getTextContentFromRuns } from '@shared/runs';
+import { type JSONContent, type RunData } from '@shared/runs';
 import { buildTableGrid, formatCellValue } from '@shared/tableFormula';
 
 type Mark = { type: string; attrs?: Record<string, any> };
@@ -105,7 +105,9 @@ async function buildImageParagraphs(
   if (!ctx.cache.has(src)) ctx.cache.set(src, await ctx.loadImage(src));
   const img = ctx.cache.get(src) ?? null;
   if (!img) return [];
-  const type = IMAGE_RUN_TYPE[(img.mime || '').toLowerCase()];
+  // content-type 파라미터("; charset=…"·octet-stream 변형)까지 보고 정확 매치하면 이미지가
+  // 조용히 드롭된다 — 파라미터를 떼고 소문자 정규화 후 조회.
+  const type = IMAGE_RUN_TYPE[(img.mime || '').split(';')[0].trim().toLowerCase()];
   if (!type) return [];
 
   let w = Number(node.attrs?.width) || img.width || 0;
@@ -119,21 +121,57 @@ async function buildImageParagraphs(
     h = Math.round((h * maxW) / w);
     w = maxW;
   }
-  // 미리보기와 동일 — 이미지·캡션 모두 가운데 정렬.
+  const caption = typeof node.attrs?.caption === 'string' ? node.attrs.caption.trim() : '';
+  // 미리보기와 동일 — 이미지·캡션 모두 가운데 정렬. 문단 간격은 미리보기 figure margin
+  // (4px ≒ 60twips)·캡션 margin-top(2px ≒ 30twips) 근사 — 인접 문단에 바짝 붙지 않게.
+  const alt = typeof node.attrs?.alt === 'string' ? node.attrs.alt : '';
   const image = new Paragraph({
     alignment: AlignmentType.CENTER,
-    children: [new ImageRun({ type, data: img.data, transformation: { width: w, height: h } })],
+    spacing: { before: 60, after: caption ? 0 : 60 },
+    children: [
+      new ImageRun({
+        type,
+        data: img.data,
+        transformation: { width: w, height: h },
+        // 스크린리더 접근성 — caption/alt 를 대체 텍스트로.
+        altText: {
+          title: caption || alt || 'image',
+          description: caption || alt,
+          name: caption || alt || 'image',
+        },
+      }),
+    ],
   });
-  const caption = typeof node.attrs?.caption === 'string' ? node.attrs.caption.trim() : '';
   if (!caption) return [image];
   const font = options.common.fontFamily.split(',')[0].trim().replace(/'/g, '');
   return [
     image,
     new Paragraph({
       alignment: AlignmentType.CENTER,
+      spacing: { before: 30, after: 60 },
       children: [new TextRun({ text: caption, font, size: 9 * 2, color: '595959' })],
     }),
   ];
+}
+
+/** 문서 트리의 이미지 src 를 병렬 프리페치해 ctx.cache 에 채운다(blob:/data: 제외). */
+async function prefetchImages(node: JSONContent, ctx: ImageContext): Promise<void> {
+  const srcs = new Set<string>();
+  const walk = (n: JSONContent): void => {
+    for (const child of n.content ?? []) {
+      if (child.type === 'image') {
+        const src = typeof child.attrs?.src === 'string' ? child.attrs.src : '';
+        if (src && !src.startsWith('blob:') && !src.startsWith('data:')) srcs.add(src);
+      }
+      walk(child);
+    }
+  };
+  walk(node);
+  await Promise.all(
+    [...srcs].map(async (src) => {
+      if (!ctx.cache.has(src)) ctx.cache.set(src, (await ctx.loadImage?.(src)) ?? null);
+    }),
+  );
 }
 
 export async function generateDocx(
@@ -147,6 +185,9 @@ export async function generateDocx(
   const commonSize = options.common.fontSize * 2;
   const children: (Paragraph | Table)[] = [];
   const imgCtx: ImageContext = { ...opts, cache: new Map() };
+  // 이미지 병렬 프리페치 — 노드 순회 중 하나씩 순차 await 하면 죽은 외부 URL 이
+  // N×8초씩 직렬로 쌓인다. 고유 src 를 먼저 병렬 로드해 이후 처리는 캐시 히트로 진행.
+  if (opts.loadImage) await prefetchImages(content, imgCtx);
 
   for (const node of content.content ?? []) {
     switch (node.type) {
@@ -168,7 +209,24 @@ export async function generateDocx(
       case 'paragraph': {
         const runs = buildRuns(node.content ?? []);
         if (runs.some((r) => r.coreSummary)) {
-          children.push(createCoreSummaryTable(runs, font, commonSize));
+          // 미리보기([data-core-summary] display:block)처럼 마크된 run 묶음만 [ ] 테이블로
+          // 분할하고, 마크 밖 텍스트는 일반 문단으로 내보낸다(문단 전체가 괄호 안으로
+          // 들어가던 패리티 결함 수정). 주석은 문단 전체 runs 에서 수집.
+          const alignment = getAlignment(node);
+          for (const seg of segmentByCoreSummary(runs)) {
+            if (seg.core) {
+              children.push(createCoreSummaryTable(seg.runs, font, commonSize, alignment));
+            } else if (seg.runs.length) {
+              children.push(new Paragraph({
+                // 같은 문단의 시각적 분할 — 앞뒤 간격 0(문단 spacing 은 양끼리 1회), 행간은 본문 따름.
+                spacing: { ...buildSpacing(options.common), before: 0, after: 0 },
+                alignment,
+                border: buildParagraphBorder(seg.runs),
+                children: buildAnnotationChildren(seg.runs, font, commonSize),
+              }));
+            }
+          }
+          children.push(...createAnnotationParagraphs(runs, options, font));
         } else {
           children.push(buildParagraph(runs, options, font, commonSize, node));
           children.push(...createAnnotationParagraphs(runs, options, font));
@@ -184,13 +242,15 @@ export async function generateDocx(
         children.push(await buildTable(node, options, font, commonSize, imgCtx));
         break;
       default: {
-        // bulletList / orderedList / unknown → 인라인 평탄화해 단일 문단.
-        const runs = buildRuns(collectInline(node));
+        // bulletList / blockquote / orderedList / unknown → 평탄화해 단일 문단.
+        // 블록 경계는 개행(hardBreak run)으로 — 문단 구조가 무시돼 "줄1줄2" 로 합쳐지지 않게.
+        const runs = buildRuns(collectInlineWithBreaks(node));
         const trs = runsToTextRuns(runs, { font, size: commonSize, color: '000000' });
         children.push(
           new Paragraph({
             spacing: buildSpacing(options.common),
             alignment: getAlignment(node),
+            border: buildParagraphBorder(runs),
             children: trs.length ? trs : [new TextRun({ text: '', font, size: commonSize })],
           })
         );
@@ -297,6 +357,18 @@ function collectInline(node: JSONContent, out: JSONContent[] = []): JSONContent[
   return out;
 }
 
+/** collectInline + 블록 경계 개행(hardBreak) 삽입 — 평탄화 시 하위 문단들이 구분 없이
+ *  이어붙는 것("줄1줄2")을 막는다. 셀·인용·코드블록 등의 평탄화 경로에서 사용. */
+function collectInlineWithBreaks(node: JSONContent, out: JSONContent[] = []): JSONContent[] {
+  (node.content ?? []).forEach((child, i) => {
+    const isInline = child.type === 'text' || child.type === 'hardBreak';
+    if (i > 0 && !isInline) out.push({ type: 'hardBreak' });
+    if (isInline) out.push(child);
+    else if (child.content?.length) collectInlineWithBreaks(child, out);
+  });
+  return out;
+}
+
 function getAlignment(node: JSONContent) {
   const align = node.attrs?.textAlign as string | undefined;
   if (!align) return undefined;
@@ -346,6 +418,8 @@ function buildTitleParagraph(runs: RunData[], options: DocxOptions, font: string
     spacing: buildSpacing(options.title),
     // 정렬 하드코딩 폐지 — options.title.align 따름(구 옵션 방어로 기본 center).
     alignment: ALIGN[options.title.align] ?? AlignmentType.CENTER,
+    // 제목에 box 마크가 있으면 문단 보더로 승격(본문 문단과 동일 규칙).
+    border: buildParagraphBorder(runs),
     children: runsToTextRuns(runs, {
       font,
       size: options.title.fontSize * 2,
@@ -429,12 +503,38 @@ function buildAnnotationChildren(runs: RunData[], font: string, size: number): T
   return result;
 }
 
-/** 핵심요약: 1행 3열 테이블 — [ 내용 ] 형태. */
-function createCoreSummaryTable(runs: RunData[], font: string, commonSize: number): Table {
+/** runs 를 coreSummary 마크 연속 묶음으로 분할 — 마크 밖/안 텍스트 교대 세그먼트. */
+function segmentByCoreSummary(runs: RunData[]): { core: boolean; runs: RunData[] }[] {
+  const segments: { core: boolean; runs: RunData[] }[] = [];
+  for (const r of runs) {
+    const core = !!r.coreSummary;
+    const last = segments[segments.length - 1];
+    if (last && last.core === core) last.runs.push(r);
+    else segments.push({ core, runs: [r] });
+  }
+  return segments;
+}
+
+/**
+ * 핵심요약: 1행 3열 테이블 — [ 내용 ] 형태.
+ * 인라인 mark(굵게/형광펜/fontSize 등)는 runsToTextRuns 로 보존되고 hardBreak(break run)는
+ * 개행 문단으로 반영된다. 괄호선은 미리보기 2px 상당의 size 9(=1.125pt).
+ */
+function createCoreSummaryTable(
+  runs: RunData[],
+  font: string,
+  commonSize: number,
+  alignment?: (typeof AlignmentType)[keyof typeof AlignmentType]
+): Table {
   const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
-  const solidBorder = { style: BorderStyle.SINGLE, size: 1, color: '000000' };
-  // hardBreak(break run) 도 개행으로 반영 — Shift+Enter 2줄 요약이 한 줄로 합쳐지지 않게.
-  const text = getTextContentFromRuns(runs);
+  const solidBorder = { style: BorderStyle.SINGLE, size: 9, color: '000000' };
+  // break run 기준 라인 분할 → 라인별 문단(빈 라인도 유지).
+  const lines: RunData[][] = [[]];
+  for (const r of runs) {
+    if (r.break) lines.push([]);
+    else lines[lines.length - 1].push(r);
+  }
+  const base = { font, size: commonSize, color: '000000' as const };
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -449,9 +549,15 @@ function createCoreSummaryTable(runs: RunData[], font: string, commonSize: numbe
           new TableCell({
             width: { size: 9400, type: WidthType.DXA },
             borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
-            children: text
-              .split('\n')
-              .map((line) => new Paragraph({ children: [new TextRun({ text: line, font, size: commonSize, color: '000000' })] })),
+            children: lines.map(
+              (line) =>
+                new Paragraph({
+                  alignment,
+                  children: line.length
+                    ? runsToTextRuns(line, base)
+                    : [new TextRun({ text: '', font, size: commonSize })],
+                })
+            ),
           }),
           new TableCell({
             width: { size: 100, type: WidthType.DXA },
@@ -464,9 +570,28 @@ function createCoreSummaryTable(runs: RunData[], font: string, commonSize: numbe
   });
 }
 
+/**
+ * 주석 run 수집 — 연속 같은 주석은 1회만. 하나의 꼬마글씨 마크가 굵게/hardBreak 등으로
+ * 여러 run 에 걸쳐 있어도 주석이 중복 출력(○○ 두 줄, mode1 겹침)되지 않게 한다.
+ * 주석 없는 run 으로 끊긴 뒤 다시 나오는 같은 텍스트는 별도 주석으로 유지.
+ */
+function collectAnnotationRuns(runs: RunData[]): RunData[] {
+  const out: RunData[] = [];
+  let prev: string | undefined;
+  for (const r of runs) {
+    if (!r.annotation) {
+      prev = undefined;
+      continue;
+    }
+    if (r.annotation !== prev) out.push(r);
+    prev = r.annotation;
+  }
+  return out;
+}
+
 /** 꼬마글씨: Mode 1 = TextBox frame, Mode 2 = ○ 별도 문단. */
 function createAnnotationParagraphs(runs: RunData[], options: DocxOptions, font: string): Paragraph[] {
-  const annotations = runs.filter((r) => r.annotation);
+  const annotations = collectAnnotationRuns(runs);
   if (annotations.length === 0) return [];
 
   if (options.annotationMode === 1) {
@@ -540,20 +665,31 @@ async function buildTable(
   const rowsArr = (node.content ?? []).filter((r) => r.type === 'tableRow');
   const grid = buildTableGrid(node);
 
-  // 열 너비: 첫 행 셀의 colwidth(px) → twips(px*15). 병합 셀이 섞이거나 값이 없으면 자동 배분에 맡김.
-  let columnWidths: number[] | undefined;
+  // 열 너비: 첫 행 셀의 colwidth(px) → twips(px*15). 병합 셀은 colwidth 배열(스팬 열별
+  // 항목)을 전개해 반영 — 모든 열의 값을 알 때만 고정 레이아웃(columnWidths)을 쓴다.
   const firstRowCells = (rowsArr[0]?.content ?? []).filter(
     (c) => c.type === 'tableCell' || c.type === 'tableHeader',
   );
-  const allSimple = firstRowCells.length > 0 && firstRowCells.every((c) => !c.attrs?.colspan || c.attrs.colspan <= 1);
-  if (allSimple) {
-    const widths = firstRowCells.map((c) => {
-      const cw = c.attrs?.colwidth;
-      const px = Array.isArray(cw) ? Number(cw[0]) : undefined;
-      return px && px > 0 ? Math.round(px * 15) : null;
-    });
-    if (widths.every((w) => w !== null)) columnWidths = widths as number[];
+  const totalCols = firstRowCells.reduce(
+    (n, c) => n + Math.max(1, Number(c.attrs?.colspan) || 1),
+    0,
+  );
+  const perCol: (number | null)[] = [];
+  for (const c of firstRowCells) {
+    const colspan = Math.max(1, Number(c.attrs?.colspan) || 1);
+    const cw = c.attrs?.colwidth;
+    if (Array.isArray(cw) && cw.length === colspan && cw.every((v) => Number(v) > 0)) {
+      for (const v of cw) perCol.push(Math.round(Number(v) * 15));
+    } else {
+      for (let i = 0; i < colspan; i++) perCol.push(null);
+    }
   }
+  let columnWidths: number[] | undefined;
+  if (perCol.length > 0 && perCol.every((w) => w != null)) columnWidths = perCol as number[];
+  // 셀 이미지 클램프 기준 폭 — 값을 모르는 열은 균등 배분(본문 폭/열 수)으로 폴백.
+  // 레이아웃과 달리 항상 존재해야 셀 안 이미지가 본문 전체 폭 기준으로 풀려 셀을 넘치지 않는다.
+  const equalTwips = totalCols > 0 ? Math.floor((usableWidthPx(options) * 15) / totalCols) : 0;
+  const clampWidths: number[] = perCol.map((w) => (w == null ? Math.max(1, equalTwips) : w));
 
   // 문서 순서 커서 — buildTableGrid.cells 와 동일 순서로 셀을 순회하기 위함.
   let cellCursor = 0;
@@ -571,8 +707,10 @@ async function buildTable(
       const bg = (isHeader ? '#f3f4f6' : (cell.attrs?.background as string | undefined))?.replace('#', '').toUpperCase();
 
       let paragraphs: Paragraph[];
-      // 셀 원본 단락(계산 셀 표시텍스트 대체와 무관하게 주석 수집용으로 공통 수집).
-      const childParas = (cell.content ?? []).filter((p) => p.type === 'paragraph');
+      // 셀 블록 — 문단/헤딩은 스타일 유지, 그 외 블록(인용 등)은 평탄화해 소실 방지.
+      // (paragraph 만 취급하면 셀 안 헤딩이 export 에서 조용히 사라졌다 — 미리보기는 렌더함.)
+      const blocks = (cell.content ?? []).filter((b) => b.type !== 'image');
+      const childParas = blocks.filter((p) => p.type === 'paragraph');
       if (hasCalc && gc) {
         // 계산 셀 — shared 엔진으로 평가·포맷한 표시 텍스트 1문단. 명시 정렬 없으면 우측.
         const display = formatCellValue(gc, grid);
@@ -581,7 +719,12 @@ async function buildTable(
         const trs =
           display === ''
             ? []
-            : runsToTextRuns([{ text: display }], { font, size: commonSize, color: '000000' });
+            : runsToTextRuns([{ text: display }], {
+                font,
+                size: commonSize,
+                bold: isHeader || undefined,
+                color: '000000',
+              });
         paragraphs = [
           new Paragraph({
             alignment,
@@ -589,30 +732,50 @@ async function buildTable(
           }),
         ];
       } else {
-        // 일반 셀 — 셀 안 단락들을 각각 Paragraph 로(단락별 정렬 유지). 단락이 없으면 빈 단락 1개.
-        const sources = childParas.length ? childParas : [null];
-        paragraphs = sources.map((p) => {
-          const trs = runsToTextRuns(buildRuns(collectInline(p ?? { type: 'paragraph' })), {
+        // 일반 셀 — 셀 안 블록들을 각각 Paragraph 로(블록별 정렬·box 보더 유지). 블록이 없으면 빈 단락 1개.
+        const sources = blocks.length ? blocks : [null];
+        paragraphs = sources.map((b) => {
+          // 셀 안 헤딩 — 본문 헤딩과 동일 스타일(크기·굵은기호·정렬·간격)로 렌더.
+          if (b && b.type === 'heading') {
+            return buildHeadingParagraph(
+              b,
+              (b.attrs?.level ?? 1) as number,
+              options,
+              font,
+              commonSize,
+              buildRuns(b.content ?? [])
+            );
+          }
+          const runs = buildRuns(collectInlineWithBreaks(b ?? { type: 'paragraph' }));
+          const trs = runsToTextRuns(runs, {
             font,
             size: commonSize,
+            // 표 헤더 셀 텍스트는 굵게 — 미리보기 th{font-weight:600} 패리티.
+            bold: isHeader || undefined,
             color: '000000',
           });
           return new Paragraph({
-            alignment: p ? getAlignment(p) : undefined,
+            alignment: b ? getAlignment(b) : undefined,
+            border: buildParagraphBorder(runs),
             children: trs.length ? trs : [new TextRun({ text: '', font, size: commonSize })],
           });
         });
       }
-      // 꼬마글씨 — 셀 안에서도 드롭되지 않도록 셀 단락들에서 주석 수집 후 셀 내부에 append.
+      // 꼬마글씨 — 셀 안에서도 드롭되지 않도록 셀 블록들에서 주석 수집 후 셀 내부에 append.
       // mode1=TextBox frame, mode2=○ 문단(createAnnotationParagraphs 가 옵션대로 생성).
-      const cellRuns = childParas.flatMap((p) => buildRuns(collectInline(p)));
+      const cellRuns = blocks.flatMap((p) => buildRuns(collectInline(p)));
       paragraphs.push(...createAnnotationParagraphs(cellRuns, options, font));
 
       const colspan = cell.attrs?.colspan;
       const rowspan = cell.attrs?.rowspan;
-      // 셀 직속 블록 이미지 — 셀 폭(colwidth twips→px)에 맞춰 클램프해 셀 단락 뒤에 append.
-      const cwTwips = columnWidths?.[colCursor];
-      const cellMaxPx = cwTwips && cwTwips > 0 ? Math.floor(cwTwips / 15) : undefined;
+      // 셀 직속 블록 이미지 — 셀 폭(스팬한 열들의 clampWidths 합, twips→px)에 맞춰 클램프.
+      // 병합 셀은 커버하는 열 전체 폭이 기준(첫 열 값만 쓰면 과소 클램프).
+      const span = colspan && colspan > 1 ? colspan : 1;
+      let cwTwips = 0;
+      for (let i = 0; i < span && colCursor + i < clampWidths.length; i++) {
+        cwTwips += clampWidths[colCursor + i] ?? 0;
+      }
+      const cellMaxPx = cwTwips > 0 ? Math.floor(cwTwips / 15) : undefined;
       colCursor += colspan && colspan > 1 ? colspan : 1;
       for (const child of cell.content ?? []) {
         if (child.type !== 'image') continue;

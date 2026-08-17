@@ -147,6 +147,35 @@ function table(...rows: JSONContent[]): JSONContent {
   return { type: "table", content: rows };
 }
 
+describe("rawValue — 체인 수식 정밀도", () => {
+  it("포맷 셀 참조는 표시 반올림값(1,235)이 아니라 원값(1234.6)을 쓴다", () => {
+    const g = buildTableGrid(
+      table(
+        row(cell("1,235", { format: "number", rawValue: 1234.6 })),
+        row(cell("x", { formula: "=A1*1.1" })),
+      ),
+    );
+    const src = g.matrix[0][0]!;
+    expect(src.value).toBe(1235); // 표시 텍스트 파싱(반올림)
+    expect(src.rawValue).toBe(1234.6); // attr 원값
+    const f = g.matrix[1][0]!;
+    const { value } = evaluateAny(f.formula!, g, f);
+    expect(value).toBeCloseTo(1358.06, 6); // 1234.6*1.1, not 1358.5
+  });
+
+  it("사용자가 표시값을 직접 고치면(attr 불일치) 수정 텍스트 파싱값을 원값으로 쓴다", () => {
+    const g = buildTableGrid(
+      table(row(cell("9,999", { format: "number", rawValue: 1234.6 }))),
+    );
+    expect(g.matrix[0][0]!.rawValue).toBe(9999);
+  });
+
+  it("rawValue 미보유(레거시) 셀은 기존대로 표시 파싱값", () => {
+    const g = buildTableGrid(table(row(cell("1,235", { format: "number" }))));
+    expect(g.matrix[0][0]!.rawValue).toBe(1235);
+  });
+});
+
 describe("buildTableGrid — 병합 셀 전개", () => {
   it("단순 3x3 그리드", () => {
     const g = buildTableGrid(

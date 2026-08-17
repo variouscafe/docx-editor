@@ -4,11 +4,13 @@
  *  - figure/figcaption 렌더 및 attrs → DOM 동기화
  *  - 캡션 타이핑(input 이벤트) → setNodeMarkup → getJSON 에 caption 반영
  *  - 읽기 전용(editable=false) + 빈 캡션 → 캡션 영역 숨김
+ *  - 업로드 완료 src 교체: Undo 로 blob: 부활 없음·같은 uploadId 중복 노드 모두 교체
+ *  - 업로드 실패: 대기 노드 전부 제거
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { EditorImage } from "./image";
+import { EditorImage, swapPendingImageSrc, removePendingImage } from "./image";
 
 const DOC = {
   type: "doc",
@@ -75,6 +77,88 @@ describe("이미지 캡션 NodeView", () => {
     const caption = editor.view.dom.querySelector("figcaption.rm-image-caption")!;
     expect(caption.classList.contains("rm-image-caption-empty")).toBe(true);
     expect(caption.getAttribute("contenteditable")).toBe("false"); // 공유 보기 = 편집 불가
+    editor.destroy();
+  });
+});
+
+/** jsdom 은 URL.createObjectURL/revokeObjectURL 미구현 — removePendingImage 호출용 스텁. */
+const revoked: string[] = [];
+const urlRevoker = URL.revokeObjectURL as unknown as undefined | ((u: string) => void);
+if (!urlRevoker) (URL as unknown as { revokeObjectURL: (u: string) => void }).revokeObjectURL = (u) => revoked.push(u);
+afterEach(() => {
+  revoked.length = 0;
+});
+
+function pendingEditor(count: number) {
+  const editor = new Editor({
+    extensions: [StarterKit.configure({ bulletList: false, orderedList: false, listItem: false }), EditorImage],
+    content: {
+      type: "doc",
+      content: [
+        ...Array.from({ length: count }, () => ({
+          type: "image",
+          attrs: {
+            src: "blob:mock",
+            alt: "",
+            caption: "",
+            width: 100,
+            height: 50,
+            "data-upload-id": "u1",
+          },
+        })),
+        { type: "paragraph" },
+      ],
+    },
+  });
+  return editor;
+}
+
+const imageAttrs = (editor: Editor) =>
+  (editor.getJSON().content ?? []).filter((n) => n.type === "image").map((n) => n.attrs ?? {});
+
+describe("업로드 완료/실패 — 대기 노드(blob:) 정리", () => {
+  const RES = { id: "00000000-0000-4000-8000-000000000000", url: "/api/images/00000000-0000-4000-8000-000000000000", width: 800, height: 400 };
+
+  it("src 교체는 히스토리에서 제외 — Undo 1회로 삽입째 제거되고 blob: 가 부활하지 않는다", () => {
+    const editor = new Editor({
+      extensions: [StarterKit.configure({ bulletList: false, orderedList: false, listItem: false }), EditorImage],
+      content: { type: "doc", content: [{ type: "paragraph" }] },
+    });
+    // 삽입(히스토리 이벤트) → 업로드 완료 교체(비히스토리)
+    editor
+      .chain()
+      .insertContent({
+        type: "image",
+        attrs: { src: "blob:mock", alt: "", caption: "", width: 100, height: 50, "data-upload-id": "u1" },
+      })
+      .run();
+    swapPendingImageSrc(editor, "u1", RES);
+    expect(imageAttrs(editor)).toHaveLength(1);
+    expect(imageAttrs(editor)[0]?.src).toBe(RES.url);
+    expect(imageAttrs(editor)[0]?.["data-upload-id"]).toBeNull();
+
+    // Undo → 교체가 아닌 삽입이 되돌려져 이미지 노드 자체가 사라진다(blob: 잔존 없음).
+    editor.commands.undo();
+    expect(imageAttrs(editor)).toHaveLength(0);
+    editor.destroy();
+  });
+
+  it("같은 uploadId 노드가 2개(대기 노드 복붙)면 stale dispatch 없이 모두 교체", () => {
+    const editor = pendingEditor(2);
+    swapPendingImageSrc(editor, "u1", RES);
+    const attrs = imageAttrs(editor);
+    expect(attrs).toHaveLength(2);
+    for (const a of attrs) {
+      expect(a.src).toBe(RES.url);
+      expect(a["data-upload-id"]).toBeNull();
+    }
+    editor.destroy();
+  });
+
+  it("업로드 실패 — 같은 uploadId 노드 전부 제거", () => {
+    const editor = pendingEditor(2);
+    removePendingImage(editor, "u1", "blob:mock");
+    expect(imageAttrs(editor)).toHaveLength(0);
     editor.destroy();
   });
 });

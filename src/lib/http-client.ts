@@ -37,10 +37,16 @@ export interface RequestOptions extends Omit<RequestInit, 'body' | 'headers'> {
   query?: Query;
   headers?: Record<string, string>;
   body?: unknown;
+  /** 요청 타임아웃(ms). 기본 30초 — 정체(블랙홀) 연결이 무한 대기하며 이후 저장·업로드를
+   *  블록하는 것을 방지. 0 지정 시 무제한. */
+  timeoutMs?: number;
 }
 
 /** Thin fetch wrapper: auth header, JSON serialization, error normalization, 401→refresh→retry. */
 export class HttpClient {
+  /** 기본 요청 타임아웃 — RequestInit.timeoutMs 로 재정의 가능. */
+  private static readonly DEFAULT_TIMEOUT_MS = 30_000;
+
   constructor(private opts: HttpClientOptions) {}
 
   private buildUrl(path: string, query?: Query): string {
@@ -68,11 +74,14 @@ export class HttpClient {
    *  본문이 JSON 이 아니면(예: Cloudflare HTML 502/413 페이지) parse 를 실패로
    *  삼키지 않고 원문 텍스트를 그대로 돌려줘 에러 메시지로 활용할 수 있게 한다. */
   private async send<T>(path: string, init: RequestOptions): Promise<{ res: Response; parsed: unknown; text: string }> {
-    const { query, headers, body, ...rest } = init;
+    const { query, headers, body, timeoutMs, signal, ...rest } = init;
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
     const token = this.opts.getToken?.();
+    const ms = timeoutMs ?? HttpClient.DEFAULT_TIMEOUT_MS;
     const res = await (this.opts.fetch ?? fetch)(this.buildUrl(path, query), {
       ...rest,
+      // 정체 연결 차단 — 호출자 signal 이 있으면 우선, 0 이면 무제한.
+      signal: signal ?? (ms > 0 ? AbortSignal.timeout(ms) : undefined),
       headers: {
         ...(isForm ? {} : { 'content-type': 'application/json' }),
         ...(token ? { authorization: `Bearer ${token}` } : {}),

@@ -1,3 +1,4 @@
+import TableHeader from "@tiptap/extension-table-header";
 import { TableCellBackground } from "./tableCellBackground";
 import type { NumberFormat } from "@shared/tableFormula";
 
@@ -10,6 +11,8 @@ import type { NumberFormat } from "@shared/tableFormula";
  * - format: 표시 포맷(number/currency/currencyWon/number2/percent/...). 셀 원문은 그대로.
  * - formula: 계산식(SUM(ABOVE), =SUM(B2:B8), …). 진실의 원본 — 표시 텍스트는 tableFormulaPlugin
  *   이 실시간으로 평가·동기화한다(BE 도 내보내기 시 동일 평가).
+ * - rawValue: 표시 동기화 시점의 미포맷 원값 — 체인 수식이 포맷 반올림 표시값이 아니라
+ *   원값을 참조하게 하는 내부 속성(사용자 편집 텍스트와 불일치 시 무시된다).
  */
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -22,21 +25,37 @@ declare module "@tiptap/core" {
   }
 }
 
+const calcAttrs = () => ({
+  format: {
+    default: null,
+    parseHTML: (element: HTMLElement) => element.getAttribute("data-format") || null,
+    renderHTML: (attributes: Record<string, unknown>) =>
+      attributes.format ? { "data-format": attributes.format as string } : {},
+  },
+  formula: {
+    default: null,
+    parseHTML: (element: HTMLElement) => element.getAttribute("data-formula") || null,
+    renderHTML: (attributes: Record<string, unknown>) =>
+      attributes.formula ? { "data-formula": attributes.formula as string } : {},
+  },
+  rawValue: {
+    default: null,
+    parseHTML: (element: HTMLElement) => {
+      const v = Number(element.getAttribute("data-raw-value"));
+      return Number.isFinite(v) ? v : null;
+    },
+    renderHTML: (attributes: Record<string, unknown>) =>
+      attributes.rawValue != null
+        ? { "data-raw-value": String(attributes.rawValue) }
+        : {},
+  },
+});
+
 export const TableCellFormat = TableCellBackground.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
-      format: {
-        default: null,
-        parseHTML: (element) => element.getAttribute("data-format") || null,
-        renderHTML: (attributes) => (attributes.format ? { "data-format": attributes.format } : {}),
-      },
-      formula: {
-        default: null,
-        parseHTML: (element) => element.getAttribute("data-formula") || null,
-        renderHTML: (attributes) =>
-          attributes.formula ? { "data-formula": attributes.formula } : {},
-      },
+      ...calcAttrs(),
     };
   },
 
@@ -59,6 +78,20 @@ export const TableCellFormat = TableCellBackground.extend({
         () =>
         ({ commands }) =>
           commands.setCellAttribute("formula", null),
+    };
+  },
+});
+
+/**
+ * TableHeader 에도 동일 계산 속성 — 헤더 셀에서 포맷/수식 적용·활성 표시가 동작하게.
+ * (tiptap 기본 tableHeader 는 이 속성들이 없어 setCellAttribute 가 무시되고
+ *  툴바 getAttributes("tableHeader") 도 항상 빈 값을 돌려줬다.)
+ */
+export const TableHeaderFormat = TableHeader.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      ...calcAttrs(),
     };
   },
 });

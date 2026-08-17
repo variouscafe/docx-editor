@@ -120,6 +120,34 @@ describe("PATCH /api/reports/:id — 낙관적 동시성 제어(baseUpdatedAt)",
   });
 });
 
+describe("PUT /api/reports/:id/public-share — 공유 토글은 updatedAt 을 바꾸지 않는다", () => {
+  it("토글 후에도 토글 전 baseUpdatedAt 으로 저장 성공(허위 409 방지)", async () => {
+    const r = await createTestReport();
+    // 공유 활성화(본문이 아닌 상태 변경)
+    const share = await app.request(
+      `/api/reports/${r.id}/public-share`,
+      {
+        method: "PUT",
+        headers: { ...authHeaders(), "content-type": "application/json" },
+        body: JSON.stringify({ enabled: true }),
+      },
+      testEnv,
+    );
+    expect(share.status).toBe(200);
+    // 토글은 실제로 반영됐는지 확인
+    const row = await db.select().from(schema.reports).where(eq(schema.reports.id, r.id)).get();
+    expect(row?.shareEnabled).toBe(true);
+
+    // 토글 전 updatedAt(baseUpdatedAt)으로 저장 — 409 없이 성공해야 한다.
+    const { status, json } = await patchReport(r.id, {
+      title: "토글 후 저장",
+      baseUpdatedAt: r.updatedAt,
+    });
+    expect(status).toBe(200);
+    expect((json as Report).title).toBe("토글 후 저장");
+  });
+});
+
 describe("POST /api/reports/:id/revisions — 수동 리비전 정리(최근 100개)", () => {
   it("수동 리비전 100개 초과 시 오래된 것부터 삭제", async () => {
     const r = await createTestReport();

@@ -84,6 +84,144 @@ describe("generateDocx — 포맷 패리티", () => {
     expect(joined).not.toMatch(/계약효력두번째줄/);
   });
 
+  it("핵심요약이 문단 일부에만 적용되면 마크 밖 텍스트는 괄호(테이블) 밖 일반 문단으로", async () => {
+    const xml = await documentXml({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            text("위와 같이 합의함 "),
+            text("본 계약은 2026년 1월 1일부터 효력이 발생한다", [{ type: "coreSummary" }]),
+            text(" 확인함"),
+          ],
+        },
+      ],
+    });
+    expect(xml).toContain("위와 같이 합의함");
+    expect(xml).toContain("본 계약은");
+    expect(xml).toContain("확인함");
+    // 앞/뒤 미마크 텍스트는 [ ] 테이블 이전·이후의 독립 문단에 위치(테이블 셀 안이 아님).
+    const tblStart = xml.indexOf("<w:tbl");
+    const tblEnd = xml.indexOf("</w:tbl>");
+    expect(tblStart).toBeGreaterThan(0);
+    expect(xml.indexOf("위와 같이 합의함")).toBeLessThan(tblStart);
+    expect(xml.indexOf("확인함")).toBeGreaterThan(tblEnd);
+  });
+
+  it("핵심요약 내부 인라인 마크(굵게)가 보존된다", async () => {
+    const xml = await documentXml({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [text("중요", [{ type: "coreSummary" }, { type: "bold" }])],
+        },
+      ],
+    });
+    expect(xml).toMatch(/<w:b\/>.{0,200}?중요/); // rPr 이 텍스트 앞에 온다
+  });
+
+  it("핵심요약 문단의 꼬마글씨 주석이 소실되지 않는다", async () => {
+    const xml = await documentXml({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            text("요약", [{ type: "coreSummary" }]),
+            text("본문", [{ type: "annotation", attrs: { "data-annotation": "핵심 부연" } }]),
+          ],
+        },
+      ],
+    });
+    expect(xml).toContain("핵심 부연");
+  });
+
+  it("표 셀 안 헤딩이 export 에서 소실되지 않는다", async () => {
+    const xml = await documentXml({
+      type: "doc",
+      content: [
+        {
+          type: "table",
+          content: [
+            {
+              type: "tableRow",
+              content: [
+                {
+                  type: "tableCell",
+                  content: [{ type: "heading", attrs: { level: 1 }, content: [text("셀 제목")] }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(xml).toContain("셀 제목");
+  });
+
+  it("표 헤더 셀 텍스트는 굵게 export 된다", async () => {
+    const xml = await documentXml({
+      type: "doc",
+      content: [
+        {
+          type: "table",
+          content: [
+            {
+              type: "tableRow",
+              content: [
+                { type: "tableHeader", content: [{ type: "paragraph", content: [text("열 제목")] }] },
+                { type: "tableCell", content: [{ type: "paragraph", content: [text("값")] }] },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(xml).toMatch(/<w:b\/>.{0,200}?열 제목/);
+  });
+
+  it("평탄화 블록(인용 등)의 하위 문단들이 개행으로 구분된다", async () => {
+    const xml = await documentXml({
+      type: "doc",
+      content: [
+        {
+          type: "blockquote",
+          content: [
+            { type: "paragraph", content: [text("첫 줄")] },
+            { type: "paragraph", content: [text("둘째 줄")] },
+          ],
+        },
+      ],
+    });
+    expect(xml).toContain("첫 줄");
+    expect(xml).toContain("둘째 줄");
+    const joined = xml.replace(/\s+/g, "");
+    expect(joined).not.toMatch(/첫줄둘째줄/); // break 없이 한 run 으로 합쳐지면 실패
+  });
+
+  it("꼬마글씨 마크가 여러 run 에 걸쳐도 주석은 1회만 출력된다", async () => {
+    const ann = { type: "annotation", attrs: { "data-annotation": "부연 설명" } };
+    const xml = await documentXml({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            text("Claude", [ann]),
+            text(" Code", [ann, { type: "bold" }]),
+            text(" 사용법"),
+          ],
+        },
+      ],
+    });
+    expect(xml).toContain("부연 설명");
+    // mode1(기본) — TextBox frame 문단이 1개여야 한다(중복 시 2개).
+    const frames = xml.split("<w:framePr").length - 1;
+    expect(frames).toBe(1);
+  });
+
   it("꼬마글씨 mode1 — TextBox(frame) 로 주석이 export 된다", async () => {
     const xml = await documentXml({
       type: "doc",
@@ -304,6 +442,74 @@ describe("generateDocx — 이미지 노드", () => {
       { loadImage: async () => null },
     );
     expect(xml).not.toContain("<w:drawing>");
+  });
+
+  it("같은 src 는 프리페치 캐시로 로더 1회만 호출(표 셀 내 포함)", async () => {
+    const calls: string[] = [];
+    const xml = await documentXml(
+      {
+        type: "doc",
+        content: [
+          imageNode({ src: "/api/images/dup", width: 100, height: 50 }),
+          imageNode({ src: "/api/images/dup", width: 100, height: 50 }),
+          {
+            type: "table",
+            content: [
+              {
+                type: "tableRow",
+                content: [
+                  { type: "tableCell", content: [imageNode({ src: "/api/images/dup", width: 60, height: 30 })] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      defaultOptions,
+      {
+        loadImage: async (src) => {
+          calls.push(src);
+          return { data: FAKE_PNG, mime: "image/png" };
+        },
+      },
+    );
+    expect(calls).toEqual(["/api/images/dup"]);
+    expect(xml).toContain("<w:drawing>");
+  });
+
+  it("첫 행 병합 셀(colspan) 표의 셀 이미지도 셀 폭 기준 클램프(균등 배분 폴백)", async () => {
+    const xml = await documentXml(
+      {
+        type: "doc",
+        content: [
+          {
+            type: "table",
+            content: [
+              {
+                type: "tableRow",
+                content: [
+                  {
+                    type: "tableCell",
+                    attrs: { colspan: 2 },
+                    content: [imageNode({ src: "/api/images/wide", width: 5000, height: 1000 })],
+                  },
+                  { type: "tableCell", content: [{ type: "paragraph" }] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      defaultOptions,
+      {
+        loadImage: async () => ({ data: FAKE_PNG, mime: "image/png" }),
+      },
+    );
+    // 균등 배분 폭백: 3열(병합 2 + 1) 기준 병합 셀 폭 = usable × 2/3 로 클램프 —
+    // 본문 전체 폭(usablePx)으로 풀리지 않음.
+    const mergedPx = Math.floor((usablePx / 3) * 2);
+    expect(xml).toContain(`cx="${mergedPx * EMU_PER_PX}"`);
+    expect(xml).not.toContain(`cx="${usablePx * EMU_PER_PX}"`);
   });
 
   it("opts 미제공(레거시 호출) → 이미지 스킵, 예외 없음", async () => {

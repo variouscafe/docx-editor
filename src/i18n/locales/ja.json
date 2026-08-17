@@ -69,6 +69,7 @@
     "savingDots": "保存中…",
     "pending": "変更あり(保存待ち)",
     "exportDone": "DOCXエクスポートが完了しました",
+    "exportUnsaved": "保存に失敗したためエクスポートを中止しました。ステータスバーのエラーを確認してください。",
     "draftRestored": "未保存の下書きを復元しました",
     "imageUploadFailed": "画像のアップロードに失敗しました",
     "onlineRestored": "オンラインに復帰 — 保存を再開します",
@@ -271,7 +272,8 @@
     "restoreAction": "復元",
     "saved": "バージョンを保存しました",
     "restored": "このバージョンに復元しました",
-    "deleted": "バージョンを削除しました"
+    "deleted": "バージョンを削除しました",
+    "failed": "操作に失敗しました。もう一度お試しください。"
   },
   "commandPalette": {
     "title": "コマンドパレット",

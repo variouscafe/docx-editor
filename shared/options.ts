@@ -267,9 +267,20 @@ type RawH4 = AnySection & {
 };
 type RawOptions = Partial<Omit<DocxOptions, "h4">> & { h4?: RawH4 };
 
-const num = (v: unknown, fb: number): number => (typeof v === "number" ? v : fb);
+const num = (v: unknown, fb: number): number =>
+  typeof v === "number" && Number.isFinite(v) ? v : fb;
 const str = (v: unknown, fb: string): string => (typeof v === "string" ? v : fb);
 const bool = (v: unknown, fb: boolean): boolean => (typeof v === "boolean" ? v : fb);
+
+/* 필드별 범위 클램프 — JSON 패널·구 스냅샷의 무효값(음수/NaN/과대)이 무효 docx 스펙
+ * (w:sz 음수 등)이나 0px 레이아웃으로 새어 나가지 않게 한다. */
+const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
+/** 폰트크기(pt) — 4~400pt. */
+const size = (v: unknown, fb: number): number => clamp(num(v, fb), 4, 400);
+/** 문단 간격(pt) — 0 이상, A4 높이(842pt) 초과 방지 상한. */
+const spacing = (v: unknown, fb: number): number => clamp(num(v, fb), 0, 800);
+/** 페이지 마진(cm) — 0~10cm(A4 폭 21cm 의 절반 이하로 수렴). */
+const marginCm = (v: unknown, fb: number): number => clamp(num(v, fb), 0, 10);
 
 /** 유효한 시작 기호 아니면 기본값(JSON 패널 등 외부 입력 보정). */
 const symbolOr = (v: unknown, fb: LineStartSymbol): LineStartSymbol =>
@@ -286,8 +297,8 @@ const normLineSpacing = (v: unknown): LineSpacing => {
 };
 
 const fillSpacing = (s: AnySection | undefined, fb: number): SpacingFields => ({
-  paragraphSpacing: num(s?.paragraphSpacing, fb),
-  spacingBefore: num(s?.spacingBefore, 0),
+  paragraphSpacing: spacing(s?.paragraphSpacing, fb),
+  spacingBefore: spacing(s?.spacingBefore, 0),
   lineSpacing: normLineSpacing(s?.lineSpacing),
 });
 
@@ -304,30 +315,30 @@ const stripH4Old = (h4?: RawH4): AnySection => {
  */
 export function normalizeOptions(input: unknown): DocxOptions {
   const o = (input ?? {}) as RawOptions;
-  const commonPs = num(o.common?.paragraphSpacing, 12);
+  const commonPs = spacing(o.common?.paragraphSpacing, 12);
   const h4Raw = stripH4Old(o.h4);
   const heading = (
     raw: (AnySection & { lineStartSymbol?: unknown; leadingSpaces?: unknown }) | undefined,
     def: { lineStartSymbol: LineStartSymbol; leadingSpaces: number },
   ) => ({
     lineStartSymbol: symbolOr(raw?.lineStartSymbol, def.lineStartSymbol),
-    leadingSpaces: num(raw?.leadingSpaces, def.leadingSpaces),
+    leadingSpaces: clamp(num(raw?.leadingSpaces, def.leadingSpaces), 0, 20),
   });
 
   return {
     common: {
       ...defaultOptions.common,
-      fontSize: num(o.common?.fontSize, defaultOptions.common.fontSize),
+      fontSize: size(o.common?.fontSize, defaultOptions.common.fontSize),
       fontFamily: str(o.common?.fontFamily, defaultOptions.common.fontFamily),
-      marginTop: num(o.common?.marginTop, defaultOptions.common.marginTop),
-      marginBottom: num(o.common?.marginBottom, defaultOptions.common.marginBottom),
-      marginLeft: num(o.common?.marginLeft, defaultOptions.common.marginLeft),
-      marginRight: num(o.common?.marginRight, defaultOptions.common.marginRight),
+      marginTop: marginCm(o.common?.marginTop, defaultOptions.common.marginTop),
+      marginBottom: marginCm(o.common?.marginBottom, defaultOptions.common.marginBottom),
+      marginLeft: marginCm(o.common?.marginLeft, defaultOptions.common.marginLeft),
+      marginRight: marginCm(o.common?.marginRight, defaultOptions.common.marginRight),
       ...fillSpacing(o.common, 12),
     },
     title: {
       ...defaultOptions.title,
-      fontSize: num(o.title?.fontSize, defaultOptions.title.fontSize),
+      fontSize: size(o.title?.fontSize, defaultOptions.title.fontSize),
       bold: bool(o.title?.bold, defaultOptions.title.bold),
       underline: bool(o.title?.underline, defaultOptions.title.underline),
       align: o.title?.align === "left" || o.title?.align === "right" ? o.title.align : "center",
@@ -336,7 +347,7 @@ export function normalizeOptions(input: unknown): DocxOptions {
     h1: {
       ...defaultOptions.h1,
       ...heading(o.h1, defaultOptions.h1),
-      fontSize: num(o.h1?.fontSize, defaultOptions.h1.fontSize),
+      fontSize: size(o.h1?.fontSize, defaultOptions.h1.fontSize),
       bold: bool(o.h1?.bold, defaultOptions.h1.bold),
       ...fillSpacing(o.h1, 24),
     },
@@ -353,13 +364,13 @@ export function normalizeOptions(input: unknown): DocxOptions {
     h5: { ...defaultOptions.h5, ...heading(o.h5, defaultOptions.h5), ...fillSpacing(o.h5, commonPs) },
     h6: { ...defaultOptions.h6, ...heading(o.h6, defaultOptions.h6), ...fillSpacing(o.h6, commonPs) },
     annotation1: {
-      fontSize: num(o.annotation1?.fontSize, defaultOptions.annotation1.fontSize),
+      fontSize: size(o.annotation1?.fontSize, defaultOptions.annotation1.fontSize),
       fontFamily: str(o.annotation1?.fontFamily, defaultOptions.annotation1.fontFamily),
       color: str(o.annotation1?.color, defaultOptions.annotation1.color),
     },
     annotation2: {
       ...defaultOptions.annotation2,
-      fontSize: num(o.annotation2?.fontSize, defaultOptions.annotation2.fontSize),
+      fontSize: size(o.annotation2?.fontSize, defaultOptions.annotation2.fontSize),
       symbol: str(o.annotation2?.symbol, defaultOptions.annotation2.symbol),
       ...fillSpacing(o.annotation2, 16),
     },

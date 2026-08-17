@@ -69,6 +69,7 @@
     "savingDots": "儲存中…",
     "pending": "已修改 (待儲存)",
     "exportDone": "DOCX 匯出完成",
+    "exportUnsaved": "儲存失敗，已取消匯出。請檢查狀態列中的錯誤。",
     "draftRestored": "已還原未儲存的草稿",
     "imageUploadFailed": "圖片上傳失敗",
     "onlineRestored": "已恢復連線 — 繼續儲存",
@@ -271,7 +272,8 @@
     "restoreAction": "還原",
     "saved": "版本已儲存",
     "restored": "已還原至此版本",
-    "deleted": "版本已刪除"
+    "deleted": "版本已刪除",
+    "failed": "操作失敗，請再試一次。"
   },
   "commandPalette": {
     "title": "命令面板",

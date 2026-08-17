@@ -271,10 +271,23 @@ function runMeasure(view: EditorView, getOpts: OptionsGetter): void {
   const decos = buildDecorations(view, pages, blocks, { ...opts, ...margins, footerContentHeight });
   const newSet = DecorationSet.create(view.state.doc, decos);
 
+  // 표 헤더 내용 지문 — 행 높이가 같은 헤더 텍스트 수정(오타 수정)도 반복 헤더 클론이
+  // 갱신되도록 시그니처에 반영한다(스테일 클론 방지).
+  const headerFingerprints: string[] = [];
+  view.state.doc.forEach((node) => {
+    if (node.type.name === "table") {
+      const first = node.firstChild;
+      if (first && first.type.name === "tableRow" && rowHasHeader(first)) {
+        headerFingerprints.push(first.textContent.slice(0, 200));
+      }
+    }
+  });
+
   const signature = JSON.stringify({
     footer: footerContentHeight,
     // 마진 포함 — 페이지 구조가 같아도 마진 변경 시 leftover(fill 높이)를 다시 계산해야 함.
     margins,
+    headerFingerprints,
     pages: pages.map((p) => ({
       end: p.blocks[p.blocks.length - 1]?.end ?? -1,
       used: p.used,
@@ -500,6 +513,10 @@ function buildDecorations(
             o,
             isLast,
             continuedHeaderRow ? cloneRowWidget(view, continuedHeaderRow) : null,
+            // 마지막 블록의 margin-bottom 은 used 에 없는데 실제 렌더에선 fill 위에
+            // 펼쳐져 페이지가 모델보다 한 마진씩 처지는 원인 — fill 의 음수 margin-top
+            // 으로 상쇄(형제 마진 상쇄 합 0). 표 행 등 mb=0 이면 no-op.
+            lastBlock.marginBottom,
           ),
         { side: 1 },
       ),
@@ -525,6 +542,7 @@ function makePageBreak(
   o: ResolvedOpts,
   isLast: boolean,
   repeatedHeader?: HTMLElement | null,
+  cancelMarginBottom = 0,
 ): HTMLElement {
   const wrap = document.createElement("div");
   wrap.className = "rm-page-break" + (isLast ? " rm-page-break-last" : "");
@@ -536,6 +554,7 @@ function makePageBreak(
   const fill = document.createElement("div");
   fill.className = "rm-page-fill";
   fill.style.height = `${leftover}px`;
+  if (cancelMarginBottom > 0) fill.style.marginTop = `${-cancelMarginBottom}px`;
   wrap.appendChild(fill);
 
   const footer = document.createElement("div");
@@ -609,7 +628,7 @@ function injectStyles(doc: Document): void {
   const style = doc.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    .rm-with-pagination, .rm-with-pagination .rm-first-page-header { counter-reset: page-number 1; }
+    .rm-with-pagination { counter-reset: page-number 0; }
     .rm-with-pagination .rm-page-break { counter-increment: page-number; }
     .rm-with-pagination .rm-page-number::before { content: counter(page-number); }
     .rm-with-pagination .rm-page-break-last .rm-pagination-gap,

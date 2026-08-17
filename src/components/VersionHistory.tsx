@@ -101,6 +101,9 @@ export function VersionHistory({
       setSaveName("");
       toast.success(t("versionHistory.saved"));
       await load();
+    } catch (e) {
+      console.error("[revision save failed]", e);
+      toast.error(t("versionHistory.failed"));
     } finally {
       setBusy(false);
     }
@@ -125,6 +128,9 @@ export function VersionHistory({
         toast.success(t("versionHistory.deleted"));
         await load();
       }
+    } catch (e) {
+      console.error("[revision action failed]", e);
+      toast.error(t("versionHistory.failed"));
     } finally {
       setBusy(false);
     }

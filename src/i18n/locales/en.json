@@ -69,6 +69,7 @@
     "savingDots": "Saving…",
     "pending": "Modified (pending)",
     "exportDone": "DOCX export complete",
+    "exportUnsaved": "Export cancelled — saving failed. Check the error in the status bar.",
     "draftRestored": "Restored unsaved draft",
     "imageUploadFailed": "Image upload failed",
     "onlineRestored": "Back online — resuming saves",
@@ -271,7 +272,8 @@
     "restoreAction": "Restore",
     "saved": "Version saved",
     "restored": "Restored to this version",
-    "deleted": "Version deleted"
+    "deleted": "Version deleted",
+    "failed": "The operation failed. Please try again."
   },
   "commandPalette": {
     "title": "Command palette",

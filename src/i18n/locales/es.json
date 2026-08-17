@@ -69,6 +69,7 @@
     "savingDots": "Guardando…",
     "pending": "Modificado (pendiente)",
     "exportDone": "Exportación DOCX completada",
+    "exportUnsaved": "Exportación cancelada: no se pudo guardar. Comprueba el error en la barra de estado.",
     "draftRestored": "Borrador sin guardar restaurado",
     "imageUploadFailed": "Error al subir la imagen",
     "onlineRestored": "De nuevo en línea — reanudando el guardado",
@@ -271,7 +272,8 @@
     "restoreAction": "Restaurar",
     "saved": "Versión guardada",
     "restored": "Restaurado a esta versión",
-    "deleted": "Versión eliminada"
+    "deleted": "Versión eliminada",
+    "failed": "La operación falló. Inténtalo de nuevo."
   },
   "commandPalette": {
     "title": "Paleta de comandos",

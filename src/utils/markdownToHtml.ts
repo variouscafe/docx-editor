@@ -2,6 +2,29 @@ import { Marked, type Tokens } from "marked";
 
 // Custom inline tokenizer + renderer extensions for custom markdown syntax
 
+/**
+ * 커스텀 확장 공용 맥락 타입 — 내부 콘텐츠를 marked 로 재파싱(inlineTokens/parseInline)해
+ * 중첩 마크를 보존한다. `++**굵게**++` 를 텍스트 그대로 삽입해 리터럴 `**` 가 새어 나가고
+ * 굵게가 소실되던 왕복 결함(2026-08-17 점검 P2)의 수정.
+ */
+interface InlineTokenizerCtx {
+  lexer: { inlineTokens(src: string, tokens?: Tokens.Generic[]): Tokens.Generic[] };
+}
+interface InlineRendererCtx {
+  parser: { parseInline(tokens: unknown[]): string };
+}
+
+/** HTML 속성값 이스케이프 — 주석 텍스트의 따옴표가 태그를 깨지 않게. */
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+/** 꼬마글씨 주석 파트 언이스케이프 — jsonToMarkdown escapeAnnotationPart 역변환.
+ *  (body 는 marked 표준 이스케이프 처리로 복원되므로 속성인 주석에만 필요) */
+function unescapeAnnotationPart(s: string): string {
+  return s.replace(/\\([\\|}])/g, "$1");
+}
+
 /** ++text++ → <span data-border="solid">text</span> */
 const solidBoxExtension = {
   name: "solidBox",
@@ -9,17 +32,17 @@ const solidBoxExtension = {
   start(src: string) {
     return src.indexOf("++");
   },
-  tokenizer(src: string): Tokens.Generic | undefined {
+  tokenizer(this: InlineTokenizerCtx, src: string): Tokens.Generic | undefined {
     const match = /^\+\+(.+?)\+\+/.exec(src);
     if (!match) return undefined;
     return {
       type: "solidBox",
       raw: match[0],
-      text: match[1],
+      tokens: this.lexer.inlineTokens(match[1]),
     };
   },
-  renderer(token: Tokens.Generic): string {
-    return `<span data-border="solid">${token.text}</span>`;
+  renderer(this: InlineRendererCtx, token: Tokens.Generic): string {
+    return `<span data-border="solid">${this.parser.parseInline(token.tokens ?? [])}</span>`;
   },
 };
 
@@ -30,17 +53,17 @@ const dashedBoxExtension = {
   start(src: string) {
     return src.indexOf("~~");
   },
-  tokenizer(src: string): Tokens.Generic | undefined {
+  tokenizer(this: InlineTokenizerCtx, src: string): Tokens.Generic | undefined {
     const match = /^~~(.+?)~~/.exec(src);
     if (!match) return undefined;
     return {
       type: "dashedBox",
       raw: match[0],
-      text: match[1],
+      tokens: this.lexer.inlineTokens(match[1]),
     };
   },
-  renderer(token: Tokens.Generic): string {
-    return `<span data-border="dashed">${token.text}</span>`;
+  renderer(this: InlineRendererCtx, token: Tokens.Generic): string {
+    return `<span data-border="dashed">${this.parser.parseInline(token.tokens ?? [])}</span>`;
   },
 };
 
@@ -52,18 +75,18 @@ const highlightExtension = {
   start(src: string) {
     return src.indexOf("==");
   },
-  tokenizer(src: string): Tokens.Generic | undefined {
+  tokenizer(this: InlineTokenizerCtx, src: string): Tokens.Generic | undefined {
     const match = /^==(.+?)==(?:\{(#\w+)\})?/.exec(src);
     if (!match) return undefined;
     return {
       type: "highlight",
       raw: match[0],
-      text: match[1],
+      tokens: this.lexer.inlineTokens(match[1]),
       color: match[2] || "#fef08a",
     };
   },
-  renderer(token: Tokens.Generic): string {
-    return `<mark data-color="${token.color}">${token.text}</mark>`;
+  renderer(this: InlineRendererCtx, token: Tokens.Generic): string {
+    return `<mark data-color="${escapeAttr(String(token.color ?? ""))}">${this.parser.parseInline(token.tokens ?? [])}</mark>`;
   },
 };
 
@@ -74,39 +97,43 @@ const underlineExtension = {
   start(src: string) {
     return src.indexOf("^^");
   },
-  tokenizer(src: string): Tokens.Generic | undefined {
+  tokenizer(this: InlineTokenizerCtx, src: string): Tokens.Generic | undefined {
     const match = /^\^\^(.+?)\^\^/.exec(src);
     if (!match) return undefined;
     return {
       type: "underline",
       raw: match[0],
-      text: match[1],
+      tokens: this.lexer.inlineTokens(match[1]),
     };
   },
-  renderer(token: Tokens.Generic): string {
-    return `<u>${token.text}</u>`;
+  renderer(this: InlineRendererCtx, token: Tokens.Generic): string {
+    return `<u>${this.parser.parseInline(token.tokens ?? [])}</u>`;
   },
 };
 
-/** {{text|annotation}} → <span data-annotation="annotation">text</span> */
+/** {{text|annotation}} → <span data-annotation="annotation">text</span>
+ *  파트 경계 정규식 — 파트 내 |·}·\ 는 백슬래시 이스케이프로 구분자와 구별한다
+ *  (jsonToMarkdown escapeAnnotationPart 와 짝. lazy 매칭은 이스케이프를 역추적하지
+ *  못하므로 `\\.` 우선 패턴으로 명시 파싱). */
+const ANNOTATION_RE = /^\{\{((?:\\.|[^|\\])*)\|((?:\\.|[^}\\])*)\}\}/;
 const annotationExtension = {
   name: "annotation",
   level: "inline" as const,
   start(src: string) {
     return src.indexOf("{{");
   },
-  tokenizer(src: string): Tokens.Generic | undefined {
-    const match = /^\{\{(.+?)\|(.+?)\}\}/.exec(src);
+  tokenizer(this: InlineTokenizerCtx, src: string): Tokens.Generic | undefined {
+    const match = ANNOTATION_RE.exec(src);
     if (!match) return undefined;
     return {
       type: "annotation",
       raw: match[0],
-      text: match[1],
+      tokens: this.lexer.inlineTokens(match[1]),
       annotation: match[2],
     };
   },
-  renderer(token: Tokens.Generic): string {
-    return `<span data-annotation="${token.annotation}">${token.text}</span>`;
+  renderer(this: InlineRendererCtx, token: Tokens.Generic): string {
+    return `<span data-annotation="${escapeAttr(unescapeAnnotationPart(String(token.annotation ?? "")))}">${this.parser.parseInline(token.tokens ?? [])}</span>`;
   },
 };
 
@@ -119,18 +146,18 @@ const coreSummaryExtension = {
   start(src: string) {
     return src.indexOf("[");
   },
-  tokenizer(src: string): Tokens.Generic | undefined {
+  tokenizer(this: InlineTokenizerCtx, src: string): Tokens.Generic | undefined {
     const match = /^\[([^\]]+?)\](?!\(|\[)/.exec(src);
     if (!match) return undefined;
     return {
       type: "coreSummary",
       raw: match[0],
-      text: match[1],
+      tokens: this.lexer.inlineTokens(match[1]),
     };
   },
-  renderer(token: Tokens.Generic): string {
-    const content = token.text.replace(/\n/g, "<br>");
-    return `<span data-core-summary="true">${content}</span>`;
+  renderer(this: InlineRendererCtx, token: Tokens.Generic): string {
+    // breaks:true — inlineTokens 가 \n 을 br 토큰으로 변환하므로 개행은 그대로 유지된다.
+    return `<span data-core-summary="true">${this.parser.parseInline(token.tokens ?? [])}</span>`;
   },
 };
 
@@ -141,17 +168,17 @@ const titleExtension = {
   start(src: string) {
     return src.match(/^! /m)?.index ?? -1;
   },
-  tokenizer(src: string): Tokens.Generic | undefined {
+  tokenizer(this: InlineTokenizerCtx, src: string): Tokens.Generic | undefined {
     const match = /^! (.+)/.exec(src);
     if (!match) return undefined;
     return {
       type: "title",
       raw: match[0],
-      text: match[1],
+      tokens: this.lexer.inlineTokens(match[1]),
     };
   },
-  renderer(token: Tokens.Generic): string {
-    return `<div data-title="true" style="text-align: center">${token.text}</div>`;
+  renderer(this: InlineRendererCtx, token: Tokens.Generic): string {
+    return `<div data-title="true" style="text-align: center">${this.parser.parseInline(token.tokens ?? [])}</div>`;
   },
 };
 
@@ -234,14 +261,17 @@ const SHIELD_MAP: Record<string, string> = {
   "^": "\uE105",
   "{": "\uE106",
   "}": "\uE107",
+  "!": "\uE108",
 };
-const UNSHIELD_RE = /[\uE100-\uE107]/g;
+const UNSHIELD_RE = /[\uE100-\uE108]/g;
 const UNSHIELD_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(SHIELD_MAP).map(([orig, shielded]) => [shielded, orig]),
 );
 function shieldCustomEscapes(md: string): string {
-  // \[ \= \+ \~ \^ \{ — jsonToMarkdown 이 생성하는 커스텀 문법 이스케이프.
-  return md.replace(/\\([\[\]=+~^{}])/g, (_, c: string) => SHIELD_MAP[c] ?? c);
+  // \[ \= \+ \~ \^ \{ \! — jsonToMarkdown 이 생성하는 커스텀 문법 이스케이프.
+  // (! 포함 — title 확장의 start()/tokenizer 가 백슬래시를 무시하고 줄 시작 `! ` 을
+  //  자르므로 표준 이스케이프로는 막을 수 없다. 나머지 기호들도 같은 이유로 센티널 보호.)
+  return md.replace(/\\([\[\]=+~^{}!])/g, (_, c: string) => SHIELD_MAP[c] ?? c);
 }
 
 /**
@@ -250,7 +280,13 @@ function shieldCustomEscapes(md: string): string {
  * Line-end alignment: ` >>` = right, ` <>` = center, ` <<` = left
  */
 export function markdownToHtml(md: string): string {
-  const preprocessed = shieldCustomEscapes(preprocessMarkdown(md));
+  // 진짜 사립 영역 문자(E100-E108)를 HTML 엔티티로 선치환 — 하단 unshield 가 사용자
+  // 문서의 PUA 문자를 커스텀 기호로 오복원하는 것을 방지(엔티티는 DOM 디코딩으로 복원).
+  // %%BR%% 리터럴도 엔티티화 — 헤딩 개행 병합 마커로 오인돼 <br> 로 바뀌지 않게.
+  const puaShielded = md
+    .replace(/[-]/g, (c) => `&#x${c.charCodeAt(0).toString(16)};`)
+    .replace(/%%BR%%/g, "&#37;&#37;BR&#37;&#37;");
+  const preprocessed = shieldCustomEscapes(preprocessMarkdown(puaShielded));
   const result = markedInstance.parse(preprocessed, { async: false });
   let html = typeof result === "string" ? result : "";
   html = applyAlignmentMarkers(html);

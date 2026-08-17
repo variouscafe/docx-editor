@@ -191,10 +191,16 @@ export interface GridCell {
   rowSpan: number;
   colSpan: number;
   isHeader: boolean;
-  text: string; // 셀 원문 텍스트
-  value: number | null; // 파싱된 숫자
+  text: string; // 셀 원문 텍스트(포맷 셀은 표시 텍스트)
+  value: number | null; // 표시 텍스트에서 파싱한 숫자(포맷 반올림 포함)
+  rawValue: number | null; // 미포맷 원값(체인 참조 정밀도용 — plugin 이 attr 로 저장)
   format: string | null;
   formula: string | null;
+}
+
+/** 셀 참조에 쓸 산술값 — 원값 우선(포맷 반올림된 표시값은 체인 수식을 왜곡한다). */
+function cellNumValue(c: GridCell): number | null {
+  return c.rawValue ?? c.value;
 }
 
 export interface TableGrid {
@@ -251,6 +257,15 @@ export function buildTableGrid(table: JSONContent): TableGrid {
       const rowSpan = Math.max(1, Number(cn.attrs?.rowspan) || 1);
       const colSpan = Math.max(1, Number(cn.attrs?.colspan) || 1);
       const text = cellNodeText(cn);
+      const parsed = parseNumber(text);
+      // attr 원값은 "표시 텍스트가 그 원값의 포맷 렌더링일 때만" 신뢰 — 사용자가 표시값을
+      // 직접 고쳤다면(불일치) 수정된 텍스트의 파싱값을 원값으로 승격한다.
+      let rawValue = parsed;
+      const attrRaw = Number(cn.attrs?.rawValue);
+      if (cn.attrs?.rawValue != null && Number.isFinite(attrRaw)) {
+        const fmt = isNumberFormat(cn.attrs?.format) ? (cn.attrs!.format as NumberFormat) : "number";
+        rawValue = formatNumber(attrRaw, fmt) === text ? attrRaw : parsed;
+      }
       const cell: GridCell = {
         row: r,
         col,
@@ -258,7 +273,8 @@ export function buildTableGrid(table: JSONContent): TableGrid {
         colSpan,
         isHeader: cn.type === "tableHeader",
         text,
-        value: parseNumber(text),
+        value: parsed,
+        rawValue,
         format: isNumberFormat(cn.attrs?.format) ? (cn.attrs!.format as NumberFormat) : null,
         formula:
           typeof cn.attrs?.formula === "string" && cn.attrs.formula.trim() !== ""
@@ -345,7 +361,7 @@ function collectRefs(
       if (c.isHeader) break;
       if (c.formula) continue;
       if (c.text === "") continue;
-      if (c.value === null) break;
+      if (cellNumValue(c) === null) break;
       add(c);
     }
   } else if (dir === "BELOW") {
@@ -354,7 +370,7 @@ function collectRefs(
       if (!c) continue;
       if (c.formula) continue;
       if (c.text === "") continue;
-      if (c.value === null) break;
+      if (cellNumValue(c) === null) break;
       add(c);
     }
   } else if (dir === "LEFT") {
@@ -363,7 +379,7 @@ function collectRefs(
       if (!cell) continue;
       if (cell.formula) continue;
       if (cell.text === "") continue;
-      if (cell.value === null) break;
+      if (cellNumValue(cell) === null) break;
       add(cell);
     }
   } else {
@@ -373,7 +389,7 @@ function collectRefs(
       if (!cell) continue;
       if (cell.formula) continue;
       if (cell.text === "") continue;
-      if (cell.value === null) break;
+      if (cellNumValue(cell) === null) break;
       add(cell);
     }
   }
@@ -387,7 +403,7 @@ export function evaluateParsed(
   origin: GridCell,
 ): EvalResult {
   const refs = collectRefs(parsed, grid, origin);
-  const nums = refs.map((c) => c.value).filter((v): v is number => v !== null);
+  const nums = refs.map((c) => cellNumValue(c)).filter((v): v is number => v !== null);
   switch (parsed.fn) {
     case "SUM":
       return { value: nums.reduce((a, b) => a + b, 0) };
@@ -511,7 +527,7 @@ interface FuncArg {
 /** 셀참조 → 숫자(비숫자/빈 셀은 0). */
 function cellNum(ref: CellRef, grid: TableGrid): number {
   const c = grid.matrix[ref.row]?.[ref.col];
-  return c?.value ?? 0;
+  return c ? (cellNumValue(c) ?? 0) : 0;
 }
 
 /** 표현식 내 함수호출 평가 → 숫자. 방향·A1범위 인자 재사용. */
@@ -685,6 +701,18 @@ export function formulaErrorText(error: FormulaError): string {
 }
 
 /**
+ * 셀의 미포맷 산술값 — 표시 동기화(plugin)가 rawValue attr 으로 저장해 체인 수식이
+ * 포맷 반올림된 표시값이 아니라 원값을 참조하게 한다. 수식 셀은 평가 결과.
+ */
+export function cellNumericValue(cell: GridCell, grid: TableGrid): number | null {
+  if (cell.formula) {
+    const { value, error } = evaluateAny(cell.formula, grid, cell);
+    return error ? null : value;
+  }
+  return cellNumValue(cell);
+}
+
+/**
  * 셀의 표시 텍스트 계산 — 수식 셀이면 평가+포맷, 포맷 셀이면 숫자포맷, 아니면 원문.
  * FE 미리보기·BE DOCX 가 같은 값을 쓴다.
  */
@@ -697,8 +725,9 @@ export function formatCellValue(cell: GridCell, grid: TableGrid): string {
     return formatNumber(value, fmt);
   }
   if (cell.format && isNumberFormat(cell.format)) {
-    if (cell.value === null) return cell.text;
-    return formatNumber(cell.value, cell.format);
+    const v = cellNumValue(cell);
+    if (v === null) return cell.text;
+    return formatNumber(v, cell.format);
   }
   return cell.text;
 }

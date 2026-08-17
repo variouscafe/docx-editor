@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/react";
-import type { Node as PmNode } from "@tiptap/pm/model";
+import { DOMSerializer, type Node as PmNode } from "@tiptap/pm/model";
 
 /**
  * 표 수준 동작 — 복사(클립보드)·복제(인라인) 보조. 삭제는 표 확장의 deleteTable 사용.
@@ -18,28 +18,15 @@ function findTable(state: any): { node: PmNode; pos: number } | null {
   return res;
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/** 표 노드 → HTML 문자열(<table><tbody><tr><td> + 정렬). 클립보드 복사/외부 붙여넣기용. */
-function tableNodeToHtml(table: PmNode): string {
-  let body = "";
-  table.forEach((row) => {
-    body += "<tr>";
-    row.forEach((cell) => {
-      const tag = cell.type.name === "tableHeader" ? "th" : "td";
-      const align = (cell.firstChild as PmNode | null)?.attrs?.textAlign as string | undefined;
-      const style = align ? ` style="text-align:${align}"` : "";
-      body += `<${tag}${style}>${escapeHtml(cell.textContent)}</${tag}>`;
-    });
-    body += "</tr>";
-  });
-  return `<table><tbody>${body}</tbody></table>`;
+/**
+ * 표 노드 → 스키마 직렬화 HTML. 병합(colspan/rowspan)·열폭(colgroup)·인라인 마크·
+ * data-format/formula 속성까지 보존돼 같은 에디터에 다시 붙여넣을 때 무손실 왕복된다
+ * (과거 textContent 조립 HTML 은 구조·마크가 전부 평문으로 떨어졌다).
+ */
+function tableNodeToHtml(state: any, table: PmNode): string {
+  const wrap = document.createElement("div");
+  wrap.append(DOMSerializer.fromSchema(state.schema).serializeNode(table));
+  return wrap.innerHTML;
 }
 
 /** 표를 바로 아래에 복제(같은 내용의 새 표 + 빈 문단 삽입). 레이아웃 재사용에 편리. */
@@ -98,7 +85,7 @@ function copyRichHtml(html: string): boolean {
 export async function copyTableToClipboard(editor: Editor): Promise<boolean> {
   const t = findTable(editor.state);
   if (!t) return false;
-  const html = tableNodeToHtml(t.node);
+  const html = tableNodeToHtml(editor.state, t.node);
   const text = t.node.textContent;
 
   // 1) 동기식 execCommand(모바일에서 text/html 지원) — 클릭 제스처 내에서 즉시 실행.

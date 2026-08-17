@@ -67,8 +67,12 @@ export default function SelectionTextTool({ editor, scrollRef }: SelectionTextTo
   if (!editor || !pos) return null;
 
   const confirmAnnotation = () => {
-    if (annotationText.trim()) {
-      editor.chain().focus().setAnnotation(annotationText.trim()).run();
+    const text = annotationText.trim();
+    if (text) {
+      editor.chain().focus().setAnnotation(text).run();
+    } else if (editor.isActive("annotation")) {
+      // 빈 값 확인 = 주석 해제 — 상단 RichTextToolbar 와 동일 규칙(옛 주석 잔존 방지).
+      editor.chain().focus().unsetAnnotation().run();
     }
     setAnnotationMode(false);
     setAnnotationText("");
@@ -108,8 +112,9 @@ export default function SelectionTextTool({ editor, scrollRef }: SelectionTextTo
       ref={barRef}
       className="fixed z-30 flex items-center gap-0.5 rounded-md border bg-background px-1 py-1 shadow-lg"
       style={{
-        top: Math.max(8, pos.top - 44),
-        left: Math.max(8, pos.left - barWidth / 2),
+        // 좌우 모두 클램프 — 뷰포트 우측/하단에서 툴바가 화면 밖으로 넘치지 않게.
+        top: Math.min(Math.max(8, pos.top - 44), window.innerHeight - 44),
+        left: Math.min(Math.max(8, pos.left - barWidth / 2), Math.max(8, window.innerWidth - barWidth - 8)),
         visibility: barWidth ? "visible" : "hidden",
       }}
       // 툴바 클릭/드래그가 선택 해제로 이어지지 않게 방해.

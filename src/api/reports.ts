@@ -95,9 +95,13 @@ export async function getPublicReport(token: string): Promise<PublicReportView> 
   return (await res.json()) as PublicReportView;
 }
 
-/** DOCX 내보내기 — BE 가 저장된 JSON+템플릿으로 생성한 Blob 반환. */
+/** DOCX 내보내기 — BE 가 저장된 JSON+템플릿으로 생성한 Blob 반환.
+ *  이미지 포함 대용량 문서 생성 여유를 위해 타임아웃 90s(정체 시 무한 대기 방지). */
 export async function exportReport(id: string): Promise<Blob> {
-  const res = await authFetchRaw(`/api/reports/${id}/export`, { method: "POST" });
+  const res = await authFetchRaw(`/api/reports/${id}/export`, {
+    method: "POST",
+    signal: AbortSignal.timeout(90_000),
+  });
   if (!res.ok) throw new Error(`Export failed (${res.status})`);
   return res.blob();
 }

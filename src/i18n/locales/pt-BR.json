@@ -69,6 +69,7 @@
     "savingDots": "Salvando…",
     "pending": "Modificado (pendente)",
     "exportDone": "Exportação DOCX concluída",
+    "exportUnsaved": "Exportação cancelada: falha ao salvar. Verifique o erro na barra de status.",
     "draftRestored": "Rascunho não salvo restaurado",
     "imageUploadFailed": "Falha ao enviar a imagem",
     "onlineRestored": "Online novamente — retomando os salvamentos",
@@ -271,7 +272,8 @@
     "restoreAction": "Restaurar",
     "saved": "Versão salva",
     "restored": "Restaurado para esta versão",
-    "deleted": "Versão excluída"
+    "deleted": "Versão excluída",
+    "failed": "A operação falhou. Tente novamente."
   },
   "commandPalette": {
     "title": "Paleta de comandos",

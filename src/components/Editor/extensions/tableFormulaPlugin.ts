@@ -1,6 +1,7 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
-import { buildTableGrid, formatCellValue, type TableGrid } from "@shared/tableFormula";
+import type { Mark } from "@tiptap/pm/model";
+import { buildTableGrid, cellNumericValue, formatCellValue, type TableGrid } from "@shared/tableFormula";
 
 /**
  * 표 계산 반응형 플러그인.
@@ -22,6 +23,9 @@ interface CellUpdate {
   size: number; // 셀 노드 크기
   desired: string;
   paraAttrs: Record<string, unknown>;
+  firstTextMarks?: readonly Mark[]; // 기존 첫 텍스트 run 의 마크(표시 텍스트 교체 시 보존)
+  cellAttrs: Record<string, unknown>; // 셀 기존 attrs(rawValue 갱신에 사용)
+  rawValue: number | null; // 미포맷 산술값 — 체인 수식이 표시 반올림이 아니라 원값을 읽게
 }
 
 function selectionInsideCell(selection: { from: number; to: number }, pos: number, size: number): boolean {
@@ -98,8 +102,19 @@ export const TableFormulaPlugin = Extension.create({
             const firstChild = c.node.firstChild;
             const paraAttrs =
               firstChild && firstChild.type.name === "paragraph" ? { ...firstChild.attrs } : {};
+            const firstText = firstChild?.firstChild;
+            const firstTextMarks =
+              firstText && firstText.type.name === "text" ? firstText.marks : undefined;
 
-            updates.push({ pos: c.pos, size: c.node.nodeSize, desired, paraAttrs });
+            updates.push({
+              pos: c.pos,
+              size: c.node.nodeSize,
+              desired,
+              paraAttrs,
+              firstTextMarks,
+              cellAttrs: { ...c.node.attrs },
+              rawValue: cellNumericValue(gc, t.grid),
+            });
           }
 
           if (updates.length === 0) return null;
@@ -110,9 +125,16 @@ export const TableFormulaPlugin = Extension.create({
           for (const u of updates) {
             const start = u.pos + 1; // 셀 내부 첫 자식 직전(절대)
             const end = u.pos + u.size - 1; // 셀 닫기 직전(절대)
-            const textNode = u.desired === "" ? null : schema.text(u.desired);
+            // 첫 텍스트 run 의 인라인 마크 보존 — 포맷만 적용한 셀의 굵게 등이
+            // 표시 텍스트(₩1,200 등)로 바뀔 때 소실되지 않는다.
+            const firstText = u.firstTextMarks;
+            const textNode =
+              u.desired === "" ? null : schema.text(u.desired, firstText ?? undefined);
             const para = schema.nodes.paragraph.create(u.paraAttrs, textNode ? [textNode] : []);
             tr.replaceWith(start, end, para);
+            // 셀 attr 에 미포맷 원값 저장 — 체인 수식(=B2*1.1)이 포맷 반올림 표시값이
+            // 아니라 원값을 참조한다. attr 선언은 tableCellFormat/tableHeaderFormat.
+            tr.setNodeMarkup(u.pos, undefined, { ...u.cellAttrs, rawValue: u.rawValue });
           }
           return tr;
         },

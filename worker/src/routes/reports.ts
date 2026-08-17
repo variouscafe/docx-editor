@@ -6,6 +6,7 @@ import { createDb } from '../db/index.js';
 import { reports, revisions, reportShares, users, groups } from '../db/schema.js';
 import { newId, isoNow, newShareToken } from '../lib/id.js';
 import { badRequest, forbidden, notFound, conflict } from '../lib/errors.js';
+import { sniffImageSize } from '../lib/imageMeta.js';
 import { jwtAuth } from '../middleware/auth.js';
 import { ensureReportAccess, assertGroupMember, getGroupIds } from '../lib/authz.js';
 import type {
@@ -347,25 +348,56 @@ async function loadExportImage(env: AppEnv['Bindings'], src: string) {
   if (src.startsWith(IMAGES_PATH)) {
     const id = src.slice(IMAGES_PATH.length);
     if (!IMAGE_ID_RE.test(id)) return null;
-    const obj = await env.IMAGES.get(`uploads/${id}`);
-    if (!obj) return null;
-    return {
-      data: await obj.arrayBuffer(),
-      mime: obj.httpMetadata?.contentType ?? 'application/octet-stream',
-      width: Number(obj.customMetadata?.width) || undefined,
-      height: Number(obj.customMetadata?.height) || undefined,
-    };
+    // R2 일시 오류가 export 전체를 실패시키지 않게 — 이미지 1장 건너뛰기(외부 fetch 와 동일 정책).
+    try {
+      const obj = await env.IMAGES.get(`uploads/${id}`);
+      if (!obj) return null;
+      return {
+        data: await obj.arrayBuffer(),
+        mime: obj.httpMetadata?.contentType ?? 'application/octet-stream',
+        width: Number(obj.customMetadata?.width) || undefined,
+        height: Number(obj.customMetadata?.height) || undefined,
+      };
+    } catch {
+      return null;
+    }
   }
-  if (/^https?:\/\//i.test(src)) {
-    // 마크다운 가져오기 등 외부 이미지. 용량/시간 제한.
+  if (/^https:\/\//i.test(src)) {
+    // 마크다운 가져오기 등 외부 이미지 — https 만 허용(워커가 열린 프록시가 되는 것 방지).
+    // 용량: content-length 선제검사 + 스트리밍 바이트 카운터(헤더 생략 서버도 10MB 절단).
     try {
       const res = await fetch(src, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) return null;
       const len = Number(res.headers.get('content-length') ?? 0);
       if (len > FETCH_IMAGE_MAX_BYTES) return null;
-      const buf = await res.arrayBuffer();
-      if (buf.byteLength > FETCH_IMAGE_MAX_BYTES) return null;
-      return { data: buf, mime: res.headers.get('content-type') ?? 'application/octet-stream' };
+      const reader = res.body?.getReader();
+      if (!reader) return null;
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > FETCH_IMAGE_MAX_BYTES) {
+          void reader.cancel().catch(() => {});
+          return null;
+        }
+        chunks.push(value);
+      }
+      const buf = new Uint8Array(total);
+      let off = 0;
+      for (const ch of chunks) {
+        buf.set(ch, off);
+        off += ch.byteLength;
+      }
+      // 치수 스니핑 — attrs 없는 외부 이미지가 480×360 기본값으로 왜곡되지 않게.
+      const size = sniffImageSize(buf);
+      return {
+        data: buf,
+        mime: res.headers.get('content-type') ?? 'application/octet-stream',
+        width: size?.width,
+        height: size?.height,
+      };
     } catch {
       return null;
     }
@@ -388,10 +420,12 @@ reportRoutes.post('/:id/export', async (c) => {
   });
 
   const safeName = (row.title || 'document').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+  const fileBase = encodeURIComponent(safeName);
   return new Response(buf, {
     headers: {
       'content-type': DOCX_CONTENT_TYPE,
-      'content-disposition': `attachment; filename="${encodeURIComponent(safeName)}.docx"`,
+      // filename(Percent-encoded) + filename*(RFC 5987) — 비 ASCII 제목의 브라우저 호환 최대화.
+      'content-disposition': `attachment; filename="${fileBase}.docx"; filename*=UTF-8''${fileBase}.docx`,
     },
   });
 });
@@ -433,10 +467,13 @@ reportRoutes.put('/:id/public-share', async (c) => {
   if (regenerate) nextToken = newShareToken();
   if (nextEnabled && !nextToken) nextToken = newShareToken();
 
-  const patch: Record<string, unknown> = { updatedAt: isoNow() };
+  // 공유 상태는 본문 변경이 아니므로 reports.updatedAt 를 건드리지 않는다 —
+  // updatedAt 은 낙관적 동시성(409) 기준점이라, 토글이 이를 밀면 편집 중 세션이
+  // 허위 충돌로 자동저장을 중단하게 된다.
+  const patch: Record<string, unknown> = {};
   if (nextEnabled !== row.shareEnabled) patch.shareEnabled = nextEnabled;
   if (nextToken !== row.shareToken) patch.shareToken = nextToken;
-  if (Object.keys(patch).length > 1) {
+  if (Object.keys(patch).length > 0) {
     await db.update(reports).set(patch).where(eq(reports.id, row.id));
   }
 

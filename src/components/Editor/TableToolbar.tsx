@@ -104,10 +104,19 @@ export function TableToolbar({ editor }: Props) {
   // 직접 수식 입력(=A1+B1*0.1, =SUM(B2:B8)*1.1 ...).
   const [exprInput, setExprInput] = useState("");
 
-  // 현재 선택 셀의 포맷/수식(활성 표시용).
-  const cellAttrs = editor.getAttributes("tableCell") as {
+  // 현재 선택 셀의 포맷/수식(활성 표시용). tableHeader 셀은 별도 타입이라 함께 읽는다 —
+  // 한쪽만 읽으면 헤더 셀에서 계산기/수식 버튼 활성 표시가 항상 꺼진다.
+  const tc = editor.getAttributes("tableCell") as {
     format?: string | null;
     formula?: string | null;
+  };
+  const th = editor.getAttributes("tableHeader") as {
+    format?: string | null;
+    formula?: string | null;
+  };
+  const cellAttrs = {
+    format: tc.format ?? th.format,
+    formula: tc.formula ?? th.formula,
   };
 
   /** 현재 커서/선택이 속한 셀 기준으로 행·열·전체를 CellSelection 으로 잡는다.

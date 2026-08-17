@@ -69,6 +69,7 @@
     "savingDots": "Enregistrement…",
     "pending": "Modifié (en attente)",
     "exportDone": "Export DOCX terminé",
+    "exportUnsaved": "Export annulé : échec de l'enregistrement. Vérifiez l'erreur dans la barre d'état.",
     "draftRestored": "Brouillon non enregistré restauré",
     "imageUploadFailed": "Échec du téléversement de l'image",
     "onlineRestored": "De nouveau en ligne — reprise des enregistrements",
@@ -271,7 +272,8 @@
     "restoreAction": "Restaurer",
     "saved": "Version enregistrée",
     "restored": "Restauré à cette version",
-    "deleted": "Version supprimée"
+    "deleted": "Version supprimée",
+    "failed": "L'opération a échoué. Veuillez réessayer."
   },
   "commandPalette": {
     "title": "Palette de commandes",

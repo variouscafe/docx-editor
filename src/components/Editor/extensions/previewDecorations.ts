@@ -20,15 +20,31 @@ export function forceRedecorate(editor: Editor): void {
 
 function collectAnnotations(node: PmNode): string[] {
   const anns: string[] = [];
+  // 연속 같은 주석 = 하나의 꼬마글씨 마크가 굵게/hardBreak 등으로 여러 노드에 걸친 것 —
+  // 1회만 수집(중복 ○ 문단 방지). 주석 없는 노드로 끊긴 뒤의 같은 텍스트는 별도 주석.
+  let prev: string | null = null;
   node.descendants((child) => {
-    child.marks.forEach((m) => {
-      if (m.type.name === "annotation" && m.attrs["data-annotation"]) {
-        anns.push(m.attrs["data-annotation"] as string);
-      }
-    });
+    const ann = child.marks.find((m) => m.type.name === "annotation")?.attrs["data-annotation"];
+    const a = typeof ann === "string" && ann ? ann : null;
+    if (a && a !== prev) anns.push(a);
+    prev = a;
     return true;
   });
   return anns;
+}
+
+/** 노드별 안정 id — 장식 widget key 로 사용. PM 은 같은 key 의 위젯을 동일하게 보고
+ *  DOM 을 재사용하므로, 매 트랜잭션마다 장식을 새로 만들어도 편집 안 된 블록의
+ *  ○ 문단/↵ 위젯 DOM 이 파괴·재생성되지 않는다(불필요한 DOM 작업/깜빡임 제거). */
+const nodeIds = new WeakMap<PmNode, string>();
+let nodeIdSeq = 0;
+function stableNodeId(node: PmNode): string {
+  let id = nodeIds.get(node);
+  if (!id) {
+    id = `d${++nodeIdSeq}`;
+    nodeIds.set(node, id);
+  }
+  return id;
 }
 
 function buildDecorations(editor: Editor, doc: PmNode, options: DocxOptions): DecorationSet {
@@ -38,7 +54,8 @@ function buildDecorations(editor: Editor, doc: PmNode, options: DocxOptions): De
   const pushAnnotation2Widgets = (node: PmNode, offset: number) => {
     if (options.annotationMode !== 2) return;
     const anns = collectAnnotations(node);
-    for (const a of anns) {
+    const baseId = stableNodeId(node);
+    anns.forEach((a, i) => {
       decos.push(
         Decoration.widget(
           offset + node.nodeSize,
@@ -48,10 +65,10 @@ function buildDecorations(editor: Editor, doc: PmNode, options: DocxOptions): De
             p.textContent = `${options.annotation2.symbol} ${a}`;
             return p;
           },
-          { side: 1 }
+          { side: 1, key: `a2:${baseId}:${i}` }
         )
       );
-    }
+    });
   };
 
   // doc.descendants 로 전체 트리 순회 — 표 셀 안 단락·헤딩의 주석도 mode2 위젯으로 렌더.
@@ -94,7 +111,7 @@ function buildDecorations(editor: Editor, doc: PmNode, options: DocxOptions): De
               span.textContent = "↵";
               return span;
             },
-            { side: -1 }
+            { side: -1, key: `hb:${stableNodeId(node)}` }
           )
         );
       }

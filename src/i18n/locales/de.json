@@ -69,6 +69,7 @@
     "savingDots": "Wird gespeichert…",
     "pending": "Geändert (ausstehend)",
     "exportDone": "DOCX-Export abgeschlossen",
+    "exportUnsaved": "Export abgebrochen – Speichern fehlgeschlagen. Prüfe den Fehler in der Statusleiste.",
     "draftRestored": "Ungespeicherter Entwurf wiederhergestellt",
     "imageUploadFailed": "Bild-Upload fehlgeschlagen",
     "onlineRestored": "Wieder online — Speichern wird fortgesetzt",
@@ -271,7 +272,8 @@
     "restoreAction": "Wiederherstellen",
     "saved": "Version gespeichert",
     "restored": "Auf diese Version wiederhergestellt",
-    "deleted": "Version gelöscht"
+    "deleted": "Version gelöscht",
+    "failed": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen."
   },
   "commandPalette": {
     "title": "Befehlspalette",

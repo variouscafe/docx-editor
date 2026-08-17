@@ -1,11 +1,10 @@
 import type { EditorView } from "@tiptap/pm/view";
-import { TextSelection } from "@tiptap/pm/state";
+import { TextSelection, NodeSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { TableCellFormat } from "../Editor/extensions/tableCellFormat";
+import { TableCellFormat, TableHeaderFormat } from "../Editor/extensions/tableCellFormat";
 import { TableDeleteGuard } from "../Editor/extensions/tableDeleteGuard";
 import { TableCellDragSelect } from "../Editor/extensions/tableCellDragSelect";
 import { TableFormulaPlugin } from "../Editor/extensions/tableFormulaPlugin";
@@ -71,7 +70,7 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
     Table.configure({ resizable: true }),
     TableRow,
     TableCellFormat,
-    TableHeader,
+    TableHeaderFormat,
     // 표 셀에서 Backspace/Delete(모바일 beforeinput 포함)가 셀 경계를 넘어
     // 행/구조를 삭제하는 현상 방지(우선순위 1000으로 keymap보다 먼저 가로챔).
     TableDeleteGuard,
@@ -125,6 +124,28 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
       if (!view.editable || !isCoarsePointer()) return false;
       const target = event.target as HTMLElement | null;
       if (!target || !view.dom.contains(target)) return false;
+
+      // 이미지 노드(NodeView) 터치 — 텍스트 캐럿 배치가 아니라 노드 선택이 필요하다
+      // (선택돼야 리사이즈 핸들이 보이고 툴바 크기 프리셋이 활성화). 캡션(figcaption)은
+      // 자체 contenteditable 이므로 캐럿 처리에 간섭하지 않는다. posAtDOM 은 DOM 기반이라
+      // transform:scale 왜곡이 없다(posAtCoords 와 달리 정확).
+      const figure = target.closest(".rm-image-figure");
+      if (figure instanceof HTMLElement) {
+        const inCaption = target.closest("figcaption") != null;
+        if (!inCaption) {
+          try {
+            const $pos = view.state.doc.resolve(view.posAtDOM(figure, 0));
+            let sel = NodeSelection.near($pos, 1) as NodeSelection;
+            if (sel.node.type.name !== "image") sel = NodeSelection.near($pos, -1) as NodeSelection;
+            if (sel.node.type.name === "image") {
+              view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
+            }
+          } catch {
+            /* 노드 선택 실패 — 선택 변경 없이 소진 */
+          }
+        }
+        return true;
+      }
       // 1) 터치한 글자 위치 정확 매핑 — caretRangeFromPoint/caretPositionFromPoint 는
       //    elementFromPoint 처럼 시각 트리(transform 반영)를 히트테스트하므로 scale 환경에서도
       //    터치한 글자 사이/끝의 정확한 (노드, offset)을 준다(→ 글자 단위 배치).

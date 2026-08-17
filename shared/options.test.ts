@@ -154,4 +154,18 @@ describe("normalizeOptions — 외부 입력(JSON 패널) 보정", () => {
     expect(o.h3.lineStartSymbol).toBe(LineStartSymbol.ROMAN);
     expect(o.h3.leadingSpaces).toBe(2);
   });
+
+  it("무효 범위 숫자(음수/NaN/과대)는 클램프된다 — 무효 docx 스펙 방지", () => {
+    const o = normalizeOptions({
+      common: { fontSize: -10, paragraphSpacing: -5, marginTop: 40, marginLeft: Number.NaN },
+      title: { fontSize: 9999 },
+      h3: { leadingSpaces: -3 },
+    });
+    expect(o.common.fontSize).toBe(4); // pt 하한
+    expect(o.common.paragraphSpacing).toBe(0); // pt 하한
+    expect(o.common.marginTop).toBe(10); // cm 상한
+    expect(o.common.marginLeft).toBe(2); // NaN → 기본값
+    expect(o.title.fontSize).toBe(400); // pt 상한
+    expect(o.h3.leadingSpaces).toBe(0);
+  });
 });

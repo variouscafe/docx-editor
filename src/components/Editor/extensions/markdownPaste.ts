@@ -30,7 +30,11 @@ export const MarkdownPaste = Extension.create({
               /\+\+[^+]+\+\+/.test(text) ||
               /==[^=]+==/.test(text) ||
               /\^\^[^^]+\^\^/.test(text) ||
-              /\{\{[^}|]+\|[^}]+\}\}/.test(text);
+              /\{\{[^}|]+\|[^}]+\}\}/.test(text) ||
+              // 줄 시작 고정 문법 — 제목(!)·GFM 표(| … |). 임의 텍스트의 [괄호]는
+              // 오인 위험이 있어(coreSummary) 제외.
+              /^!\s/m.test(text) ||
+              /^\|.+\|/m.test(text);
 
             if (!hasMarkdown) return false;
 

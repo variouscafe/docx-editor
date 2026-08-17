@@ -69,6 +69,7 @@
     "savingDots": "저장 중…",
     "pending": "수정됨(저장 대기)",
     "exportDone": "DOCX 내보내기 완료",
+    "exportUnsaved": "저장에 실패해 내보내기를 중단했어요. 상태 표시줄의 오류를 확인해 주세요.",
     "draftRestored": "임시 내용을 복구했어요",
     "imageUploadFailed": "이미지 업로드에 실패했어요",
     "onlineRestored": "온라인 연결 복구 — 저장을 재개합니다",
@@ -271,7 +272,8 @@
     "restoreAction": "되돌리기",
     "saved": "버전이 저장됐습니다",
     "restored": "해당 버전으로 되돌렸습니다",
-    "deleted": "버전 기록이 삭제됐습니다"
+    "deleted": "버전 기록이 삭제됐습니다",
+    "failed": "작업에 실패했어요. 다시 시도해 주세요."
   },
   "commandPalette": {
     "title": "명령 팔레트",

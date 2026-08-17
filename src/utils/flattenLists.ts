@@ -28,6 +28,18 @@ function hasListNodes(nodes: JSONContent[] | undefined): boolean {
 
 function flatBlocks(nodes: JSONContent[] | undefined): JSONContent[] {
   const out: JSONContent[] = [];
+  /** listItem 직속 블록 하나를 최상위 문단으로 끌어올린다. */
+  const liftBlock = (child: JSONContent): void => {
+    if (child.type === "paragraph") {
+      out.push(child);
+    } else if (child.type === "bulletList" || child.type === "orderedList") {
+      // 중첩 리스트 — 같은 규칙으로 재귀 평탄화. 과거엔 리스트 자식(listItem 블록)을
+      // 그대로 paragraph.content 에 넣어 스키마 무효 문단(블록-in-인라인)을 만들었다.
+      out.push(...flatBlocks([child]));
+    } else {
+      out.push({ type: "paragraph", content: child.content ?? [] });
+    }
+  };
   for (const node of nodes ?? []) {
     if (node.type === "bulletList" || node.type === "orderedList") {
       // listItem 들을 순회하며 그 안의 블록을 paragraph 로 풀어 평탄화
@@ -36,13 +48,7 @@ function flatBlocks(nodes: JSONContent[] | undefined): JSONContent[] {
           out.push({ type: "paragraph", content: [] });
           continue;
         }
-        for (const child of item.content) {
-          if (child.type === "paragraph") {
-            out.push(child);
-          } else {
-            out.push({ type: "paragraph", content: child.content ?? [] });
-          }
-        }
+        for (const child of item.content) liftBlock(child);
       }
     } else {
       out.push(node);

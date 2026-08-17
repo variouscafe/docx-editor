@@ -9,6 +9,7 @@ import { createDb } from '../db/index.js';
 import { uploads } from '../db/schema.js';
 import { badRequest, payloadTooLarge } from '../lib/errors.js';
 import { newId } from '../lib/id.js';
+import { sniffImageSize } from '../lib/imageMeta.js';
 import { jwtAuth } from '../middleware/auth.js';
 import type { AppEnv } from '../types.js';
 
@@ -43,6 +44,10 @@ uploadRoutes.post('/', async (c) => {
   if (!(c.req.header('content-type') ?? '').startsWith('multipart/form-data')) {
     throw badRequest('Expected multipart/form-data');
   }
+  // 전체 바디를 파싱(버퍼링)하기 전에 선제 거부 — 과대 요청의 메모리 소모 방지.
+  // (정직한 클라이언트는 항상 content-length 를 보낸다. 누락·거짓이면 하단 크기검사가 잡는다.)
+  const declaredLen = Number(c.req.header('content-length') ?? 0);
+  if (declaredLen > MAX_BYTES + 64 * 1024) throw payloadTooLarge('Image exceeds 10MB limit');
   const body = await c.req.parseBody();
   const file = body['file'];
   if (!(file instanceof File)) throw badRequest('Missing file field');
@@ -51,8 +56,10 @@ uploadRoutes.post('/', async (c) => {
   const buf = await file.arrayBuffer();
   const mime = sniffImage(new Uint8Array(buf));
   if (!mime) throw badRequest('Unsupported image type (png/jpeg/gif only)');
-  const width = parseDim(body['width']);
-  const height = parseDim(body['height']);
+  // 치수는 헤더 스니핑값 우선 — 클라이언트 신고값은 레이아웃 힌트로만 폴백.
+  const sniffed = sniffImageSize(new Uint8Array(buf));
+  const width = sniffed?.width ?? parseDim(body['width']);
+  const height = sniffed?.height ?? parseDim(body['height']);
 
   const id = newId();
   const r2Key = `uploads/${id}`;

@@ -8,7 +8,9 @@ export interface UploadImageResult {
   height: number | null;
 }
 
-/** 이미지 업로드 — FormData 는 HttpClient 가 그대로 전송(Bearer + 401→refresh 포함). */
+/** 이미지 업로드 — FormData 는 HttpClient 가 그대로 전송(Bearer + 401→refresh 포함).
+ *  느린 회선의 대용량 사진(최대 10MB)을 고려해 타임아웃 120s — 업로드가 정체되면
+ *  waitForPendingImageUploads 를 거쳐 저장 전체가 블록되므로 상한이 반드시 필요하다. */
 export async function uploadImage(
   blob: Blob,
   width?: number | null,
@@ -18,7 +20,7 @@ export async function uploadImage(
   fd.append("file", blob, "image");
   if (width != null) fd.append("width", String(width));
   if (height != null) fd.append("height", String(height));
-  return authHttp.post<UploadImageResult>("/api/uploads", { body: fd });
+  return authHttp.post<UploadImageResult>("/api/uploads", { body: fd, timeoutMs: 120_000 });
 }
 
 /**

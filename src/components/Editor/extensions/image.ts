@@ -83,7 +83,10 @@ export const EditorImage = Image.extend({
         editor.on("update", syncEditable);
 
         const applyAttrs = () => {
-          img.src = resolveImageSrc(String(node.attrs.src ?? ""));
+          const src = String(node.attrs.src ?? "");
+          // 빈 src 대입 금지 — "" 는 페이지 URL 로 해석돼 스퓨리어스 요청/깨진 아이콘 유발.
+          if (src) img.src = resolveImageSrc(src);
+          else img.removeAttribute("src");
           const alt = node.attrs.alt ? String(node.attrs.alt) : "";
           if (alt) img.setAttribute("alt", alt);
           else img.removeAttribute("alt");
@@ -258,46 +261,87 @@ function imageFilesFromDataTransfer(dt: DataTransfer | null): File[] {
     .filter((f): f is File => !!f);
 }
 
-/** 업로드 완료 → 대기 노드(blob: src)를 최종 URL 로 교체. data-upload-id 로 탐색(편집/undo 에 강건). */
-function swapPendingImageSrc(editor: Editor, uploadId: string, res: UploadImageResult): void {
+/**
+ * 업로드 완료 → 대기 노드(blob: src)를 최종 URL 로 교체. data-upload-id 로 탐색(편집/undo 에 강건).
+ * - 루프로 state 를 재판독해 한 건씩 교체 — 같은 uploadId 노드가 2개 이상(대기 노드 복붙)이어도
+ *   dispatch 직전 캡처한 stale state 로 이중 dispatch 하는 일 없이 모두 교체된다.
+ * - 트랜잭션은 히스토리에서 제외 — Undo 1회로 삽입째 제거되고, Undo 로 죽은 blob: src 가
+ *   부활해 자동저장으로 영속화되는 일이 없다.
+ * - 치수는 노드 현재값 우선: 업로드 중 사용자가 리사이즈했다면 자연 치수로 되돌리지 않는다.
+ */
+export function swapPendingImageSrc(editor: Editor, uploadId: string, res: UploadImageResult): void {
   if (editor.isDestroyed) return; // 업로드 중 페이지 이동 — dispatch 불가
-  const { state } = editor;
-  state.doc.descendants((node, pos) => {
-    if (node.type.name !== "image" || node.attrs["data-upload-id"] !== uploadId) return true;
+  for (;;) {
+    const { state } = editor;
+    let pos: number | null = null;
+    state.doc.descendants((node, p) => {
+      if (node.type.name !== "image" || node.attrs["data-upload-id"] !== uploadId) return true;
+      pos = p;
+      return false;
+    });
+    if (pos == null) break;
+    const node = state.doc.nodeAt(pos);
+    if (!node) break;
     editor.view.dispatch(
-      state.tr.setNodeMarkup(pos, undefined, {
-        ...node.attrs,
-        src: res.url,
-        width: res.width ?? node.attrs.width,
-        height: res.height ?? node.attrs.height,
-        "data-upload-id": null,
-      })
+      state.tr
+        .setNodeMarkup(pos, undefined, {
+          ...node.attrs,
+          src: res.url,
+          width: node.attrs.width ?? res.width,
+          height: node.attrs.height ?? res.height,
+          "data-upload-id": null,
+        })
+        .setMeta("addToHistory", false)
     );
-    return false;
-  });
+  }
   // 못 찾으면(업로드 중 사용자가 삭제/undo) → 고아 업로드. v1 은 GC 없이 둠.
 }
 
-/** 업로드 실패 → 대기 노드 제거 + blob URL 해제. */
-function removePendingImage(editor: Editor, uploadId: string, objUrl: string): void {
+/** 업로드 실패 → 대기 노드 제거 + blob URL 해제. swap 과 동일한 루프·히스토리 제외 원칙. */
+export function removePendingImage(editor: Editor, uploadId: string, objUrl: string): void {
   if (editor.isDestroyed) return;
-  const { state } = editor;
-  state.doc.descendants((node, pos) => {
-    if (node.type.name !== "image" || node.attrs["data-upload-id"] !== uploadId) return true;
+  for (;;) {
+    const { state } = editor;
+    let pos: number | null = null;
+    let size = 0;
+    state.doc.descendants((node, p) => {
+      if (node.type.name !== "image" || node.attrs["data-upload-id"] !== uploadId) return true;
+      pos = p;
+      size = node.nodeSize;
+      return false;
+    });
+    if (pos == null) break;
     try {
-      editor.view.dispatch(state.tr.delete(pos, pos + node.nodeSize));
+      editor.view.dispatch(state.tr.delete(pos, pos + size).setMeta("addToHistory", false));
     } catch {
-      /* 문서가 이미 바뀐 경우 등 — 남은 blob 노드는 restoreDraft 정리에 맡김 */
+      /* 문서가 이미 바뀐 경우 등 — 남은 blob 노드는 저장 경로 살균(stripBlobImages)이 제거 */
+      break;
     }
-    return false;
-  });
+  }
   URL.revokeObjectURL(objUrl);
+}
+
+/** 에디터별 미해제 object URL 추적 — 업로드 성공 후에도 undo/redo 로 재참조될 수 있어
+ *  즉시 해제하지 않고, 에디터 파괴(되돌릴 수 없는 시점)에 일괄 revoke 한다(누수 상한). */
+const liveObjectUrls = new WeakMap<Editor, Set<string>>();
+function trackObjectUrl(editor: Editor, url: string): void {
+  let set = liveObjectUrls.get(editor);
+  if (!set) {
+    set = new Set();
+    liveObjectUrls.set(editor, set);
+    editor.once("destroy", () => {
+      for (const u of set!) URL.revokeObjectURL(u);
+      liveObjectUrls.delete(editor);
+    });
+  }
+  set.add(url);
 }
 
 /**
  * 파일들 → 정규화 → 즉시 placeholder 노드(blob: src + 치수) 삽입 → 백그라운드 업로드.
  * 성공 시 src 교체, 실패 시 노드 제거+토스트. paste/drop/툴바 버튼이 공유.
- * 주의: 정규화는 비동기 — 파일 각각 순차 처리하되 삽입 위치는 직전 삽입 직후 선택점.
+ * 삽입 기준점은 진입 시점에 1회 고정 — 정규화 대기 중 캐럿 이동/타이핑으로 파일들이
+ * 제각각 위치로 흩어지는 것을 방지하고(붙여넣은 순서도 유지), 삽입 성공분만큼 전진.
  */
 export function insertImagesFromFiles(editor: Editor, files: File[], pos?: number): void {
   void (async () => {
@@ -312,6 +356,7 @@ export function insertImagesFromFiles(editor: Editor, files: File[], pos?: numbe
         continue;
       }
       const objUrl = URL.createObjectURL(norm.blob);
+      trackObjectUrl(editor, objUrl);
       const uploadId = crypto.randomUUID();
       try {
         editor
@@ -333,7 +378,7 @@ export function insertImagesFromFiles(editor: Editor, files: File[], pos?: numbe
         URL.revokeObjectURL(objUrl);
         continue;
       }
-      insertAt = editor.state.selection.from;
+      insertAt += 1; // 블록 이미지 노드 크기 — 다음 파일은 방금 삽입된 이미지 바로 뒤
       const pipeline = (async () => {
         try {
           const res = await uploadImage(norm.blob, norm.width, norm.height);

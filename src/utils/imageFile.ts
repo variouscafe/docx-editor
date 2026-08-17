@@ -19,7 +19,9 @@ export interface NormalizedImage {
 async function decodeDims(file: Blob): Promise<{ width: number; height: number }> {
   if (typeof createImageBitmap === "function") {
     try {
-      const bmp = await createImageBitmap(file);
+      // imageOrientation 명시 — 구형 브라우저는 기본이 'none' 이라 EXIF 회전이 무시돼
+      // 치수/재인코딩 결과가 미리보기와 어긋날 수 있다(옵션 무시 구현에서도 무해).
+      const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
       const dims = { width: bmp.width, height: bmp.height };
       bmp.close();
       return dims;
@@ -60,7 +62,7 @@ async function drawJpeg(file: Blob, w: number, h: number): Promise<Blob> {
   let drawn = false;
   if (typeof createImageBitmap === "function") {
     try {
-      const bmp = await createImageBitmap(file);
+      const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
       ctx.drawImage(bmp, 0, 0, w, h);
       bmp.close();
       drawn = true;
