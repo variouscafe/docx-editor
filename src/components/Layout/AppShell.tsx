@@ -19,11 +19,10 @@ import {
 import { useCommandStore } from "@/store/command";
 import { UserMenu } from "./UserMenu";
 
+// status 필터(published/draft)는 게시 UI 가 없어 도달 불가능해 제거 — 전체/최근만 유지.
 const NAV_FILTERS = [
   { value: "all", key: "all" },
   { value: "recent", key: "recent" },
-  { value: "published", key: "published" },
-  { value: "draft", key: "draft" },
 ] as const;
 
 function AppSidebar() {

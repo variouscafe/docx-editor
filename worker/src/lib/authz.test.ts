@@ -20,8 +20,10 @@ import m2 from "../../migrations/0002_first_bloodaxe.sql?raw";
 import m3 from "../../migrations/0003_red_hex.sql?raw";
 import m4 from "../../migrations/0004_groups.sql?raw";
 import m5 from "../../migrations/0005_public_share.sql?raw";
+import m6 from "../../migrations/0006_military_giant_girl.sql?raw";
+import m7 from "../../migrations/0007_chief_skrulls.sql?raw";
 
-const ALL_MIGRATIONS = [m0, m1, m2, m3, m4, m5].join("\n");
+const ALL_MIGRATIONS = [m0, m1, m2, m3, m4, m5, m6, m7].join("\n");
 
 /** 마이그레이션 SQL → 개별 statement 로 분리(-- 주석 라인 제거 후 ';' 기준). */
 function splitStatements(sql: string): string[] {

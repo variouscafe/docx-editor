@@ -2,7 +2,7 @@
  * 그룹·멤버십 권한 헬퍼. 모든 쿼리는 D1(Drizzle) 기반, FK 없이 user_id(=JWT.sub) 로 판별.
  * 존재 은닉이 필요한 곳은 notFound, 권한 부족은 forbidden.
  */
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import { groupMembers, groupInvitations, reports, reportShares } from '../db/schema.js';
 import { newId } from './id.js';
@@ -73,6 +73,7 @@ export async function assertGroupOwner(db: Database, groupId: string, userId: st
  * 보고서 접근 권한 확인(존재+권한).
  * owner(작성자) 이거나, 공유받은 그룹(reportShares) 의 멤버여야 접근 가능.
  * 비접근 시 notFound(존재 은닉). 반환: { row(전체), isOwner }.
+ * 휴지통(소프트 삭제) 행은 소유자에게도 404 — 복원·영구삭제 라우트만 직접 조회한다.
  */
 export async function ensureReportAccess(
   db: Database,
@@ -80,7 +81,7 @@ export async function ensureReportAccess(
   userId: string,
 ): Promise<{ row: typeof reports.$inferSelect; isOwner: boolean }> {
   const row = await db.select().from(reports).where(eq(reports.id, reportId)).get();
-  if (!row) throw notFound('Report not found');
+  if (!row || row.deletedAt) throw notFound('Report not found');
   if (row.userId === userId) return { row, isOwner: true };
   const myGroups = await getGroupIds(db, userId);
   if (myGroups.length > 0) {
@@ -106,7 +107,13 @@ export async function ensurePublicReport(
   const row = await db
     .select()
     .from(reports)
-    .where(and(eq(reports.shareToken, token), eq(reports.shareEnabled, true)))
+    .where(
+      and(
+        eq(reports.shareToken, token),
+        eq(reports.shareEnabled, true),
+        isNull(reports.deletedAt),
+      ),
+    )
     .get();
   if (!row) throw notFound('Report not found');
   return row;

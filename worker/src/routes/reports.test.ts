@@ -15,8 +15,10 @@ import m2 from "../../migrations/0002_first_bloodaxe.sql?raw";
 import m3 from "../../migrations/0003_red_hex.sql?raw";
 import m4 from "../../migrations/0004_groups.sql?raw";
 import m5 from "../../migrations/0005_public_share.sql?raw";
+import m6 from "../../migrations/0006_military_giant_girl.sql?raw";
+import m7 from "../../migrations/0007_chief_skrulls.sql?raw";
 
-const ALL_MIGRATIONS = [m0, m1, m2, m3, m4, m5].join("\n");
+const ALL_MIGRATIONS = [m0, m1, m2, m3, m4, m5, m6, m7].join("\n");
 
 /** 마이그레이션 SQL → 개별 statement 로 분리(-- 주석 라인 제거 후 ';' 기준). */
 function splitStatements(sql: string): string[] {
@@ -191,5 +193,193 @@ describe("POST /api/reports/:id/revisions — 수동 리비전 정리(최근 100
     expect(manuals.length).toBe(100);
     expect(manuals.some((m) => m.id === "rev-seed-0")).toBe(false);
     expect(manuals.some((m) => m.id === "rev-seed-1")).toBe(true);
+  });
+});
+
+describe("휴지통(소프트 삭제) — DELETE/restore/purge/sweep", () => {
+  it("DELETE 는 행을 남기고 deleted_at 만 설정 — 일반 목록에서 사라지고 trash 에만 나타남", async () => {
+    const r = await createTestReport();
+
+    const del = await app.request(`/api/reports/${r.id}`, { method: "DELETE", headers: authHeaders() }, testEnv);
+    expect(del.status).toBe(204);
+
+    // 행 존재(소프트 삭제)
+    const row = await db.select().from(schema.reports).where(eq(schema.reports.id, r.id)).get();
+    expect(row?.deletedAt).toBeTruthy();
+
+    // 일반 목록 제외 / trash 목록 포함(deletedAt 전달)
+    const normal = await app.request("/api/reports", { headers: authHeaders() }, testEnv);
+    const trash = await app.request("/api/reports?trash=1", { headers: authHeaders() }, testEnv);
+    const normalIds = ((await normal.json()) as { items: { id: string }[] }).items.map((i) => i.id);
+    const trashItems = ((await trash.json()) as { items: { id: string; deletedAt: string | null }[] }).items;
+    expect(normalIds).not.toContain(r.id);
+    const mine = trashItems.find((i) => i.id === r.id);
+    expect(mine?.deletedAt).toBeTruthy();
+  });
+
+  it("삭제된 보고서는 GET/PATCH/재DELETE 모두 404(존재 은닉)", async () => {
+    const r = await createTestReport();
+    await app.request(`/api/reports/${r.id}`, { method: "DELETE", headers: authHeaders() }, testEnv);
+
+    const got = await app.request(`/api/reports/${r.id}`, { headers: authHeaders() }, testEnv);
+    const patched = await app.request(
+      `/api/reports/${r.id}`,
+      { method: "PATCH", headers: { ...authHeaders(), "content-type": "application/json" }, body: JSON.stringify({ title: "x" }) },
+      testEnv,
+    );
+    const again = await app.request(`/api/reports/${r.id}`, { method: "DELETE", headers: authHeaders() }, testEnv);
+    expect(got.status).toBe(404);
+    expect(patched.status).toBe(404);
+    expect(again.status).toBe(404);
+  });
+
+  it("restore — 휴지통에서 복원되어 일반 목록에 재등장", async () => {
+    const r = await createTestReport();
+    await app.request(`/api/reports/${r.id}`, { method: "DELETE", headers: authHeaders() }, testEnv);
+
+    const res = await app.request(`/api/reports/${r.id}/restore`, { method: "POST", headers: authHeaders() }, testEnv);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Report).deletedAt).toBeNull();
+
+    const row = await db.select().from(schema.reports).where(eq(schema.reports.id, r.id)).get();
+    expect(row?.deletedAt).toBeNull();
+  });
+
+  it("정상 문서 restore 시 400(not_deleted)", async () => {
+    const r = await createTestReport();
+    const res = await app.request(`/api/reports/${r.id}/restore`, { method: "POST", headers: authHeaders() }, testEnv);
+    expect(res.status).toBe(400);
+  });
+
+  it("purge — 행·리비전 즉시 삭제", async () => {
+    const r = await createTestReport();
+    await db.insert(schema.revisions).values({
+      id: "rev-purge", reportId: r.id, userId: USER,
+      content: "{}", contentMd: null, templateOptions: "{}", isManual: 1,
+    });
+
+    const res = await app.request(`/api/reports/${r.id}/purge`, { method: "DELETE", headers: authHeaders() }, testEnv);
+    expect(res.status).toBe(204);
+
+    const row = await db.select().from(schema.reports).where(eq(schema.reports.id, r.id)).get();
+    const rev = await db.select().from(schema.revisions).where(eq(schema.revisions.id, "rev-purge")).get();
+    expect(row).toBeUndefined();
+    expect(rev).toBeUndefined();
+  });
+
+  it("만료 sweep — 30일 경과 문서는 trash 조회 시 영구 삭제된다", async () => {
+    const r = await createTestReport();
+    await db
+      .update(schema.reports)
+      .set({ deletedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString() })
+      .where(eq(schema.reports.id, r.id));
+
+    const trash = await app.request("/api/reports?trash=1", { headers: authHeaders() }, testEnv);
+    const ids = ((await trash.json()) as { items: { id: string }[] }).items.map((i) => i.id);
+    expect(ids).not.toContain(r.id);
+
+    const row = await db.select().from(schema.reports).where(eq(schema.reports.id, r.id)).get();
+    expect(row).toBeUndefined();
+  });
+});
+
+describe("POST /api/reports/:id/duplicate — 문서 복제", () => {
+  it("사본 생성 — 새 id·호출자 소유·초안, content/options 동일, 원본 무변경", async () => {
+    const r = await createTestReport();
+
+    const res = await app.request(
+      `/api/reports/${r.id}/duplicate`,
+      { method: "POST", headers: { ...authHeaders(), "content-type": "application/json" }, body: JSON.stringify({ title: "내 사본" }) },
+      testEnv,
+    );
+    expect(res.status).toBe(201);
+    const copy = (await res.json()) as Report;
+    expect(copy.id).not.toBe(r.id);
+    expect(copy.title).toBe("내 사본");
+    expect(copy.status).toBe("draft");
+    expect(copy.permission).toBe("owner");
+    expect(copy.content).toEqual(r.content);
+    expect(copy.templateOptions).toEqual(r.templateOptions);
+
+    // 원본은 그대로
+    const orig = await db.select().from(schema.reports).where(eq(schema.reports.id, r.id)).get();
+    expect(orig?.title).toBe("t");
+  });
+
+  it("title 미제공 시 기본 접미사 — '원제 (사본)'", async () => {
+    const r = await createTestReport();
+    const res = await app.request(
+      `/api/reports/${r.id}/duplicate`,
+      { method: "POST", headers: { ...authHeaders(), "content-type": "application/json" }, body: JSON.stringify({}) },
+      testEnv,
+    );
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as Report).title).toBe("t (사본)");
+  });
+
+  it("원본에 퍼블릭 공유가 활성 상태여도 사본은 미공유(토큰 미복사)", async () => {
+    const r = await createTestReport();
+    await db
+      .update(schema.reports)
+      .set({ shareEnabled: true, shareToken: "tok-dup-test" })
+      .where(eq(schema.reports.id, r.id));
+
+    const res = await app.request(
+      `/api/reports/${r.id}/duplicate`,
+      { method: "POST", headers: { ...authHeaders(), "content-type": "application/json" }, body: JSON.stringify({}) },
+      testEnv,
+    );
+    const copy = (await res.json()) as Report;
+    const row = await db.select().from(schema.reports).where(eq(schema.reports.id, copy.id)).get();
+    expect(row?.shareEnabled).toBe(false);
+    expect(row?.shareToken).toBeNull();
+  });
+});
+
+describe("GET /api/reports?q= — 제목+본문 전문 검색", () => {
+  it("본문(content_md) 키워드로 검색되고 snippet 이 내려온다", async () => {
+    const r = await createTestReport();
+    await patchReport(r.id, {
+      content: { type: "doc" },
+      contentMd: "# 보고서\n\n예산 집행 특이사항을 점검했다.\n",
+    });
+
+    // 제목은 "t" — 본문 키워드로만 hit
+    const res = await app.request("/api/reports?q=특이사항", { headers: authHeaders() }, testEnv);
+    expect(res.status).toBe(200);
+    const items = ((await res.json()) as { items: { id: string; snippet: string | null }[] }).items;
+    const hit = items.find((i) => i.id === r.id);
+    expect(hit).toBeTruthy();
+    expect(hit!.snippet).toContain("특이사항");
+  });
+
+  it("제목 매치 문서는 snippet 이 null(본문 hit 아님)", async () => {
+    const res = await app.request("/api/reports?q=t", { headers: authHeaders() }, testEnv);
+    expect(res.status).toBe(200);
+    const items = ((await res.json()) as { items: { title: string; snippet: string | null }[] }).items;
+    // "t" 는 제목에 hit — 본문 발췌 없음
+    const byTitle = items.find((i) => i.title === "t");
+    if (byTitle) expect(byTitle.snippet).toBeNull();
+  });
+
+  it("본문에도 제목에도 없는 키워드는 결과 없음", async () => {
+    const res = await app.request(
+      "/api/reports?q=이런키워드는없다",
+      { headers: authHeaders() },
+      testEnv,
+    );
+    const items = ((await res.json()) as { items: unknown[] }).items;
+    expect(items).toHaveLength(0);
+  });
+
+  it("ASCII 대소문자 무시 — 본문 'Budget' 을 'budget' 으로 hit", async () => {
+    const r = await createTestReport();
+    await patchReport(r.id, {
+      content: { type: "doc" },
+      contentMd: "Budget review for FY26.\n",
+    });
+    const res = await app.request("/api/reports?q=budget", { headers: authHeaders() }, testEnv);
+    const items = ((await res.json()) as { items: { id: string }[] }).items;
+    expect(items.some((i) => i.id === r.id)).toBe(true);
   });
 });

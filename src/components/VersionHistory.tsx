@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { RotateCcw, Trash2, Save } from "lucide-react";
 import type { Report, RevisionListItem } from "@shared/report";
+import RevisionPreviewDialog from "@/components/RevisionPreviewDialog";
 import {
   listRevisions,
   createRevision,
@@ -41,6 +42,8 @@ interface Props {
   onBeforeRestore?: () => Promise<void>;
   /** 미저장 로컬 편집(dirty) 존재 여부 — 되돌리기 확인 문구에 경고 추가. */
   hasUnsavedChanges?: boolean;
+  /** 현재 문서 content_md 산출 getter — 리비전 미리보기의 diff 기준. */
+  getCurrentContentMd?: () => string;
   /** 상위 ⋯ 더 보기 메뉴가 열고 닫음(제어형). */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -65,6 +68,7 @@ export function VersionHistory({
   onRestored,
   onBeforeRestore,
   hasUnsavedChanges,
+  getCurrentContentMd,
   open,
   onOpenChange,
 }: Props) {
@@ -75,6 +79,8 @@ export function VersionHistory({
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+  /** 미리보기 중인 리비전 id(null=닫힘). */
+  const [previewRid, setPreviewRid] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!reportId) return;
@@ -154,7 +160,9 @@ export function VersionHistory({
               items.map((r) => (
                 <div
                   key={r.id}
-                  className="flex items-center gap-2 rounded px-2 py-2 hover:bg-accent/50"
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 hover:bg-accent/50"
+                  onClick={() => setPreviewRid(r.id)}
+                  title={t("versionHistory.preview")}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-medium">
@@ -177,7 +185,10 @@ export function VersionHistory({
                     size="icon"
                     className="size-7"
                     disabled={busy}
-                    onClick={() => setConfirmAction({ type: "restore", rid: r.id })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmAction({ type: "restore", rid: r.id });
+                    }}
                     title={t("versionHistory.restore")}
                   >
                     <RotateCcw className="size-3.5" />
@@ -187,7 +198,10 @@ export function VersionHistory({
                     size="icon"
                     className="size-7 text-muted-foreground hover:text-destructive"
                     disabled={busy}
-                    onClick={() => setConfirmAction({ type: "delete", rid: r.id })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmAction({ type: "delete", rid: r.id });
+                    }}
                     title={t("common.delete")}
                   >
                     <Trash2 className="size-3.5" />
@@ -208,6 +222,20 @@ export function VersionHistory({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 리비전 미리보기(항목 클릭) — 되돌리기는 확인 플로우로 연결 */}
+      {reportId && previewRid && (
+        <RevisionPreviewDialog
+          reportId={reportId}
+          revisionId={previewRid}
+          getCurrentContentMd={getCurrentContentMd}
+          onClose={() => setPreviewRid(null)}
+          onRestore={(rid) => {
+            setPreviewRid(null);
+            setConfirmAction({ type: "restore", rid });
+          }}
+        />
+      )}
 
       {/* 현재 버전 저장(이름 입력) */}
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>

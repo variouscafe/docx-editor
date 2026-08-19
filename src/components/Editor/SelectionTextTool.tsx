@@ -110,7 +110,7 @@ export default function SelectionTextTool({ editor, scrollRef }: SelectionTextTo
   return (
     <div
       ref={barRef}
-      className="fixed z-30 flex items-center gap-0.5 rounded-md border bg-background px-1 py-1 shadow-lg"
+      className="fixed z-30 flex items-center gap-0.5 rounded-md border bg-background px-1 py-1 shadow-lg print:hidden"
       style={{
         // 좌우 모두 클램프 — 뷰포트 우측/하단에서 툴바가 화면 밖으로 넘치지 않게.
         top: Math.min(Math.max(8, pos.top - 44), window.innerHeight - 44),

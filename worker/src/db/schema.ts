@@ -24,11 +24,15 @@ export const reports = sqliteTable(
     // shareToken 은 추측 불가 capability — shareEnabled=true 일 때만 공개 조회 허용.
     shareEnabled: integer('share_enabled', { mode: 'boolean' }).notNull().default(false),
     shareToken: text('share_token'),
+    // 소프트 삭제(휴지통) — null=정상, ISO 타임스탬프=삭제 시각. 30일 경과 시 영구 삭제.
+    deletedAt: text('deleted_at'),
   },
   (t) => ({
     userIdx: index('idx_reports_user').on(t.userId, t.updatedAt),
     // SQLite 는 unique 인덱스에서 NULL 을 다수 허용 → 미공유 보고서(토큰 없음) 충돌 없음.
     shareTokenUniq: uniqueIndex('uq_reports_share_token').on(t.shareToken),
+    // 휴지통 목록/만료 sweep 용 부분 인덱스(삭제되지 않은 대다수 행은 제외).
+    deletedIdx: index('idx_reports_deleted').on(t.deletedAt),
   })
 );
 

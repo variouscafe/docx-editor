@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { and, desc, eq, inArray, like, or, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, like, lt, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AppEnv } from '../types.js';
 import { createDb } from '../db/index.js';
@@ -58,6 +58,7 @@ function serializeReport(
     permission,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    deletedAt: row.deletedAt,
   };
 }
 
@@ -65,6 +66,25 @@ function serializeReport(
 const REVISION_AUTO_INTERVAL_MS = 3 * 60 * 1000; // 자동 리비전 최소 간격
 const REVISION_AUTO_LIMIT = 30; // 자동 리비전 보존 한도
 const REVISION_MANUAL_LIMIT = 100; // 수동 리비전 보존 한도
+
+/**
+ * 본문(content_md) 검색 매치 발췌 — 첫 hit 앞뒤 컨텍스트를 잘라 1줄로.
+ * LIKE 와 동일하게 ASCII 대소문자 무시로 위치를 찾는다. 매치 없으면 null.
+ */
+function matchSnippet(md: string | null | undefined, q: string): string | null {
+  if (!md) return null;
+  const lower = md.toLowerCase();
+  const idx = lower.indexOf(q.toLowerCase());
+  if (idx < 0) return null;
+  const start = Math.max(0, idx - 24);
+  const end = Math.min(md.length, idx + q.length + 48);
+  const body = md
+    .slice(start, end)
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (start > 0 ? '…' : '') + body + (end < md.length ? '…' : '');
+}
+
 
 function serializeRevision(row: typeof revisions.$inferSelect): Revision {
   return {
@@ -152,12 +172,85 @@ async function ensureOwned(
   return row;
 }
 
-/** 보고서 목록 (최신순) — 내 보고서 + 공유받은 보고서. ?q= 제목 검색, ?status= 상태 필터. */
+/* ── 휴지통(소프트 삭제) ───────────────────────────────────────── */
+
+const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30일 후 영구 삭제
+
+/**
+ * 휴지통 만료 sweep — 삭제 후 30일 경과 문서를 영구 삭제(공유·리비전 동반 정리).
+ * 별도 cron 없이 휴지통 목록 조회 시에만 수행(조회 드물어 write 비용 무시 가능,
+ * 30일 보존의 정밀도는 일 단위면 충분).
+ */
+async function purgeExpiredTrash(db: ReturnType<typeof createDb>) {
+  const cutoff = new Date(Date.now() - TRASH_RETENTION_MS).toISOString();
+  const expired = await db
+    .select({ id: reports.id })
+    .from(reports)
+    .where(lt(reports.deletedAt, cutoff))
+    .all();
+  for (const r of expired) {
+    await db.delete(reportShares).where(eq(reportShares.reportId, r.id));
+    await db.delete(revisions).where(eq(revisions.reportId, r.id));
+    await db.delete(reports).where(eq(reports.id, r.id));
+  }
+}
+
+/** 내 소유 보고서 행 직접 조회(휴지통 복원·영구삭제용 — 삭제된 행도 반환). */
+async function getOwnedReport(
+  db: ReturnType<typeof createDb>,
+  id: string,
+  userId: string,
+) {
+  const row = await db
+    .select()
+    .from(reports)
+    .where(and(eq(reports.id, id), eq(reports.userId, userId)))
+    .get();
+  if (!row) throw notFound('Report not found');
+  return row;
+}
+
+/** 보고서 목록 (최신순) — 내 보고서 + 공유받은 보고서. ?q= 제목 검색, ?status= 상태 필터.
+ * ?trash=1 → 휴지통(내가 삭제한 문서만, 공유받은 문서의 삭제는 소유자에게만 보임). */
 reportRoutes.get('/', async (c) => {
   const userId = c.get('user').userId;
   const q = c.req.query('q')?.trim();
   const status = c.req.query('status');
+  const trash = c.req.query('trash') === '1';
   const db = createDb(c.env.DB);
+
+  if (trash) await purgeExpiredTrash(db);
+
+  const ownerCond = eq(reports.userId, userId);
+  if (trash) {
+    // 휴지통 — 내 삭제 문서만(deleted_at 설정순, 최근 삭제가 위).
+    const rows = await db
+      .select({
+        id: reports.id,
+        title: reports.title,
+        status: reports.status,
+        ownerId: reports.userId,
+        createdAt: reports.createdAt,
+        updatedAt: reports.updatedAt,
+        deletedAt: reports.deletedAt,
+      })
+      .from(reports)
+      .where(and(ownerCond, isNotNull(reports.deletedAt)))
+      .orderBy(desc(reports.deletedAt))
+      .all();
+    const items: ReportListItem[] = rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      status: r.status as ReportStatus,
+      permission: 'owner',
+      ownerName: null,
+      groupName: null,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      deletedAt: r.deletedAt,
+    }));
+    return c.json({ items });
+  }
 
   // 공유받은 보고서 id (내 그룹에 공유된 것)
   const myGroups = await getGroupIds(db, userId);
@@ -171,29 +264,42 @@ reportRoutes.get('/', async (c) => {
       ).map((r) => r.id)
     : [];
 
-  const ownerCond = eq(reports.userId, userId);
   const scope: SQL = sharedIds.length
     ? or(ownerCond, inArray(reports.id, sharedIds))!
     : ownerCond;
-  const conditions: SQL[] = [scope];
-  if (q) conditions.push(like(reports.title, `%${q}%`));
+  const conditions: SQL[] = [scope, isNull(reports.deletedAt)];
+  // 전문 검색 — 제목 또는 본문(content_md) 매치(LIKE 는 ASCII 대소문자 무시).
+  if (q) conditions.push(or(like(reports.title, `%${q}%`), like(reports.contentMd, `%${q}%`))!);
   if (status === 'draft' || status === 'published') conditions.push(eq(reports.status, status));
 
-  const rows = await db
-    .select({
-      id: reports.id,
-      title: reports.title,
-      status: reports.status,
-      ownerId: reports.userId,
-      ownerName: users.name,
-      createdAt: reports.createdAt,
-      updatedAt: reports.updatedAt,
-    })
+  const cols = {
+    id: reports.id,
+    title: reports.title,
+    status: reports.status,
+    ownerId: reports.userId,
+    ownerName: users.name,
+    createdAt: reports.createdAt,
+    updatedAt: reports.updatedAt,
+    deletedAt: reports.deletedAt,
+  };
+  // q 검색 시에만 content_md 를 함께 읽어 발췌(snippet) 계산 — 평소 목록 로드는 본문 미전송.
+  const rows = (await db
+    .select(q ? { ...cols, contentMd: reports.contentMd } : cols)
     .from(reports)
     .leftJoin(users, eq(reports.userId, users.userId))
     .where(and(...conditions))
     .orderBy(desc(reports.updatedAt))
-    .all();
+    .all()) as {
+    id: string;
+    title: string;
+    status: string;
+    ownerId: string;
+    ownerName: string | null;
+    createdAt: string;
+    updatedAt: string;
+    deletedAt: string | null;
+    contentMd?: string | null;
+  }[];
 
   // 공유 보고서의 그룹명(표시용, 첫 그룹)
   const groupOfReport = new Map<string, string>();
@@ -218,6 +324,8 @@ reportRoutes.get('/', async (c) => {
       groupName: isOwner ? null : (groupOfReport.get(r.id) ?? null),
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
+      deletedAt: r.deletedAt,
+      snippet: q ? matchSnippet(r.contentMd, q) : null,
     };
   });
   return c.json({ items });
@@ -327,16 +435,77 @@ reportRoutes.patch('/:id', async (c) => {
   return c.json(serializeReport(row));
 });
 
-/** 삭제(owner). 공유·리비전도 함께 정리(FK 없음). */
+/**
+ * 삭제(owner) → 휴지통(소프트 삭제). deleted_at 만 설정 — 공유·리비전·퍼블릭 링크는
+ * 그대로 두되 접근 경로(authz/list/public)에서 차단된다. 30일 후 sweep 으로 영구 삭제.
+ */
 reportRoutes.delete('/:id', async (c) => {
   const userId = c.get('user').userId;
   const db = createDb(c.env.DB);
   const { row, isOwner } = await ensureReportAccess(db, c.req.param('id'), userId);
   if (!isOwner) throw forbidden('Report is read-only');
+  // 이미 휴지통에 있으면 존재 은닉(ensureReportAccess 가 deleted 행을 404 처리).
+  await db.update(reports).set({ deletedAt: isoNow() }).where(eq(reports.id, row.id));
+  return c.body(null, 204);
+});
+
+/** 휴지통 복원(owner) — 일반 목록으로 돌아감. updatedAt 갱신으로 목록 최상단 배치. */
+reportRoutes.post('/:id/restore', async (c) => {
+  const userId = c.get('user').userId;
+  const db = createDb(c.env.DB);
+  const row = await getOwnedReport(db, c.req.param('id'), userId);
+  if (!row.deletedAt) throw badRequest('Report is not deleted', 'not_deleted');
+  await db
+    .update(reports)
+    .set({ deletedAt: null, updatedAt: isoNow() })
+    .where(eq(reports.id, row.id));
+  const restored = await db.select().from(reports).where(eq(reports.id, row.id)).get();
+  if (!restored) throw notFound('Report not found');
+  return c.json(serializeReport(restored));
+});
+
+/** 영구 삭제(owner) — 휴지통 여부와 무관하게 행·공유·리비전을 즉시 삭제(되돌릴 수 없음). */
+reportRoutes.delete('/:id/purge', async (c) => {
+  const userId = c.get('user').userId;
+  const db = createDb(c.env.DB);
+  const row = await getOwnedReport(db, c.req.param('id'), userId);
   await db.delete(reportShares).where(eq(reportShares.reportId, row.id));
   await db.delete(revisions).where(eq(revisions.reportId, row.id));
   await db.delete(reports).where(eq(reports.id, row.id));
   return c.body(null, 204);
+});
+
+const duplicateSchema = z.object({ title: z.string().min(1).max(200).optional() });
+
+/**
+ * 문서 복제 — 소유자뿐 아니라 공유받은 독자도 가능("내 문서로 저장").
+ * content/options 원본 그대로, 사본은 호출자 소유·초안. 공유·리비전·퍼블릭 링크는 미복사
+ * (shareToken 은 unique 인덱스 때문에라도 복사 불가).
+ */
+reportRoutes.post('/:id/duplicate', async (c) => {
+  const userId = c.get('user').userId;
+  const db = createDb(c.env.DB);
+  const { row } = await ensureReportAccess(db, c.req.param('id'), userId);
+  const parsed = duplicateSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) throw badRequest('Invalid body', 'bad_request', parsed.error.flatten());
+
+  const id = newId();
+  await db.insert(reports).values({
+    id,
+    userId,
+    title: parsed.data.title ?? `${row.title} (사본)`,
+    content: row.content,
+    contentMd: row.contentMd,
+    templateOptions: row.templateOptions,
+    templateId: row.templateId,
+    status: 'draft',
+    shareEnabled: false,
+    shareToken: null,
+  });
+
+  const created = await db.select().from(reports).where(eq(reports.id, id)).get();
+  if (!created) throw notFound('Report not found');
+  return c.json(serializeReport(created), 201);
 });
 
 /** DOCX export 용 이미지 로더 — 내부(/api/images/)는 R2 직접 read, 외부 URL 은 fetch. */

@@ -239,7 +239,7 @@ export function TableToolbar({ editor }: Props) {
   if (!editor.isActive("table")) return null;
 
   return (
-    <div className="flex items-center gap-0.5 overflow-x-auto border-b bg-background px-3 py-1.5 [&>*]:shrink-0">
+    <div className="flex items-center gap-0.5 overflow-x-auto border-b bg-background px-3 py-1.5 [&>*]:shrink-0 print:hidden">
       {/* 행 */}
       <Tool onClick={() => editor.chain().focus().addRowBefore().run()} title={t("toolbar.rowAbove")}>
         <ArrowUpToLine className="size-4" />

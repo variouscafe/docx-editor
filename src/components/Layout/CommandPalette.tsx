@@ -104,8 +104,23 @@ export function CommandPalette() {
             {results.length > 0 && (
               <CommandGroup heading={t("commandPalette.reports")}>
                 {results.slice(0, 8).map((r) => (
-                  <CommandItem key={r.id} onSelect={() => go(`/reports/${r.id}`)}>
-                    <FileText /> {r.title || t("common.untitled")}
+                  <CommandItem
+                    key={r.id}
+                    value={`${r.title} ${r.snippet ?? ""}`}
+                    onSelect={() => go(`/reports/${r.id}`)}
+                  >
+                    <FileText />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">
+                        {r.title || t("common.untitled")}
+                      </span>
+                      {/* 본문 hit 시 매치 발췌 1줄(제목만 hit 하면 서버가 null 을 내려줌) */}
+                      {r.snippet && (
+                        <span className="block truncate text-xs font-normal text-muted-foreground">
+                          {r.snippet}
+                        </span>
+                      )}
+                    </span>
                   </CommandItem>
                 ))}
               </CommandGroup>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ArrowLeft, Save, SlidersHorizontal, Loader2, MoreHorizontal, History, Eye, Globe, Users, Download } from "lucide-react";
+import { ArrowLeft, Save, SlidersHorizontal, Loader2, MoreHorizontal, History, Eye, Globe, Users, Download, Printer, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -37,6 +37,11 @@ import { HttpError } from "@/lib/http-client";
 import { useAuthStore } from "@/store/auth";
 import { decodeJwt } from "@/lib/jwt";
 import { jsonToMarkdown } from "@/utils/jsonToMarkdown";
+import {
+  detectImportKind,
+  importFile,
+  uploadInlineDataImages,
+} from "@/utils/importDocument";
 import { useDraftBackup } from "@/hooks/useDraftBackup";
 
 /** 신규 보고서 스타터 문서 — UI 언어로 생성. */
@@ -152,6 +157,9 @@ export default function ReportEditor() {
   const [shareOpen, setShareOpen] = useState(false);
   const [publicShareOpen, setPublicShareOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // 문서 가져오기(.md/.docx) — 변환 중 가드(이중 실행 방지) + 숨겨진 file input.
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // 보고서 로드(기존). 신규면 그대로 스타터.
   useEffect(() => {
@@ -515,6 +523,47 @@ export default function ReportEditor() {
     }
   }, [ensureId, title, t]);
 
+  /**
+   * 문서 가져오기(.md/.txt/.docx) — 파일을 TipTap JSON 으로 변환해 현재 문서를 교체.
+   * .docx 의 data: URI 이미지는 R2 업로드로 교체(정규 JSON 에 base64 영속화 방지).
+   * 제목이 기본값(무제)이면 파일명으로 세팅. 교체는 setDirty → debounce 자동저장 경로.
+   */
+  const handleImportFile = useCallback(
+    async (file: File) => {
+      if (!detectImportKind(file)) {
+        toast.error(t("editor.importUnsupported"));
+        return;
+      }
+      if (!window.confirm(t("editor.importConfirm"))) return;
+      setImporting(true);
+      toast.info(t("editor.importing"));
+      try {
+        const imported = await importFile(file);
+        const { json, stats } = await uploadInlineDataImages(imported);
+        applyEditorJson(json);
+        if (title === t("editor.untitledTitle")) {
+          setTitle(file.name.replace(/\.(docx|md|markdown|txt)$/i, ""));
+        }
+        setDirty(true);
+        if (stats.failed > 0) {
+          toast.warning(
+            t("editor.importDoneImagesFailed", { uploaded: stats.uploaded, failed: stats.failed }),
+          );
+        } else if (stats.uploaded > 0) {
+          toast.success(t("editor.importDoneImages", { count: stats.uploaded }));
+        } else {
+          toast.success(t("editor.importDone"));
+        }
+      } catch (e) {
+        console.error("[import failed]", e);
+        toast.error(t("editor.importFailed"));
+      } finally {
+        setImporting(false);
+      }
+    },
+    [applyEditorJson, title, t],
+  );
+
   // 리비전 되돌리기 직전 — 진행 중/대기 중(debounce) 저장을 flush.
   // flush 없이 되돌리면 직후 도착하는 PATCH 가 복원된 내용을 덮어쓴다.
   // restoringRef 로 flush 완료~복원 커밋 사이에 예약된 debounce 자동저장까지 차단.
@@ -594,8 +643,8 @@ export default function ReportEditor() {
   };
 
   return (
-    <div className="h-dvh flex flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 sm:gap-2 sm:px-4">
+    <div className="h-dvh flex flex-col rm-print-reset">
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 sm:gap-2 sm:px-4 print:hidden">
         <Button
           variant="ghost"
           size="icon"
@@ -652,6 +701,22 @@ export default function ReportEditor() {
               <Download className="size-4" />
               <span>{t("export.button")}</span>
             </DropdownMenuItem>
+            {/* 인쇄 — @media print(index.css)가 A4 미리보기를 그대로 시트에 매핑.
+                브라우저 인쇄 대화상자의 "PDF로 저장"으로 PDF 출력도 가능. */}
+            <DropdownMenuItem onClick={() => window.print()}>
+              <Printer className="size-4" />
+              <span>{t("editor.print")}</span>
+            </DropdownMenuItem>
+            {/* 문서 가져오기(.md/.txt/.docx) — 내용을 변환해 현재 문서로 교체. */}
+            {!isReadOnly && (
+              <DropdownMenuItem
+                disabled={importing}
+                onClick={() => importInputRef.current?.click()}
+              >
+                {importing ? <Loader2 className="size-4 animate-spin" /> : <FileUp className="size-4" />}
+                <span>{t("editor.import")}</span>
+              </DropdownMenuItem>
+            )}
             {!isReadOnly && id && (
               <>
                 <DropdownMenuSeparator />
@@ -672,6 +737,18 @@ export default function ReportEditor() {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        {/* 문서 가져오기 파일 선택 — 메뉴 항목이 트리거. 같은 파일 재선택도 가능하게 초기화. */}
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".md,.markdown,.txt,.docx"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void handleImportFile(file);
+          }}
+        />
         {/* 모바일: 우측 옵션 패널(Sheet) 열기 — PC는 aside 상시 노출 */}
         <Button
           variant="ghost"
@@ -686,7 +763,7 @@ export default function ReportEditor() {
       </header>
 
       {isReadOnly && (
-        <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/50 px-4 py-1.5 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/50 px-4 py-1.5 text-xs text-muted-foreground print:hidden">
           <Eye className="size-3.5 shrink-0" />
           <span>{t("editor.sharedBanner")}</span>
           {ownerName && <span>· {t("editor.owner")} {ownerName}</span>}
@@ -696,7 +773,7 @@ export default function ReportEditor() {
 
       {/* 직전 세션에서 저장 못 한 임시 내용 복구 — localStorage 스냅샷이 남아있을 때만. */}
       {!isReadOnly && draft && (
-        <div className="flex flex-wrap items-center gap-2 border-b bg-amber-500/10 px-4 py-1.5 text-xs text-amber-800 dark:text-amber-200">
+        <div className="flex flex-wrap items-center gap-2 border-b bg-amber-500/10 px-4 py-1.5 text-xs text-amber-800 dark:text-amber-200 print:hidden">
           <span>
             {t("editor.draftRestoreAt", {
               time: draft.ts ? new Date(draft.ts).toLocaleTimeString(i18n.language) : "",
@@ -711,8 +788,8 @@ export default function ReportEditor() {
         </div>
       )}
 
-      <main className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-hidden flex flex-col border-r">
+      <main className="flex flex-1 overflow-hidden rm-print-reset">
+        <div className="flex-1 overflow-hidden flex flex-col border-r rm-print-reset">
           <DocxPreview
             json={editorJson}
             options={options}
@@ -721,7 +798,7 @@ export default function ReportEditor() {
           />
         </div>
         {/* PC: 인라인 우측 옵션 패널 */}
-        <aside className="hidden lg:flex lg:w-[560px] lg:shrink-0 flex-col overflow-hidden bg-card">
+        <aside className="hidden lg:flex lg:w-[560px] lg:shrink-0 flex-col overflow-hidden bg-card print:hidden">
           <OptionsContent
             options={options}
             templateId={templateId}
@@ -760,6 +837,7 @@ export default function ReportEditor() {
           onRestored={handleRestored}
           onBeforeRestore={handleBeforeRestore}
           hasUnsavedChanges={dirty}
+          getCurrentContentMd={() => jsonToMarkdown(editorJsonRef.current)}
         />
       )}
     </div>

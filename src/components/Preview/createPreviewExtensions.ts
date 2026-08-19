@@ -20,6 +20,7 @@ import { FontSize } from "../Editor/extensions/fontSize";
 import { PreviewDecorations } from "../Editor/extensions/previewDecorations";
 import { HeadingPrefix, HeadingPrefixSync } from "../Editor/extensions/headingPrefix";
 import { EditorImage, ImageUpload } from "../Editor/extensions/image";
+import { FindReplace } from "../Editor/extensions/findReplace";
 import type { DocxOptions } from "@shared/options";
 import { caretPosFromPoint } from "@/utils/caretPos";
 
@@ -86,6 +87,8 @@ export function createPreviewExtensions(opts: PreviewExtensionsOptions) {
     // 수식 셀 보호 핸들러(tableFormulaPlugin)가 드롭을 먼저 가로채도록 한다.
     EditorImage,
     ImageUpload,
+    // 찾기/바꾸기(비영속 Decoration 하이라이트 + 치환 커맨드). UI 바는 편집 모드에서만 노출.
+    FindReplace,
     MeasurePagination.configure({
       pageHeight: opts.pageHeight,
       pageWidth: opts.pageWidth,

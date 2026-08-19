@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EditorContent } from "@tiptap/react";
 import RichTextToolbar from "../Editor/RichTextToolbar";
+import FindReplaceBar from "../Editor/FindReplaceBar";
 import SelectionTextTool from "../Editor/SelectionTextTool";
 import { TableToolbar } from "../Editor/TableToolbar";
 import { getPreviewStyles } from "./previewStyles";
@@ -42,6 +43,8 @@ export default function DocxPreview({
 
   // 비편집(공유 보기) 블록 선택 표시 — 편집 모드에서는 동작하지 않는다.
   const [selectedElement, setSelectedElement] = useState<HTMLElement | null>(null);
+  // 찾기/바꾸기 바 — 편집 모드에서만(공유 보기는 읽기 전용이므로 브라우저 기본 찾기 사용).
+  const [findOpen, setFindOpen] = useState(false);
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       if (editable) return;
@@ -74,12 +77,13 @@ export default function DocxPreview({
   }, [selectedElement]);
 
   return (
-    <div className="relative h-full flex flex-col">
-      {editable && <RichTextToolbar editor={editor} />}
+    <div className="relative h-full flex flex-col rm-print-reset">
+      {editable && <RichTextToolbar editor={editor} onOpenFind={() => setFindOpen(true)} />}
       {editable && editor && <TableToolbar editor={editor} />}
+      {editable && <FindReplaceBar editor={editor} open={findOpen} onOpenChange={setFindOpen} />}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto"
+        className="flex-1 overflow-auto rm-print-reset rm-print-scroll"
         onClick={handleClick}
         style={{
           backgroundColor: "var(--preview-canvas)",
@@ -95,6 +99,7 @@ export default function DocxPreview({
       >
         <style>{previewCss}</style>
         <div
+          className="rm-print-scale-wrap"
           style={{
             width: A4_WIDTH * effectiveScale,
             height: unscaledH ? unscaledH * effectiveScale : undefined,
@@ -105,6 +110,7 @@ export default function DocxPreview({
         >
           <div
             ref={scaledInnerRef}
+            className="rm-print-scale-inner"
             style={{
               width: A4_WIDTH,
               transform: `scale(${effectiveScale})`,
@@ -120,7 +126,7 @@ export default function DocxPreview({
         <button
           type="button"
           onClick={() => setUserZoom(1)}
-          className="absolute bottom-3 right-3 z-20 rounded-full border bg-background/90 px-3 py-1.5 text-xs font-medium shadow-md backdrop-blur hover:bg-background"
+          className="absolute bottom-3 right-3 z-20 rounded-full border bg-background/90 px-3 py-1.5 text-xs font-medium shadow-md backdrop-blur hover:bg-background print:hidden"
         >
           {Math.round(effectiveScale * 100)}%
         </button>

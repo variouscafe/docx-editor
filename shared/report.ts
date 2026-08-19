@@ -31,6 +31,8 @@ export interface Report {
   groupName?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** 휴지통(소프트 삭제) 시각 — null=정상. 목록 ?trash=1 응답에서만 값 가짐. */
+  deletedAt?: string | null;
 }
 
 /**
@@ -71,6 +73,10 @@ export interface ReportListItem {
   groupName?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** 휴지통(소프트 삭제) 시각 — null=정상. 목록 ?trash=1 응답에서만 값 가짐. */
+  deletedAt?: string | null;
+  /** 본문(content_md) 검색 매치 발췌 — ?q= 검색에서 제목이 아닌 본문에 hit 했을 때만 값. */
+  snippet?: string | null;
 }
 
 export interface CreateReportBody {

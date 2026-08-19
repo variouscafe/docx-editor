@@ -24,9 +24,7 @@
     "logout": "Log out",
     "filter": {
       "all": "All",
-      "recent": "Recent",
-      "published": "Published",
-      "draft": "Draft"
+      "recent": "Recent"
     }
   },
   "reportList": {
@@ -34,20 +32,32 @@
     "scope": {
       "all": "All",
       "mine": "My documents",
-      "shared": "Shared"
+      "shared": "Shared",
+      "trash": "Trash"
     },
     "empty": {
       "shared": "No documents shared with you.",
       "none": "No documents yet. Create a new document to get started.",
-      "filter": "No documents match this filter."
+      "filter": "No documents match this filter.",
+      "trash": "Trash is empty."
     },
     "readOnly": "Read-only",
     "status": {
       "published": "Published",
       "draft": "Draft"
     },
-    "deleteConfirm": "Delete this document?",
-    "deleted": "Deleted"
+    "deleteConfirm": "Move this document to trash? It will be permanently deleted after 30 days.",
+    "deleted": "Moved to trash",
+    "restore": "Restore",
+    "restored": "Restored",
+    "purge": "Delete permanently",
+    "purgeConfirm": "This cannot be undone. Permanently delete this document?",
+    "purged": "Permanently deleted",
+    "duplicate": "Duplicate",
+    "duplicated": "Duplicated",
+    "duplicateSuffix": " (copy)",
+    "trashExpiresDays": "Permanently deleted in {{count}} days",
+    "trashExpiresSoon": "Will be permanently deleted soon"
   },
   "editor": {
     "backToList": "Back to list",
@@ -80,7 +90,16 @@
     "discard": "Discard",
     "more": "More",
     "imageUnsupported": "Unsupported image format",
-    "imageCaptionPlaceholder": "Add a description…"
+    "imageCaptionPlaceholder": "Add a description…",
+    "print": "Print",
+    "import": "Import…",
+    "importConfirm": "This replaces the current document with the imported file's contents. Continue?",
+    "importing": "Importing…",
+    "importUnsupported": "Unsupported file type. Use a .md, .txt, or .docx file.",
+    "importFailed": "Import failed.",
+    "importDone": "Import complete.",
+    "importDoneImages": "Import complete. Uploaded {{count}} image(s).",
+    "importDoneImagesFailed": "Import complete. {{uploaded}} image(s) uploaded, {{failed}} failed (excluded)"
   },
   "toolbar": {
     "undo": "Undo",
@@ -131,6 +150,20 @@
       "red": "Red",
       "purple": "Purple"
     }
+  },
+  "find": {
+    "title": "Find",
+    "placeholder": "Find",
+    "replacePlaceholder": "Replace with",
+    "next": "Find next",
+    "prev": "Find previous",
+    "matchCase": "Match case",
+    "replace": "Replace",
+    "replaceAll": "Replace all",
+    "replaceToggle": "Replace",
+    "resultCount": "{{current}}/{{total}}",
+    "noResults": "No results",
+    "replacedCount": "Replaced {{count}} occurrences"
   },
   "tableCalc": {
     "format": "Number format",
@@ -273,7 +306,18 @@
     "saved": "Version saved",
     "restored": "Restored to this version",
     "deleted": "Version deleted",
-    "failed": "The operation failed. Please try again."
+    "failed": "The operation failed. Please try again.",
+    "preview": "Preview",
+    "previewDesc": "Preview a revision and compare changes with the current document",
+    "loadFailed": "Failed to load this version.",
+    "tab": {
+      "preview": "Preview",
+      "diff": "Changes"
+    },
+    "diffNone": "Identical to the current document.",
+    "diffTooLarge": "The changes are too large to compare.",
+    "diffLegend": "Current → this version: {{added}} lines added, {{removed}} removed",
+    "diffSkipped": "{{count}} unchanged lines"
   },
   "commandPalette": {
     "title": "Command palette",

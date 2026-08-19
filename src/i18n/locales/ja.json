@@ -24,9 +24,7 @@
     "logout": "ログアウト",
     "filter": {
       "all": "すべて",
-      "recent": "最近",
-      "published": "公開済み",
-      "draft": "下書き"
+      "recent": "最近"
     }
   },
   "reportList": {
@@ -34,20 +32,32 @@
     "scope": {
       "all": "すべて",
       "mine": "自分のドキュメント",
-      "shared": "共有中"
+      "shared": "共有中",
+      "trash": "ゴミ箱"
     },
     "empty": {
       "shared": "共有されたドキュメントはありません。",
       "none": "まだドキュメントがありません。新規ドキュメントを作成して始めましょう。",
-      "filter": "このフィルターに一致するドキュメントはありません。"
+      "filter": "このフィルターに一致するドキュメントはありません。",
+      "trash": "ゴミ箱は空です。"
     },
     "readOnly": "読み取り専用",
     "status": {
       "published": "公開済み",
       "draft": "下書き"
     },
-    "deleteConfirm": "このドキュメントを削除しますか?",
-    "deleted": "削除されました"
+    "deleteConfirm": "このドキュメントをゴミ箱に移動しますか？30日後に完全削除されます。",
+    "deleted": "ゴミ箱に移動しました",
+    "restore": "復元",
+    "restored": "復元しました",
+    "purge": "完全削除",
+    "purgeConfirm": "この操作は元に戻せません。完全に削除しますか？",
+    "purged": "完全削除しました",
+    "duplicate": "複製",
+    "duplicated": "複製しました",
+    "duplicateSuffix": " (コピー)",
+    "trashExpiresDays": "{{count}}日後に完全削除",
+    "trashExpiresSoon": "まもなく完全削除されます"
   },
   "editor": {
     "backToList": "一覧に戻る",
@@ -80,7 +90,16 @@
     "discard": "破棄",
     "more": "その他",
     "imageUnsupported": "サポートされていない画像形式です",
-    "imageCaptionPlaceholder": "説明を追加…"
+    "imageCaptionPlaceholder": "説明を追加…",
+    "print": "印刷",
+    "import": "インポート…",
+    "importConfirm": "現在のドキュメントをファイルの内容で置き換えます。続行しますか？",
+    "importing": "インポート中…",
+    "importUnsupported": "サポートされていないファイル形式です。.md、.txt、.docx を使用してください。",
+    "importFailed": "インポートに失敗しました。",
+    "importDone": "インポートが完了しました。",
+    "importDoneImages": "インポートが完了しました。画像 {{count}} 枚をアップロードしました。",
+    "importDoneImagesFailed": "インポートが完了しました。{{uploaded}} 枚アップロード、{{failed}} 枚失敗（除外）"
   },
   "toolbar": {
     "undo": "元に戻す",
@@ -131,6 +150,20 @@
       "red": "赤",
       "purple": "紫"
     }
+  },
+  "find": {
+    "title": "検索",
+    "placeholder": "検索する文字列",
+    "replacePlaceholder": "置換後の文字列",
+    "next": "次を検索",
+    "prev": "前を検索",
+    "matchCase": "大文字・小文字を区別",
+    "replace": "置換",
+    "replaceAll": "すべて置換",
+    "replaceToggle": "置換",
+    "resultCount": "{{current}}/{{total}}",
+    "noResults": "該当なし",
+    "replacedCount": "{{count}}件を置換しました"
   },
   "tableCalc": {
     "format": "数値書式",
@@ -273,7 +306,18 @@
     "saved": "バージョンを保存しました",
     "restored": "このバージョンに復元しました",
     "deleted": "バージョンを削除しました",
-    "failed": "操作に失敗しました。もう一度お試しください。"
+    "failed": "操作に失敗しました。もう一度お試しください。",
+    "preview": "プレビュー",
+    "previewDesc": "リビジョンのプレビューと現在の文書との変更点の比較",
+    "loadFailed": "バージョンを読み込めませんでした。",
+    "tab": {
+      "preview": "プレビュー",
+      "diff": "変更点"
+    },
+    "diffNone": "現在の文書と同じ内容です。",
+    "diffTooLarge": "変更量が大きすぎるため比較をスキップしました。",
+    "diffLegend": "現在の文書 → このバージョン：追加 {{added}} 行、削除 {{removed}} 行",
+    "diffSkipped": "{{count}} 行変更なし"
   },
   "commandPalette": {
     "title": "コマンドパレット",

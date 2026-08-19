@@ -17,6 +17,7 @@ import {
   Redo2,
   StickyNote,
   ImagePlus,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,9 +46,11 @@ import {
 
 interface RichTextToolbarProps {
   editor: Editor | null;
+  /** 찾기/바꾸기 바 열기(⌘F 와 동일). DocxPreview 가 전달. */
+  onOpenFind?: () => void;
 }
 
-export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
+export default function RichTextToolbar({ editor, onOpenFind }: RichTextToolbarProps) {
   const { t } = useTranslation();
   const [annotationMode, setAnnotationMode] = useState(false);
   const [annotationText, setAnnotationText] = useState("");
@@ -205,7 +208,7 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
   const imageActive = editor.isActive("image");
 
   return (
-    <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b bg-background px-3 py-2 lg:flex-wrap [&>*]:shrink-0">
+    <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b bg-background px-3 py-2 lg:flex-wrap [&>*]:shrink-0 print:hidden">
       {/* 실행 취소 / 다시 실행 — 도구 모음 최좌측.
           히스토리는 ProseMirror UndoRedo(StarterKit 내장)가 브라우저 메모리에만 보관 →
           서버에는 content(JSON)만 저장되고 undo/redo 스택은 영속화되지 않는다(웹에서만). */}
@@ -232,6 +235,18 @@ export default function RichTextToolbar({ editor }: RichTextToolbarProps) {
         >
           <Redo2 className="size-4" />
         </Button>
+        {onOpenFind && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={onOpenFind}
+            title={`${t("find.title")} (${modKey}F)`}
+            aria-label={t("find.title")}
+          >
+            <Search className="size-4" />
+          </Button>
+        )}
       </div>
       <Separator orientation="vertical" className="mx-1 h-6" />
 

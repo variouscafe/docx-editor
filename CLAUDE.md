@@ -161,6 +161,14 @@ docx-editor/
 - 꼬마글씨1: TextBox로 export
 - 꼬마글씨2: 별도 단락으로 export
 
+## Productivity Features (2026-08 추가)
+- **찾기/바꾸기(⌘F)**: `FindReplaceBar`(에디터 하단 인라인 바). 대소문자 무시 검색 + 이전/다음 이동 + 개별/모두 바꾸기(단일 트랜잭션). ESC로 닫기.
+- **인쇄/PDF(⌘P)**: print CSS(`src/index.css` @media print) — A4 페이지 미리보기 DOM을 그대로 인쇄. 장식(페이지 그림자·UI 크롬) 제외, 형광펜/박스 배경은 `print-color-adjust: exact`로 유지. 브라우저 "PDF로 저장"으로 곧바로 PDF.
+- **휴지통·문서 복제**: reports 소프트 삭제(`deletedAt`, 30일 경과 시 영구 삭제 sweep), 목록 휴지통 탭에서 복원/영구 삭제, 문서 복제(사본 즉시 생성).
+- **문서 가져오기**: `.md`(marked + 커스텀 마크다운 문법 → TipTap JSON) 및 `.docx`(mammoth, lazy 청크 — 표/이미지 제외 일반 서식 중심) → 새 문서 생성. `src/utils/importDocument.ts`.
+- **리비전 미리보기·diff**: 버전 기록(⋯ 더 보기 → 버전 기록) 항목 클릭 → `RevisionPreviewDialog` — 미리보기 탭(리비전 content JSON + 저장 시점 templateOptions로 A4 렌더, editable=false) / 변경사항 탭(현재 문서 ↔ 리비전 content_md 라인 diff, `src/utils/lineDiff.ts` LCS·1500라인 상한·컨텍스트 2줄 접기). 되돌리기는 기존 확인 플로우 연결(진행 중 저장 flush 포함).
+- **⌘K 전문 검색**: `CommandPalette`(글로벌 ⌘K/Ctrl+K) — 제목+본문(content_md) LIKE 검색, 본문 hit 시 첫 매치 주변 발췌 snippet 표시(평시 목록 로드는 본문 미전송, q 있을 때만 contentMd select).
+
 ## Tech Stack
 - **FE**: Vite + React + TypeScript, Tailwind CSS, TipTap(editor), react-router-dom, zustand(auth), lucide-react, marked(md 가져오기), 자체 MeasurePagination(A4 페이지네이션 — tiptap-pagination-plus 를 float 폐지·DOM 측정 기반 원자적 배치로 대체, `src/components/Editor/extensions/measurePagination.ts`)
 - **BE**: Cloudflare Worker + Hono, drizzle-orm(D1), zod, docx.js(서버사이드 DOCX 생성, DOM-free)

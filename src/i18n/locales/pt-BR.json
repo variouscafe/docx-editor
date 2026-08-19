@@ -24,9 +24,7 @@
     "logout": "Sair",
     "filter": {
       "all": "Todos",
-      "recent": "Recentes",
-      "published": "Publicados",
-      "draft": "Rascunho"
+      "recent": "Recentes"
     }
   },
   "reportList": {
@@ -34,20 +32,32 @@
     "scope": {
       "all": "Todos",
       "mine": "Meus documentos",
-      "shared": "Compartilhados"
+      "shared": "Compartilhados",
+      "trash": "Lixeira"
     },
     "empty": {
       "shared": "Nenhum documento compartilhado com você.",
       "none": "Nenhum documento ainda. Crie um novo documento para começar.",
-      "filter": "Nenhum documento corresponde a este filtro."
+      "filter": "Nenhum documento corresponde a este filtro.",
+      "trash": "A lixeira está vazia."
     },
     "readOnly": "Somente leitura",
     "status": {
       "published": "Publicado",
       "draft": "Rascunho"
     },
-    "deleteConfirm": "Excluir este documento?",
-    "deleted": "Excluído"
+    "deleteConfirm": "Mover este documento para a lixeira? Ele será excluído permanentemente em 30 dias.",
+    "deleted": "Movido para a lixeira",
+    "restore": "Restaurar",
+    "restored": "Restaurado",
+    "purge": "Excluir permanentemente",
+    "purgeConfirm": "Esta ação não pode ser desfeita. Excluir definitivamente este documento?",
+    "purged": "Excluído permanentemente",
+    "duplicate": "Duplicar",
+    "duplicated": "Duplicado",
+    "duplicateSuffix": " (cópia)",
+    "trashExpiresDays": "Excluído permanentemente em {{count}} dias",
+    "trashExpiresSoon": "Será excluído permanentemente em breve"
   },
   "editor": {
     "backToList": "Voltar à lista",
@@ -80,7 +90,16 @@
     "discard": "Descartar",
     "more": "Mais",
     "imageUnsupported": "Formato de imagem não compatível",
-    "imageCaptionPlaceholder": "Adicionar descrição…"
+    "imageCaptionPlaceholder": "Adicionar descrição…",
+    "print": "Imprimir",
+    "import": "Importar…",
+    "importConfirm": "Isso substitui o conteúdo do documento atual pelo do arquivo importado. Continuar?",
+    "importing": "Importando…",
+    "importUnsupported": "Tipo de arquivo não suportado. Use um arquivo .md, .txt ou .docx.",
+    "importFailed": "Falha na importação.",
+    "importDone": "Importação concluída.",
+    "importDoneImages": "Importação concluída. {{count}} imagem(ns) enviada(s).",
+    "importDoneImagesFailed": "Importação concluída. {{uploaded}} enviada(s), {{failed}} com falha (excluídas)"
   },
   "toolbar": {
     "undo": "Desfazer",
@@ -131,6 +150,20 @@
       "red": "Vermelho",
       "purple": "Roxo"
     }
+  },
+  "find": {
+    "title": "Localizar",
+    "placeholder": "Localizar",
+    "replacePlaceholder": "Substituir por",
+    "next": "Localizar próxima",
+    "prev": "Localizar anterior",
+    "matchCase": "Diferenciar maiúsculas/minúsculas",
+    "replace": "Substituir",
+    "replaceAll": "Substituir tudo",
+    "replaceToggle": "Substituir",
+    "resultCount": "{{current}}/{{total}}",
+    "noResults": "Nenhum resultado",
+    "replacedCount": "{{count}} ocorrências substituídas"
   },
   "tableCalc": {
     "format": "Formato numérico",
@@ -273,7 +306,18 @@
     "saved": "Versão salva",
     "restored": "Restaurado para esta versão",
     "deleted": "Versão excluída",
-    "failed": "A operação falhou. Tente novamente."
+    "failed": "A operação falhou. Tente novamente.",
+    "preview": "Pré-visualização",
+    "previewDesc": "Pré-visualize uma revisão e compare as mudanças com o documento atual",
+    "loadFailed": "Falha ao carregar esta versão.",
+    "tab": {
+      "preview": "Pré-visualização",
+      "diff": "Alterações"
+    },
+    "diffNone": "Idêntico ao documento atual.",
+    "diffTooLarge": "As mudanças são grandes demais para comparar.",
+    "diffLegend": "Atual → esta versão: {{added}} linhas adicionadas, {{removed}} removidas",
+    "diffSkipped": "{{count}} linhas sem alteração"
   },
   "commandPalette": {
     "title": "Paleta de comandos",

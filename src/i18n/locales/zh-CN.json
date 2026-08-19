@@ -24,9 +24,7 @@
     "logout": "退出登录",
     "filter": {
       "all": "全部",
-      "recent": "最近",
-      "published": "已发布",
-      "draft": "草稿"
+      "recent": "最近"
     }
   },
   "reportList": {
@@ -34,20 +32,32 @@
     "scope": {
       "all": "全部",
       "mine": "我的文档",
-      "shared": "共享给我"
+      "shared": "共享给我",
+      "trash": "回收站"
     },
     "empty": {
       "shared": "还没有共享给你的文档。",
       "none": "暂无文档。新建一个文档开始使用。",
-      "filter": "没有符合该筛选条件的文档。"
+      "filter": "没有符合该筛选条件的文档。",
+      "trash": "回收站为空。"
     },
     "readOnly": "只读",
     "status": {
       "published": "已发布",
       "draft": "草稿"
     },
-    "deleteConfirm": "删除此文档？",
-    "deleted": "已删除"
+    "deleteConfirm": "将此文档移入回收站？30天后将被永久删除。",
+    "deleted": "已移入回收站",
+    "restore": "恢复",
+    "restored": "已恢复",
+    "purge": "永久删除",
+    "purgeConfirm": "此操作无法撤销。确定要永久删除吗？",
+    "purged": "已永久删除",
+    "duplicate": "复制",
+    "duplicated": "已复制",
+    "duplicateSuffix": " (副本)",
+    "trashExpiresDays": "{{count}}天后永久删除",
+    "trashExpiresSoon": "即将永久删除"
   },
   "editor": {
     "backToList": "返回列表",
@@ -80,7 +90,16 @@
     "discard": "放弃",
     "more": "更多",
     "imageUnsupported": "不支持的图片格式",
-    "imageCaptionPlaceholder": "添加说明…"
+    "imageCaptionPlaceholder": "添加说明…",
+    "print": "打印",
+    "import": "导入…",
+    "importConfirm": "将用文件内容替换当前文档。是否继续？",
+    "importing": "导入中…",
+    "importUnsupported": "不支持的文件格式。请使用 .md、.txt 或 .docx 文件。",
+    "importFailed": "导入失败。",
+    "importDone": "导入完成。",
+    "importDoneImages": "导入完成。已上传 {{count}} 张图片。",
+    "importDoneImagesFailed": "导入完成。上传 {{uploaded}} 张，{{failed}} 张失败（已排除）"
   },
   "toolbar": {
     "undo": "撤销",
@@ -131,6 +150,20 @@
       "red": "红色",
       "purple": "紫色"
     }
+  },
+  "find": {
+    "title": "查找",
+    "placeholder": "查找内容",
+    "replacePlaceholder": "替换为",
+    "next": "查找下一个",
+    "prev": "查找上一个",
+    "matchCase": "区分大小写",
+    "replace": "替换",
+    "replaceAll": "全部替换",
+    "replaceToggle": "替换",
+    "resultCount": "{{current}}/{{total}}",
+    "noResults": "无结果",
+    "replacedCount": "已替换 {{count}} 处"
   },
   "tableCalc": {
     "format": "数字格式",
@@ -273,7 +306,18 @@
     "saved": "版本已保存",
     "restored": "已恢复到此版本",
     "deleted": "版本已删除",
-    "failed": "操作失败，请重试。"
+    "failed": "操作失败，请重试。",
+    "preview": "预览",
+    "previewDesc": "预览版本内容并与当前文档比较更改",
+    "loadFailed": "无法加载此版本。",
+    "tab": {
+      "preview": "预览",
+      "diff": "更改"
+    },
+    "diffNone": "与当前文档内容相同。",
+    "diffTooLarge": "更改规模过大，已跳过比较。",
+    "diffLegend": "当前文档 → 此版本：新增 {{added}} 行，删除 {{removed}} 行",
+    "diffSkipped": "{{count}} 行无更改"
   },
   "commandPalette": {
     "title": "命令面板",

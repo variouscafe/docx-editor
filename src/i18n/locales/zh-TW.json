@@ -24,9 +24,7 @@
     "logout": "登出",
     "filter": {
       "all": "全部",
-      "recent": "最近",
-      "published": "已發布",
-      "draft": "草稿"
+      "recent": "最近"
     }
   },
   "reportList": {
@@ -34,20 +32,32 @@
     "scope": {
       "all": "全部",
       "mine": "我的文件",
-      "shared": "共用"
+      "shared": "共用",
+      "trash": "垃圾桶"
     },
     "empty": {
       "shared": "尚未有與您共用的文件。",
       "none": "尚無文件。建立新文件以開始。",
-      "filter": "沒有符合此篩選條件的文件。"
+      "filter": "沒有符合此篩選條件的文件。",
+      "trash": "垃圾桶是空的。"
     },
     "readOnly": "唯讀",
     "status": {
       "published": "已發布",
       "draft": "草稿"
     },
-    "deleteConfirm": "刪除此文件？",
-    "deleted": "已刪除"
+    "deleteConfirm": "要將此文件移至垃圾桶嗎？30天後將永久刪除。",
+    "deleted": "已移至垃圾桶",
+    "restore": "還原",
+    "restored": "已還原",
+    "purge": "永久刪除",
+    "purgeConfirm": "此操作無法復原。確定要永久刪除嗎？",
+    "purged": "已永久刪除",
+    "duplicate": "複製",
+    "duplicated": "已複製",
+    "duplicateSuffix": " (副本)",
+    "trashExpiresDays": "{{count}}天後永久刪除",
+    "trashExpiresSoon": "即將永久刪除"
   },
   "editor": {
     "backToList": "返回列表",
@@ -80,7 +90,16 @@
     "discard": "捨棄",
     "more": "更多",
     "imageUnsupported": "不支援的圖片格式",
-    "imageCaptionPlaceholder": "新增說明…"
+    "imageCaptionPlaceholder": "新增說明…",
+    "print": "列印",
+    "import": "匯入…",
+    "importConfirm": "將以檔案內容取代目前文件。要繼續嗎？",
+    "importing": "匯入中…",
+    "importUnsupported": "不支援的檔案格式。請使用 .md、.txt 或 .docx 檔案。",
+    "importFailed": "匯入失敗。",
+    "importDone": "匯入完成。",
+    "importDoneImages": "匯入完成。已上傳 {{count}} 張圖片。",
+    "importDoneImagesFailed": "匯入完成。上傳 {{uploaded}} 張，{{failed}} 張失敗（已排除）"
   },
   "toolbar": {
     "undo": "復原",
@@ -131,6 +150,20 @@
       "red": "紅色",
       "purple": "紫色"
     }
+  },
+  "find": {
+    "title": "尋找",
+    "placeholder": "尋找內容",
+    "replacePlaceholder": "取代為",
+    "next": "尋找下一個",
+    "prev": "尋找上一個",
+    "matchCase": "區分大小寫",
+    "replace": "取代",
+    "replaceAll": "全部取代",
+    "replaceToggle": "取代",
+    "resultCount": "{{current}}/{{total}}",
+    "noResults": "沒有結果",
+    "replacedCount": "已取代 {{count}} 處"
   },
   "tableCalc": {
     "format": "數字格式",
@@ -273,7 +306,18 @@
     "saved": "版本已儲存",
     "restored": "已還原至此版本",
     "deleted": "版本已刪除",
-    "failed": "操作失敗，請再試一次。"
+    "failed": "操作失敗，請再試一次。",
+    "preview": "預覽",
+    "previewDesc": "預覽版本內容並與目前文件比較變更",
+    "loadFailed": "無法載入此版本。",
+    "tab": {
+      "preview": "預覽",
+      "diff": "變更"
+    },
+    "diffNone": "與目前文件內容相同。",
+    "diffTooLarge": "變更規模過大，已略過比較。",
+    "diffLegend": "目前文件 → 此版本：新增 {{added}} 行，刪除 {{removed}} 行",
+    "diffSkipped": "{{count}} 行無變更"
   },
   "commandPalette": {
     "title": "命令面板",

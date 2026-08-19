@@ -24,9 +24,7 @@
     "logout": "Abmelden",
     "filter": {
       "all": "Alle",
-      "recent": "Zuletzt",
-      "published": "Veröffentlicht",
-      "draft": "Entwurf"
+      "recent": "Zuletzt"
     }
   },
   "reportList": {
@@ -34,20 +32,32 @@
     "scope": {
       "all": "Alle",
       "mine": "Meine Dokumente",
-      "shared": "Geteilt"
+      "shared": "Geteilt",
+      "trash": "Papierkorb"
     },
     "empty": {
       "shared": "Keine Dokumente mit dir geteilt.",
       "none": "Noch keine Dokumente. Erstelle ein neues Dokument, um loszulegen.",
-      "filter": "Keine Dokumente entsprechen diesem Filter."
+      "filter": "Keine Dokumente entsprechen diesem Filter.",
+      "trash": "Der Papierkorb ist leer."
     },
     "readOnly": "Schreibgeschützt",
     "status": {
       "published": "Veröffentlicht",
       "draft": "Entwurf"
     },
-    "deleteConfirm": "Dieses Dokument löschen?",
-    "deleted": "Gelöscht"
+    "deleteConfirm": "Dieses Dokument in den Papierkorb verschieben? Es wird nach 30 Tagen endgültig gelöscht.",
+    "deleted": "In den Papierkorb verschoben",
+    "restore": "Wiederherstellen",
+    "restored": "Wiederhergestellt",
+    "purge": "Endgültig löschen",
+    "purgeConfirm": "Diese Aktion kann nicht rückgängig gemacht werden. Dieses Dokument endgültig löschen?",
+    "purged": "Endgültig gelöscht",
+    "duplicate": "Duplizieren",
+    "duplicated": "Dupliziert",
+    "duplicateSuffix": " (Kopie)",
+    "trashExpiresDays": "Wird in {{count}} Tagen endgültig gelöscht",
+    "trashExpiresSoon": "Wird in Kürze endgültig gelöscht"
   },
   "editor": {
     "backToList": "Zurück zur Liste",
@@ -80,7 +90,16 @@
     "discard": "Verwerfen",
     "more": "Mehr",
     "imageUnsupported": "Nicht unterstütztes Bildformat",
-    "imageCaptionPlaceholder": "Beschreibung hinzufügen…"
+    "imageCaptionPlaceholder": "Beschreibung hinzufügen…",
+    "print": "Drucken",
+    "import": "Importieren…",
+    "importConfirm": "Dadurch wird das aktuelle Dokument durch den Inhalt der Datei ersetzt. Fortfahren?",
+    "importing": "Wird importiert…",
+    "importUnsupported": "Nicht unterstützter Dateityp. Verwende eine .md-, .txt- oder .docx-Datei.",
+    "importFailed": "Import fehlgeschlagen.",
+    "importDone": "Import abgeschlossen.",
+    "importDoneImages": "Import abgeschlossen. {{count}} Bild(er) hochgeladen.",
+    "importDoneImagesFailed": "Import abgeschlossen. {{uploaded}} hochgeladen, {{failed}} fehlgeschlagen (ausgeschlossen)"
   },
   "toolbar": {
     "undo": "Rückgängig",
@@ -131,6 +150,20 @@
       "red": "Rot",
       "purple": "Lila"
     }
+  },
+  "find": {
+    "title": "Suchen",
+    "placeholder": "Suchen",
+    "replacePlaceholder": "Ersetzen durch",
+    "next": "Nächster Treffer",
+    "prev": "Vorheriger Treffer",
+    "matchCase": "Groß-/Kleinschreibung beachten",
+    "replace": "Ersetzen",
+    "replaceAll": "Alle ersetzen",
+    "replaceToggle": "Ersetzen",
+    "resultCount": "{{current}}/{{total}}",
+    "noResults": "Keine Ergebnisse",
+    "replacedCount": "{{count}} Vorkommen ersetzt"
   },
   "tableCalc": {
     "format": "Zahlenformat",
@@ -273,7 +306,18 @@
     "saved": "Version gespeichert",
     "restored": "Auf diese Version wiederhergestellt",
     "deleted": "Version gelöscht",
-    "failed": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen."
+    "failed": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.",
+    "preview": "Vorschau",
+    "previewDesc": "Revision in der Vorschau ansehen und mit dem aktuellen Dokument vergleichen",
+    "loadFailed": "Version konnte nicht geladen werden.",
+    "tab": {
+      "preview": "Vorschau",
+      "diff": "Änderungen"
+    },
+    "diffNone": "Identisch mit dem aktuellen Dokument.",
+    "diffTooLarge": "Die Änderungen sind zu groß für einen Vergleich.",
+    "diffLegend": "Aktuell → diese Version: {{added}} Zeilen hinzugefügt, {{removed}} entfernt",
+    "diffSkipped": "{{count}} Zeilen unverändert"
   },
   "commandPalette": {
     "title": "Befehlspalette",

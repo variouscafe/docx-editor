@@ -13,9 +13,15 @@ import type {
 } from "@shared/report";
 import type { ReportShare, CreateReportShareBody } from "@shared/groups";
 
-export async function listReports(q?: string): Promise<ReportListItem[]> {
+export async function listReports(
+  q?: string,
+  opts?: { trash?: boolean },
+): Promise<ReportListItem[]> {
+  const query: Record<string, string> = {};
+  if (q) query.q = q;
+  if (opts?.trash) query.trash = "1";
   const res = await authHttp.get<{ items: ReportListItem[] }>("/api/reports", {
-    query: q ? { q } : undefined,
+    query: Object.keys(query).length ? query : undefined,
   });
   return res.items;
 }
@@ -44,6 +50,25 @@ export async function updateReport(
 
 export async function deleteReport(id: string): Promise<void> {
   await authHttp.del(`/api/reports/${id}`);
+}
+
+/* ── 휴지통(소프트 삭제) + 복제 ─────────────────────────────────── */
+
+/** 휴지통 복원 — 일반 목록으로 되돌림. */
+export async function restoreReport(id: string): Promise<Report> {
+  return authHttp.post<Report>(`/api/reports/${id}/restore`);
+}
+
+/** 영구 삭제(되돌릴 수 없음) — 행·공유·리비전 즉시 삭제. */
+export async function purgeReport(id: string): Promise<void> {
+  await authHttp.del(`/api/reports/${id}/purge`);
+}
+
+/** 문서 복제 — 사본이 호출자 소유 초안으로 생성됨. title 미제공 시 "… (사본)". */
+export async function duplicateReport(id: string, title?: string): Promise<Report> {
+  return authHttp.post<Report>(`/api/reports/${id}/duplicate`, {
+    body: title !== undefined ? { title } : undefined,
+  });
 }
 
 /* ── 공유(그룹 단위, 읽기 전용) ─────────────────────────────────── */

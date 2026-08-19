@@ -271,3 +271,91 @@ a {
     font-size: 0.875rem;
   }
 }
+/* ============================================================
+   인쇄 / PDF 저장 — A4 시뮬레이션 페이지를 실제 시트에 1:1 매핑.
+   - DocxPreview 의 축소 컨테이너(transform:scale, 인라인 style)을 해제하고
+     794px(=210mm@96dpi) 본래 폭으로 출력. @page A4 margin:0 → 시트 = 시뮬레이션 페이지.
+   - MeasurePagination 의 페이지 경계(fill+footer | gap | header)를 실제 페이지
+     나눔으로 변환: footer 뒤에서 나누면 다음 header 가 새 시트 상단에 온다.
+     gap(회색 구분바)은 인쇄물에서 제외. 페이지 번호 footer 는 시트 하단에 그대로.
+   - 앱 크롬(헤더·툴바·옵션 패널)은 각 컴포넌트의 print:hidden 으로 제거.
+   - 찾기 하이라이트·이미지 리사이즈 핸들은 비영속 도구이므로 인쇄물에서 제외.
+   ============================================================ */
+@media print {
+  @page {
+    /* 시뮬레이션 페이지(794×1123px@96DPI)보다 시트를 살짝 크게 — "A4"(1122.5px)나
+       같은 1123px 로 두면 Chromium 이 표준 A4 로 스냅/반올림하며 0.5px 씩 모자라
+       매 페이지 footer 가 다음 빈 시트로 흘러넘어간다. 시트 ≥ 시뮬레이션이면 footer 의
+       break-after 로 항상 정확히 나누인다(초과분은 하단 여백 95px 안의 순백색).
+       종이 인쇄 시 대화상자에서 A4 를 고르면 ≈99% 배율로 자동 축소(눈에 띄지 않음). */
+    size: 794px 1126px;
+    margin: 0;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* 조상 클리핑 해제 — h-dvh/h-full/overflow-hidden 이 인쇄 흐름을 자르지 않게. */
+  .rm-print-reset {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+  }
+
+  /* 에디터 축소 래퍼 해제 — 인라인 style(transform/width) 이므로 !important 필요. */
+  .rm-print-scroll {
+    padding: 0 !important;
+    background: #fff !important;
+    touch-action: auto !important;
+  }
+  .rm-print-scale-wrap {
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+  }
+  .rm-print-scale-inner {
+    transform: none !important;
+    width: 794px !important;
+  }
+
+  /* 시뮬레이션 페이지 → 실제 시트 분할. */
+  .rm-with-pagination {
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+  .rm-with-pagination .rm-page-footer {
+    break-after: page;
+    page-break-after: always; /* 구형 엔진 폴백(레거시 별칭) */
+  }
+  .rm-with-pagination .rm-page-break-last .rm-page-footer {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .rm-with-pagination .rm-pagination-gap {
+    display: none !important;
+  }
+
+  /* 편집 도구·일회성 표시는 인쇄물에서 제외. */
+  .rm-find-match,
+  .rm-find-active {
+    background: transparent !important;
+  }
+  .rm-image-handle {
+    display: none !important;
+  }
+  .rm-with-pagination.ProseMirror > .preview-block-selected,
+  .rm-with-pagination.ProseMirror > .preview-block-selected:hover {
+    background-color: transparent !important;
+    outline: none !important;
+  }
+
+  /* 형광펜·셀 음영·박스 배경 등 배경색 인쇄(브라우저 기본은 생략함). */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

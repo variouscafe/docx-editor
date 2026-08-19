@@ -50,6 +50,13 @@
       "when": 1786870311148,
       "tag": "0006_military_giant_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1787146970538,
+      "tag": "0007_chief_skrulls",
+      "breakpoints": true
     }
   ]
 }

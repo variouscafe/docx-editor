@@ -569,5 +569,16 @@ ${
       vertical-align: top;
       position: relative;
     }
+
+    /* 찾기/바꾸기 매치 하이라이트 — 비영속 Decoration(저장·DOCX 출력 무관).
+       형광펜 mark 위에 겹치면 활성 매치가 위에 보이도록 active 를 뒤에 선언. */
+    .rm-with-pagination .rm-find-match {
+      background-color: #ffe680;
+      border-radius: 2px;
+    }
+    .rm-with-pagination .rm-find-active {
+      background-color: #ff9f43;
+      border-radius: 2px;
+    }
   `;
 }
