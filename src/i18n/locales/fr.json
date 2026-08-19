@@ -13,10 +13,10 @@
   },
   "nav": {
     "brand": "Suseona Docs",
-    "reports": "Rapports",
+    "reports": "Documents",
     "groups": "Groupes",
     "filters": "Filtres",
-    "newReport": "Nouveau rapport",
+    "newReport": "Nouveau document",
     "search": "Rechercher",
     "searchKbd": "Rechercher (⌘K)",
     "account": "Compte",
@@ -30,23 +30,23 @@
     }
   },
   "reportList": {
-    "title": "Rapports",
+    "title": "Documents",
     "scope": {
       "all": "Tous",
-      "mine": "Mes rapports",
+      "mine": "Mes documents",
       "shared": "Partagés"
     },
     "empty": {
-      "shared": "Aucun rapport partagé avec vous.",
-      "none": "Aucun rapport pour le moment. Créez un nouveau rapport pour commencer.",
-      "filter": "Aucun rapport ne correspond à ce filtre."
+      "shared": "Aucun document partagé avec vous.",
+      "none": "Aucun document pour le moment. Créez un nouveau document pour commencer.",
+      "filter": "Aucun document ne correspond à ce filtre."
     },
     "readOnly": "Lecture seule",
     "status": {
       "published": "Publié",
       "draft": "Brouillon"
     },
-    "deleteConfirm": "Supprimer ce rapport ?",
+    "deleteConfirm": "Supprimer ce document ?",
     "deleted": "Supprimé"
   },
   "editor": {
@@ -277,19 +277,19 @@
   },
   "commandPalette": {
     "title": "Palette de commandes",
-    "desc": "Rechercher des rapports ou naviguer",
-    "placeholder": "Rechercher des rapports ou des commandes...",
+    "desc": "Rechercher des documents ou naviguer",
+    "placeholder": "Rechercher des documents ou des commandes...",
     "empty": "Aucun résultat.",
     "shortcuts": "Raccourcis",
-    "reports": "Rapports",
-    "allReports": "Tous les rapports",
-    "newReport": "Nouveau rapport",
+    "reports": "Documents",
+    "allReports": "Tous les documents",
+    "newReport": "Nouveau document",
     "switchLanguage": "Changer de langue"
   },
   "share": {
     "group": {
-      "title": "Partager le rapport",
-      "desc": "Le partage avec un groupe permet aux membres de lire ce rapport et d'exporter en DOCX (la modification est réservée au propriétaire).",
+      "title": "Partager le document",
+      "desc": "Le partage avec un groupe permet aux membres de lire ce document et d'exporter en DOCX (la modification est réservée au propriétaire).",
       "sharedGroups": "Partagé avec des groupes",
       "empty": "Pas encore partagé avec un groupe.",
       "add": "Ajouter un groupe",
@@ -304,10 +304,10 @@
     },
     "public": {
       "title": "Partage par lien public",
-      "desc": "Activez pour permettre à quiconque de lire ce rapport sans connexion (modification impossible).",
+      "desc": "Activez pour permettre à quiconque de lire ce document sans connexion (modification impossible).",
       "toggle": "Partage par lien",
       "toggleDesc": "Partager en lecture seule sans connexion.",
-      "off": "Lorsque le partage par lien est désactivé, personne ne peut consulter ce rapport.",
+      "off": "Lorsque le partage par lien est désactivé, personne ne peut consulter ce document.",
       "generating": "Génération du lien…",
       "copy": "Copier le lien",
       "open": "Ouvrir dans un nouvel onglet",
@@ -363,7 +363,7 @@
       "private": "Seul vous pouvez voir les modèles privés."
     },
     "deleteTitle": "Supprimer ce modèle ?",
-    "deleteDesc": "Les rapports existants créés à partir de ce modèle ne sont pas affectés (chaque rapport conserve son propre style).",
+    "deleteDesc": "Les documents existants créés à partir de ce modèle ne sont pas affectés (chaque document conserve son propre style).",
     "saved": "Enregistré dans le modèle",
     "savedNew": "Enregistré comme nouveau modèle",
     "renamed": "Renommé",
@@ -385,12 +385,12 @@
   "areas": {
     "app": "application",
     "editor": "éditeur",
-    "public": "rapport partagé"
+    "public": "document partagé"
   },
   "auth": {
     "tagline": "Créez des documents à partir de modèles et partagez-les avec votre groupe",
     "continueWithGoogle": "Continuer avec Google",
-    "privacyNote": "Lors de la connexion, l'e-mail et le nom de votre compte Google sont traités par le serveur d'authentification, et vos rapports sont stockés de manière sécurisée par compte."
+    "privacyNote": "Lors de la connexion, l'e-mail et le nom de votre compte Google sont traités par le serveur d'authentification, et vos documents sont stockés de manière sécurisée par compte."
   },
   "starter": {
     "title": "Titre",
@@ -398,10 +398,10 @@
     "body": "Rédigez votre contenu ici."
   },
   "publicView": {
-    "report": "Rapport",
+    "report": "Document",
     "invalidLink": "Lien invalide.",
-    "notFound": "Ce rapport n'est pas partagé ou n'est plus accessible.",
-    "loadError": "Une erreur s'est produite lors du chargement du rapport.",
+    "notFound": "Ce document n'est pas partagé ou n'est plus accessible.",
+    "loadError": "Une erreur s'est produite lors du chargement du document.",
     "homeLink": "suseona"
   },
   "settings": {
@@ -432,7 +432,7 @@
     "title": "Groupes",
     "create": "Créer un groupe",
     "createTitle": "Créer un groupe",
-    "createDesc": "Les membres du groupe peuvent partager des modèles et des rapports.",
+    "createDesc": "Les membres du groupe peuvent partager des modèles et des documents.",
     "createButton": "Créer",
     "created": "Groupe créé",
     "createFailed": "Échec de la création du groupe",
@@ -440,7 +440,7 @@
     "namePlaceholder": "ex. Équipe marketing",
     "descLabel": "Description (facultatif)",
     "descPlaceholder": "Description du groupe",
-    "empty": "Vous n'avez rejoint aucun groupe. Créez-en un pour partager des modèles et des rapports avec votre équipe.",
+    "empty": "Vous n'avez rejoint aucun groupe. Créez-en un pour partager des modèles et des documents avec votre équipe.",
     "memberCount": "{{count}} membres"
   },
   "groupDetail": {
@@ -482,7 +482,7 @@
     "nameLabel": "Nom",
     "descLabel": "Description",
     "deleteTitle": "Supprimer ce groupe ?",
-    "deleteDesc": "Cette action est irréversible. Les membres, invitations et partages de rapports sont supprimés, et les modèles partagés deviennent privés."
+    "deleteDesc": "Cette action est irréversible. Les membres, invitations et partages de documents sont supprimés, et les modèles partagés deviennent privés."
   },
   "landing": {
     "metaTitle": "Suseona Docs — Un outil de documents basé sur des modèles",

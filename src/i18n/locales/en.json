@@ -13,10 +13,10 @@
   },
   "nav": {
     "brand": "Suseona Docs",
-    "reports": "Reports",
+    "reports": "Documents",
     "groups": "Groups",
     "filters": "Filters",
-    "newReport": "New report",
+    "newReport": "New document",
     "search": "Search",
     "searchKbd": "Search (⌘K)",
     "account": "Account",
@@ -30,23 +30,23 @@
     }
   },
   "reportList": {
-    "title": "Reports",
+    "title": "Documents",
     "scope": {
       "all": "All",
-      "mine": "My reports",
+      "mine": "My documents",
       "shared": "Shared"
     },
     "empty": {
-      "shared": "No reports shared with you.",
-      "none": "No reports yet. Create a new report to get started.",
-      "filter": "No reports match this filter."
+      "shared": "No documents shared with you.",
+      "none": "No documents yet. Create a new document to get started.",
+      "filter": "No documents match this filter."
     },
     "readOnly": "Read-only",
     "status": {
       "published": "Published",
       "draft": "Draft"
     },
-    "deleteConfirm": "Delete this report?",
+    "deleteConfirm": "Delete this document?",
     "deleted": "Deleted"
   },
   "editor": {
@@ -277,19 +277,19 @@
   },
   "commandPalette": {
     "title": "Command palette",
-    "desc": "Search reports or navigate",
-    "placeholder": "Search reports or commands...",
+    "desc": "Search documents or navigate",
+    "placeholder": "Search documents or commands...",
     "empty": "No results.",
     "shortcuts": "Shortcuts",
-    "reports": "Reports",
-    "allReports": "All reports",
-    "newReport": "New report",
+    "reports": "Documents",
+    "allReports": "All documents",
+    "newReport": "New document",
     "switchLanguage": "Switch language"
   },
   "share": {
     "group": {
-      "title": "Share report",
-      "desc": "Sharing with a group lets members read this report and export DOCX (editing is owner-only).",
+      "title": "Share document",
+      "desc": "Sharing with a group lets members read this document and export DOCX (editing is owner-only).",
       "sharedGroups": "Shared with groups",
       "empty": "Not shared with any group yet.",
       "add": "Add group",
@@ -304,10 +304,10 @@
     },
     "public": {
       "title": "Public link sharing",
-      "desc": "Turn on to let anyone read this report without signing in (no editing).",
+      "desc": "Turn on to let anyone read this document without signing in (no editing).",
       "toggle": "Link sharing",
       "toggleDesc": "Share read-only without sign-in.",
-      "off": "When link sharing is off, no one can view this report.",
+      "off": "When link sharing is off, no one can view this document.",
       "generating": "Generating link…",
       "copy": "Copy link",
       "open": "Open in new tab",
@@ -363,7 +363,7 @@
       "private": "Only you can see private templates."
     },
     "deleteTitle": "Delete this template?",
-    "deleteDesc": "Existing reports made from this template are not affected (each report stores its own style).",
+    "deleteDesc": "Existing documents made from this template are not affected (each document stores its own style).",
     "saved": "Saved to template",
     "savedNew": "Saved as a new template",
     "renamed": "Renamed",
@@ -385,12 +385,12 @@
   "areas": {
     "app": "app",
     "editor": "editor",
-    "public": "shared report"
+    "public": "shared document"
   },
   "auth": {
     "tagline": "Create documents from templates, share them with your group",
     "continueWithGoogle": "Continue with Google",
-    "privacyNote": "When you sign in, your Google account email and name are handled by the auth server, and your reports are stored securely per account."
+    "privacyNote": "When you sign in, your Google account email and name are handled by the auth server, and your documents are stored securely per account."
   },
   "starter": {
     "title": "Title",
@@ -398,10 +398,10 @@
     "body": "Write your content here."
   },
   "publicView": {
-    "report": "Report",
+    "report": "Document",
     "invalidLink": "Invalid link.",
-    "notFound": "This report is not shared or is no longer accessible.",
-    "loadError": "Something went wrong while loading the report.",
+    "notFound": "This document is not shared or is no longer accessible.",
+    "loadError": "Something went wrong while loading the document.",
     "homeLink": "suseona"
   },
   "settings": {
@@ -432,7 +432,7 @@
     "title": "Groups",
     "create": "Create group",
     "createTitle": "Create group",
-    "createDesc": "Group members can share templates and reports.",
+    "createDesc": "Group members can share templates and documents.",
     "createButton": "Create",
     "created": "Group created",
     "createFailed": "Failed to create group",
@@ -440,7 +440,7 @@
     "namePlaceholder": "e.g. Marketing team",
     "descLabel": "Description (optional)",
     "descPlaceholder": "Group description",
-    "empty": "You haven't joined any groups. Create one to share templates and reports with your team.",
+    "empty": "You haven't joined any groups. Create one to share templates and documents with your team.",
     "memberCount": "{{count}} members"
   },
   "groupDetail": {
@@ -482,7 +482,7 @@
     "nameLabel": "Name",
     "descLabel": "Description",
     "deleteTitle": "Delete this group?",
-    "deleteDesc": "This can't be undone. Members, invitations, and report shares are removed, and shared templates become private."
+    "deleteDesc": "This can't be undone. Members, invitations, and document shares are removed, and shared templates become private."
   },
   "landing": {
     "metaTitle": "Suseona Docs — A template-based document tool",

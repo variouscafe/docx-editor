@@ -13,10 +13,10 @@
   },
   "nav": {
     "brand": "Suseona Docs",
-    "reports": "報告",
+    "reports": "文件",
     "groups": "群組",
     "filters": "篩選",
-    "newReport": "新增報告",
+    "newReport": "新增文件",
     "search": "搜尋",
     "searchKbd": "搜尋 (⌘K)",
     "account": "帳戶",
@@ -30,23 +30,23 @@
     }
   },
   "reportList": {
-    "title": "報告",
+    "title": "文件",
     "scope": {
       "all": "全部",
-      "mine": "我的報告",
+      "mine": "我的文件",
       "shared": "共用"
     },
     "empty": {
-      "shared": "尚未有與您共用的報告。",
-      "none": "尚無報告。建立新報告以開始。",
-      "filter": "沒有符合此篩選條件的報告。"
+      "shared": "尚未有與您共用的文件。",
+      "none": "尚無文件。建立新文件以開始。",
+      "filter": "沒有符合此篩選條件的文件。"
     },
     "readOnly": "唯讀",
     "status": {
       "published": "已發布",
       "draft": "草稿"
     },
-    "deleteConfirm": "刪除此報告？",
+    "deleteConfirm": "刪除此文件？",
     "deleted": "已刪除"
   },
   "editor": {
@@ -277,19 +277,19 @@
   },
   "commandPalette": {
     "title": "命令面板",
-    "desc": "搜尋報告或導覽",
-    "placeholder": "搜尋報告或命令...",
+    "desc": "搜尋文件或導覽",
+    "placeholder": "搜尋文件或命令...",
     "empty": "沒有結果。",
     "shortcuts": "快速鍵",
-    "reports": "報告",
-    "allReports": "所有報告",
-    "newReport": "新增報告",
+    "reports": "文件",
+    "allReports": "所有文件",
+    "newReport": "新增文件",
     "switchLanguage": "切換語言"
   },
   "share": {
     "group": {
-      "title": "共用報告",
-      "desc": "與群組共用可讓成員閱讀此報告並匯出 DOCX (僅限作者編輯)。",
+      "title": "共用文件",
+      "desc": "與群組共用可讓成員閱讀此文件並匯出 DOCX (僅限作者編輯)。",
       "sharedGroups": "已共用的群組",
       "empty": "尚未與任何群組共用。",
       "add": "新增群組",
@@ -304,10 +304,10 @@
     },
     "public": {
       "title": "公開連結共用",
-      "desc": "開啟後，任何人無須登入即可閱讀此報告 (無法編輯)。",
+      "desc": "開啟後，任何人無須登入即可閱讀此文件 (無法編輯)。",
       "toggle": "連結共用",
       "toggleDesc": "無須登入以唯讀方式共用。",
-      "off": "當連結共用關閉時，任何人都無法檢視此報告。",
+      "off": "當連結共用關閉時，任何人都無法檢視此文件。",
       "generating": "正在產生連結…",
       "copy": "複製連結",
       "open": "於新分頁開啟",
@@ -363,7 +363,7 @@
       "private": "私人範本僅您可見。"
     },
     "deleteTitle": "刪除此範本？",
-    "deleteDesc": "從此範本建立的現有報告不受影響 (每份報告會儲存自己的樣式)。",
+    "deleteDesc": "從此範本建立的現有文件不受影響 (每份文件會儲存自己的樣式)。",
     "saved": "已儲存至範本",
     "savedNew": "已另存為新範本",
     "renamed": "已重新命名",
@@ -385,12 +385,12 @@
   "areas": {
     "app": "應用程式",
     "editor": "編輯器",
-    "public": "共用報告"
+    "public": "共用文件"
   },
   "auth": {
     "tagline": "套用範本建立文件，與群組共享",
     "continueWithGoogle": "使用 Google 繼續",
-    "privacyNote": "登入時，您的 Google 帳戶電子郵件與名稱將由認證伺服器處理，且您的報告會依帳戶安全儲存。"
+    "privacyNote": "登入時，您的 Google 帳戶電子郵件與名稱將由認證伺服器處理，且您的文件會依帳戶安全儲存。"
   },
   "starter": {
     "title": "標題",
@@ -398,10 +398,10 @@
     "body": "在此撰寫您的內容。"
   },
   "publicView": {
-    "report": "報告",
+    "report": "文件",
     "invalidLink": "無效的連結。",
-    "notFound": "此報告未共用或已無法存取。",
-    "loadError": "載入報告時發生錯誤。",
+    "notFound": "此文件未共用或已無法存取。",
+    "loadError": "載入文件時發生錯誤。",
     "homeLink": "suseona"
   },
   "settings": {
@@ -432,7 +432,7 @@
     "title": "群組",
     "create": "建立群組",
     "createTitle": "建立群組",
-    "createDesc": "群組成員可共用範本與報告。",
+    "createDesc": "群組成員可共用範本與文件。",
     "createButton": "建立",
     "created": "群組已建立",
     "createFailed": "建立群組失敗",
@@ -440,7 +440,7 @@
     "namePlaceholder": "例如：行銷團隊",
     "descLabel": "描述 (可選)",
     "descPlaceholder": "群組描述",
-    "empty": "您尚未加入任何群組。建立群組以與您的團隊共用範本與報告。",
+    "empty": "您尚未加入任何群組。建立群組以與您的團隊共用範本與文件。",
     "memberCount": "{{count}} 位成員"
   },
   "groupDetail": {
@@ -482,7 +482,7 @@
     "nameLabel": "名稱",
     "descLabel": "描述",
     "deleteTitle": "刪除此群組？",
-    "deleteDesc": "此動作無法復原。成員、邀請與報告共用將被移除，共用的範本將變為私人。"
+    "deleteDesc": "此動作無法復原。成員、邀請與文件共用將被移除，共用的範本將變為私人。"
   },
   "landing": {
     "metaTitle": "Suseona Docs — 以範本為基礎的文件撰寫工具",

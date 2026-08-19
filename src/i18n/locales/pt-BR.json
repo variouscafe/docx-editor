@@ -13,10 +13,10 @@
   },
   "nav": {
     "brand": "Suseona Docs",
-    "reports": "Relatórios",
+    "reports": "Documentos",
     "groups": "Grupos",
     "filters": "Filtros",
-    "newReport": "Novo relatório",
+    "newReport": "Novo documento",
     "search": "Buscar",
     "searchKbd": "Buscar (⌘K)",
     "account": "Conta",
@@ -30,23 +30,23 @@
     }
   },
   "reportList": {
-    "title": "Relatórios",
+    "title": "Documentos",
     "scope": {
       "all": "Todos",
-      "mine": "Meus relatórios",
+      "mine": "Meus documentos",
       "shared": "Compartilhados"
     },
     "empty": {
-      "shared": "Nenhum relatório compartilhado com você.",
-      "none": "Nenhum relatório ainda. Crie um novo relatório para começar.",
-      "filter": "Nenhum relatório corresponde a este filtro."
+      "shared": "Nenhum documento compartilhado com você.",
+      "none": "Nenhum documento ainda. Crie um novo documento para começar.",
+      "filter": "Nenhum documento corresponde a este filtro."
     },
     "readOnly": "Somente leitura",
     "status": {
       "published": "Publicado",
       "draft": "Rascunho"
     },
-    "deleteConfirm": "Excluir este relatório?",
+    "deleteConfirm": "Excluir este documento?",
     "deleted": "Excluído"
   },
   "editor": {
@@ -277,19 +277,19 @@
   },
   "commandPalette": {
     "title": "Paleta de comandos",
-    "desc": "Buscar relatórios ou navegar",
-    "placeholder": "Buscar relatórios ou comandos...",
+    "desc": "Buscar documentos ou navegar",
+    "placeholder": "Buscar documentos ou comandos...",
     "empty": "Nenhum resultado.",
     "shortcuts": "Atalhos",
-    "reports": "Relatórios",
-    "allReports": "Todos os relatórios",
-    "newReport": "Novo relatório",
+    "reports": "Documentos",
+    "allReports": "Todos os documentos",
+    "newReport": "Novo documento",
     "switchLanguage": "Trocar idioma"
   },
   "share": {
     "group": {
-      "title": "Compartilhar relatório",
-      "desc": "Compartilhar com um grupo permite que os membros leiam este relatório e exportem DOCX (edição é somente do proprietário).",
+      "title": "Compartilhar documento",
+      "desc": "Compartilhar com um grupo permite que os membros leiam este documento e exportem DOCX (edição é somente do proprietário).",
       "sharedGroups": "Compartilhado com grupos",
       "empty": "Ainda não compartilhado com nenhum grupo.",
       "add": "Adicionar grupo",
@@ -304,10 +304,10 @@
     },
     "public": {
       "title": "Compartilhamento por link público",
-      "desc": "Ative para permitir que qualquer um leia este relatório sem fazer login (sem edição).",
+      "desc": "Ative para permitir que qualquer um leia este documento sem fazer login (sem edição).",
       "toggle": "Compartilhamento por link",
       "toggleDesc": "Compartilhar somente leitura sem login.",
-      "off": "Quando o compartilhamento por link está desativado, ninguém pode visualizar este relatório.",
+      "off": "Quando o compartilhamento por link está desativado, ninguém pode visualizar este documento.",
       "generating": "Gerando link…",
       "copy": "Copiar link",
       "open": "Abrir em nova aba",
@@ -363,7 +363,7 @@
       "private": "Somente você pode ver modelos privados."
     },
     "deleteTitle": "Excluir este modelo?",
-    "deleteDesc": "Relatórios existentes criados a partir deste modelo não são afetados (cada relatório armazena seu próprio estilo).",
+    "deleteDesc": "Documentos existentes criados a partir deste modelo não são afetados (cada documento armazena seu próprio estilo).",
     "saved": "Salvo no modelo",
     "savedNew": "Salvo como novo modelo",
     "renamed": "Renomeado",
@@ -385,12 +385,12 @@
   "areas": {
     "app": "aplicativo",
     "editor": "editor",
-    "public": "relatório compartilhado"
+    "public": "documento compartilhado"
   },
   "auth": {
     "tagline": "Crie documentos com modelos e compartilhe com seu grupo",
     "continueWithGoogle": "Continuar com Google",
-    "privacyNote": "Ao fazer login, o e-mail e o nome da sua conta Google são tratados pelo servidor de autenticação, e seus relatórios são armazenados com segurança por conta."
+    "privacyNote": "Ao fazer login, o e-mail e o nome da sua conta Google são tratados pelo servidor de autenticação, e seus documentos são armazenados com segurança por conta."
   },
   "starter": {
     "title": "Título",
@@ -398,10 +398,10 @@
     "body": "Escreva seu conteúdo aqui."
   },
   "publicView": {
-    "report": "Relatório",
+    "report": "Documento",
     "invalidLink": "Link inválido.",
-    "notFound": "Este relatório não está compartilhado ou não está mais acessível.",
-    "loadError": "Algo deu errado ao carregar o relatório.",
+    "notFound": "Este documento não está compartilhado ou não está mais acessível.",
+    "loadError": "Algo deu errado ao carregar o documento.",
     "homeLink": "suseona"
   },
   "settings": {
@@ -432,7 +432,7 @@
     "title": "Grupos",
     "create": "Criar grupo",
     "createTitle": "Criar grupo",
-    "createDesc": "Membros do grupo podem compartilhar modelos e relatórios.",
+    "createDesc": "Membros do grupo podem compartilhar modelos e documentos.",
     "createButton": "Criar",
     "created": "Grupo criado",
     "createFailed": "Falha ao criar grupo",
@@ -440,7 +440,7 @@
     "namePlaceholder": "ex.: Equipe de marketing",
     "descLabel": "Descrição (opcional)",
     "descPlaceholder": "Descrição do grupo",
-    "empty": "Você não entrou em nenhum grupo. Crie um para compartilhar modelos e relatórios com sua equipe.",
+    "empty": "Você não entrou em nenhum grupo. Crie um para compartilhar modelos e documentos com sua equipe.",
     "memberCount": "{{count}} membros"
   },
   "groupDetail": {
@@ -482,7 +482,7 @@
     "nameLabel": "Nome",
     "descLabel": "Descrição",
     "deleteTitle": "Excluir este grupo?",
-    "deleteDesc": "Isso não pode ser desfeito. Membros, convites e compartilhamentos de relatórios são removidos, e modelos compartilhados tornam-se privados."
+    "deleteDesc": "Isso não pode ser desfeito. Membros, convites e compartilhamentos de documentos são removidos, e modelos compartilhados tornam-se privados."
   },
   "landing": {
     "metaTitle": "Suseona Docs — Uma ferramenta de documentos baseada em modelos",

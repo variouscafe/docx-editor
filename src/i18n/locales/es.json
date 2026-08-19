@@ -13,10 +13,10 @@
   },
   "nav": {
     "brand": "Suseona Docs",
-    "reports": "Informes",
+    "reports": "Documentos",
     "groups": "Grupos",
     "filters": "Filtros",
-    "newReport": "Nuevo informe",
+    "newReport": "Nuevo documento",
     "search": "Buscar",
     "searchKbd": "Buscar (⌘K)",
     "account": "Cuenta",
@@ -30,23 +30,23 @@
     }
   },
   "reportList": {
-    "title": "Informes",
+    "title": "Documentos",
     "scope": {
       "all": "Todos",
-      "mine": "Mis informes",
+      "mine": "Mis documentos",
       "shared": "Compartidos"
     },
     "empty": {
-      "shared": "No hay informes compartidos contigo.",
-      "none": "Aún no hay informes. Crea uno nuevo para empezar.",
-      "filter": "Ningún informe coincide con este filtro."
+      "shared": "No hay documentos compartidos contigo.",
+      "none": "Aún no hay documentos. Crea uno nuevo para empezar.",
+      "filter": "Ningún documento coincide con este filtro."
     },
     "readOnly": "Solo lectura",
     "status": {
       "published": "Publicado",
       "draft": "Borrador"
     },
-    "deleteConfirm": "¿Eliminar este informe?",
+    "deleteConfirm": "¿Eliminar este documento?",
     "deleted": "Eliminado"
   },
   "editor": {
@@ -277,19 +277,19 @@
   },
   "commandPalette": {
     "title": "Paleta de comandos",
-    "desc": "Buscar informes o navegar",
-    "placeholder": "Busca informes o comandos...",
+    "desc": "Buscar documentos o navegar",
+    "placeholder": "Busca documentos o comandos...",
     "empty": "Sin resultados.",
     "shortcuts": "Atajos",
-    "reports": "Informes",
-    "allReports": "Todos los informes",
-    "newReport": "Nuevo informe",
+    "reports": "Documentos",
+    "allReports": "Todos los documentos",
+    "newReport": "Nuevo documento",
     "switchLanguage": "Cambiar idioma"
   },
   "share": {
     "group": {
-      "title": "Compartir informe",
-      "desc": "Compartir con un grupo permite a los miembros leer este informe y exportar a DOCX (la edición es solo del propietario).",
+      "title": "Compartir documento",
+      "desc": "Compartir con un grupo permite a los miembros leer este documento y exportar a DOCX (la edición es solo del propietario).",
       "sharedGroups": "Compartido con grupos",
       "empty": "Aún no compartido con ningún grupo.",
       "add": "Añadir grupo",
@@ -304,10 +304,10 @@
     },
     "public": {
       "title": "Compartir con enlace público",
-      "desc": "Actívalo para que cualquiera pueda leer este informe sin iniciar sesión (sin edición).",
+      "desc": "Actívalo para que cualquiera pueda leer este documento sin iniciar sesión (sin edición).",
       "toggle": "Compartir enlace",
       "toggleDesc": "Comparte en solo lectura sin inicio de sesión.",
-      "off": "Con la compartición desactivada, nadie puede ver este informe.",
+      "off": "Con la compartición desactivada, nadie puede ver este documento.",
       "generating": "Generando enlace…",
       "copy": "Copiar enlace",
       "open": "Abrir en una pestaña nueva",
@@ -363,7 +363,7 @@
       "private": "Solo tú puedes ver las plantillas privadas."
     },
     "deleteTitle": "¿Eliminar esta plantilla?",
-    "deleteDesc": "Los informes ya creados a partir de esta plantilla no se ven afectados (cada informe guarda su propio estilo).",
+    "deleteDesc": "Los documentos ya creados a partir de esta plantilla no se ven afectados (cada documento guarda su propio estilo).",
     "saved": "Guardado en la plantilla",
     "savedNew": "Guardado como plantilla nueva",
     "renamed": "Nombre cambiado",
@@ -385,12 +385,12 @@
   "areas": {
     "app": "aplicación",
     "editor": "editor",
-    "public": "informe compartido"
+    "public": "documento compartido"
   },
   "auth": {
     "tagline": "Crea documentos con plantillas y compártelos con tu grupo",
     "continueWithGoogle": "Continuar con Google",
-    "privacyNote": "Al iniciar sesión, el correo y el nombre de tu cuenta de Google los gestiona el servidor de autenticación, y tus informes se guardan de forma segura por cuenta."
+    "privacyNote": "Al iniciar sesión, el correo y el nombre de tu cuenta de Google los gestiona el servidor de autenticación, y tus documentos se guardan de forma segura por cuenta."
   },
   "starter": {
     "title": "Título",
@@ -398,10 +398,10 @@
     "body": "Escribe tu contenido aquí."
   },
   "publicView": {
-    "report": "Informe",
+    "report": "Documento",
     "invalidLink": "Enlace no válido.",
-    "notFound": "Este informe no está compartido o ya no es accesible.",
-    "loadError": "Algo salió mal al cargar el informe.",
+    "notFound": "Este documento no está compartido o ya no es accesible.",
+    "loadError": "Algo salió mal al cargar el documento.",
     "homeLink": "suseona"
   },
   "settings": {
@@ -432,7 +432,7 @@
     "title": "Grupos",
     "create": "Crear grupo",
     "createTitle": "Crear grupo",
-    "createDesc": "Los miembros del grupo pueden compartir plantillas e informes.",
+    "createDesc": "Los miembros del grupo pueden compartir plantillas e documentos.",
     "createButton": "Crear",
     "created": "Grupo creado",
     "createFailed": "Error al crear el grupo",
@@ -440,7 +440,7 @@
     "namePlaceholder": "p. ej. Equipo de marketing",
     "descLabel": "Descripción (opcional)",
     "descPlaceholder": "Descripción del grupo",
-    "empty": "No te has unido a ningún grupo. Crea uno para compartir plantillas e informes con tu equipo.",
+    "empty": "No te has unido a ningún grupo. Crea uno para compartir plantillas e documentos con tu equipo.",
     "memberCount": "{{count}} miembros"
   },
   "groupDetail": {
@@ -482,7 +482,7 @@
     "nameLabel": "Nombre",
     "descLabel": "Descripción",
     "deleteTitle": "¿Eliminar este grupo?",
-    "deleteDesc": "Esta acción no se puede deshacer. Se eliminan miembros, invitaciones y comparticiones de informes, y las plantillas compartidas pasan a ser privadas."
+    "deleteDesc": "Esta acción no se puede deshacer. Se eliminan miembros, invitaciones y comparticiones de documentos, y las plantillas compartidas pasan a ser privadas."
   },
   "landing": {
     "metaTitle": "Suseona Docs — Una herramienta de documentos basada en plantillas",

@@ -13,10 +13,10 @@
   },
   "nav": {
     "brand": "Suseona Docs",
-    "reports": "Berichte",
+    "reports": "Dokumente",
     "groups": "Gruppen",
     "filters": "Filter",
-    "newReport": "Neuer Bericht",
+    "newReport": "Neues Dokument",
     "search": "Suchen",
     "searchKbd": "Suchen (⌘K)",
     "account": "Konto",
@@ -30,23 +30,23 @@
     }
   },
   "reportList": {
-    "title": "Berichte",
+    "title": "Dokumente",
     "scope": {
       "all": "Alle",
-      "mine": "Meine Berichte",
+      "mine": "Meine Dokumente",
       "shared": "Geteilt"
     },
     "empty": {
-      "shared": "Keine Berichte mit dir geteilt.",
-      "none": "Noch keine Berichte. Erstelle einen neuen Bericht, um loszulegen.",
-      "filter": "Keine Berichte entsprechen diesem Filter."
+      "shared": "Keine Dokumente mit dir geteilt.",
+      "none": "Noch keine Dokumente. Erstelle ein neues Dokument, um loszulegen.",
+      "filter": "Keine Dokumente entsprechen diesem Filter."
     },
     "readOnly": "Schreibgeschützt",
     "status": {
       "published": "Veröffentlicht",
       "draft": "Entwurf"
     },
-    "deleteConfirm": "Diesen Bericht löschen?",
+    "deleteConfirm": "Dieses Dokument löschen?",
     "deleted": "Gelöscht"
   },
   "editor": {
@@ -277,19 +277,19 @@
   },
   "commandPalette": {
     "title": "Befehlspalette",
-    "desc": "Berichte durchsuchen oder navigieren",
-    "placeholder": "Berichte oder Befehle suchen...",
+    "desc": "Dokumente durchsuchen oder navigieren",
+    "placeholder": "Dokumente oder Befehle suchen...",
     "empty": "Keine Ergebnisse.",
     "shortcuts": "Tastenkürzel",
-    "reports": "Berichte",
-    "allReports": "Alle Berichte",
-    "newReport": "Neuer Bericht",
+    "reports": "Dokumente",
+    "allReports": "Alle Dokumente",
+    "newReport": "Neues Dokument",
     "switchLanguage": "Sprache wechseln"
   },
   "share": {
     "group": {
-      "title": "Bericht teilen",
-      "desc": "Das Teilen mit einer Gruppe ermöglicht Mitgliedern, diesen Bericht zu lesen und als DOCX zu exportieren (Bearbeitung nur durch den Autor).",
+      "title": "Dokument teilen",
+      "desc": "Das Teilen mit einer Gruppe ermöglicht Mitgliedern, dieses Dokument zu lesen und als DOCX zu exportieren (Bearbeitung nur durch den Autor).",
       "sharedGroups": "Mit Gruppen geteilt",
       "empty": "Noch mit keiner Gruppe geteilt.",
       "add": "Gruppe hinzufügen",
@@ -304,10 +304,10 @@
     },
     "public": {
       "title": "Öffentlichen Link teilen",
-      "desc": "Aktivieren, damit jeder diesen Bericht ohne Anmeldung lesen kann (keine Bearbeitung).",
+      "desc": "Aktivieren, damit jeder dieses Dokument ohne Anmeldung lesen kann (keine Bearbeitung).",
       "toggle": "Link teilen",
       "toggleDesc": "Schreibgeschützt ohne Anmeldung teilen.",
-      "off": "Wenn Linkteilen deaktiviert ist, kann niemand diesen Bericht ansehen.",
+      "off": "Wenn Linkteilen deaktiviert ist, kann niemand dieses Dokument ansehen.",
       "generating": "Link wird erstellt…",
       "copy": "Link kopieren",
       "open": "In neuem Tab öffnen",
@@ -363,7 +363,7 @@
       "private": "Nur du kannst private Vorlagen sehen."
     },
     "deleteTitle": "Diese Vorlage löschen?",
-    "deleteDesc": "Vorhandene Berichte, die aus dieser Vorlage erstellt wurden, sind nicht betroffen (jeder Bericht speichert seinen eigenen Stil).",
+    "deleteDesc": "Vorhandene Dokumente, die aus dieser Vorlage erstellt wurden, sind nicht betroffen (jedes Dokument speichert seinen eigenen Stil).",
     "saved": "In Vorlage gespeichert",
     "savedNew": "Als neue Vorlage gespeichert",
     "renamed": "Umbenannt",
@@ -385,12 +385,12 @@
   "areas": {
     "app": "App",
     "editor": "Editor",
-    "public": "Geteilter Bericht"
+    "public": "Geteiltes Dokument"
   },
   "auth": {
     "tagline": "Dokumente aus Vorlagen erstellen und mit der Gruppe teilen",
     "continueWithGoogle": "Mit Google fortfahren",
-    "privacyNote": "Wenn du dich anmeldest, werden E-Mail-Adresse und Name deines Google-Kontos vom Authentifizierungsserver verarbeitet und deine Berichte werden sicher pro Konto gespeichert."
+    "privacyNote": "Wenn du dich anmeldest, werden E-Mail-Adresse und Name deines Google-Kontos vom Authentifizierungsserver verarbeitet und deine Dokumente werden sicher pro Konto gespeichert."
   },
   "starter": {
     "title": "Titel",
@@ -398,10 +398,10 @@
     "body": "Schreibe hier deinen Inhalt."
   },
   "publicView": {
-    "report": "Bericht",
+    "report": "Dokument",
     "invalidLink": "Ungültiger Link.",
-    "notFound": "Dieser Bericht ist nicht geteilt oder nicht mehr zugänglich.",
-    "loadError": "Beim Laden des Berichts ist etwas schiefgelaufen.",
+    "notFound": "Dieses Dokument ist nicht geteilt oder nicht mehr zugänglich.",
+    "loadError": "Beim Laden des Dokuments ist etwas schiefgelaufen.",
     "homeLink": "suseona"
   },
   "settings": {
@@ -432,7 +432,7 @@
     "title": "Gruppen",
     "create": "Gruppe erstellen",
     "createTitle": "Gruppe erstellen",
-    "createDesc": "Gruppenmitglieder können Vorlagen und Berichte teilen.",
+    "createDesc": "Gruppenmitglieder können Vorlagen und Dokumente teilen.",
     "createButton": "Erstellen",
     "created": "Gruppe erstellt",
     "createFailed": "Erstellen der Gruppe fehlgeschlagen",
@@ -440,7 +440,7 @@
     "namePlaceholder": "z. B. Marketing-Team",
     "descLabel": "Beschreibung (optional)",
     "descPlaceholder": "Gruppenbeschreibung",
-    "empty": "Du bist noch keiner Gruppe beigetreten. Erstelle eine, um Vorlagen und Berichte mit deinem Team zu teilen.",
+    "empty": "Du bist noch keiner Gruppe beigetreten. Erstelle eine, um Vorlagen und Dokumente mit deinem Team zu teilen.",
     "memberCount": "{{count}} Mitglieder"
   },
   "groupDetail": {
@@ -482,7 +482,7 @@
     "nameLabel": "Name",
     "descLabel": "Beschreibung",
     "deleteTitle": "Diese Gruppe löschen?",
-    "deleteDesc": "Dies kann nicht rückgängig gemacht werden. Mitglieder, Einladungen und Berichtsfreigaben werden entfernt und geteilte Vorlagen werden privat."
+    "deleteDesc": "Dies kann nicht rückgängig gemacht werden. Mitglieder, Einladungen und Dokumentfreigaben werden entfernt und geteilte Vorlagen werden privat."
   },
   "landing": {
     "metaTitle": "Suseona Docs — Ein vorlagenbasiertes Dokumentwerkzeug",

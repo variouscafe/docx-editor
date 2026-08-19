@@ -13,10 +13,10 @@
   },
   "nav": {
     "brand": "Suseona Docs",
-    "reports": "报告",
+    "reports": "文档",
     "groups": "群组",
     "filters": "筛选",
-    "newReport": "新建报告",
+    "newReport": "新建文档",
     "search": "搜索",
     "searchKbd": "搜索（⌘K）",
     "account": "账户",
@@ -30,23 +30,23 @@
     }
   },
   "reportList": {
-    "title": "报告",
+    "title": "文档",
     "scope": {
       "all": "全部",
-      "mine": "我的报告",
+      "mine": "我的文档",
       "shared": "共享给我"
     },
     "empty": {
-      "shared": "还没有共享给你的报告。",
-      "none": "暂无报告。新建一个报告开始使用。",
-      "filter": "没有符合该筛选条件的报告。"
+      "shared": "还没有共享给你的文档。",
+      "none": "暂无文档。新建一个文档开始使用。",
+      "filter": "没有符合该筛选条件的文档。"
     },
     "readOnly": "只读",
     "status": {
       "published": "已发布",
       "draft": "草稿"
     },
-    "deleteConfirm": "删除此报告？",
+    "deleteConfirm": "删除此文档？",
     "deleted": "已删除"
   },
   "editor": {
@@ -277,19 +277,19 @@
   },
   "commandPalette": {
     "title": "命令面板",
-    "desc": "搜索报告或进行导航",
-    "placeholder": "搜索报告或命令…",
+    "desc": "搜索文档或进行导航",
+    "placeholder": "搜索文档或命令…",
     "empty": "无结果。",
     "shortcuts": "快捷操作",
-    "reports": "报告",
-    "allReports": "全部报告",
-    "newReport": "新建报告",
+    "reports": "文档",
+    "allReports": "全部文档",
+    "newReport": "新建文档",
     "switchLanguage": "切换语言"
   },
   "share": {
     "group": {
-      "title": "共享报告",
-      "desc": "共享给群组后，成员可阅读此报告并导出 DOCX（仅作者可编辑）。",
+      "title": "共享文档",
+      "desc": "共享给群组后，成员可阅读此文档并导出 DOCX（仅作者可编辑）。",
       "sharedGroups": "已共享的群组",
       "empty": "尚未与任何群组共享。",
       "add": "添加群组",
@@ -304,10 +304,10 @@
     },
     "public": {
       "title": "公开链接共享",
-      "desc": "开启后，任何人无需登录即可阅读此报告（不可编辑）。",
+      "desc": "开启后，任何人无需登录即可阅读此文档（不可编辑）。",
       "toggle": "链接共享",
       "toggleDesc": "无需登录以只读方式共享。",
-      "off": "关闭链接共享后，任何人都无法查看此报告。",
+      "off": "关闭链接共享后，任何人都无法查看此文档。",
       "generating": "正在生成链接…",
       "copy": "复制链接",
       "open": "在新标签页中打开",
@@ -363,7 +363,7 @@
       "private": "私有模板仅您可见。"
     },
     "deleteTitle": "删除此模板？",
-    "deleteDesc": "基于此模板创建的已有报告不受影响（每个报告存储各自的样式）。",
+    "deleteDesc": "基于此模板创建的已有文档不受影响（每个文档存储各自的样式）。",
     "saved": "已保存到模板",
     "savedNew": "已另存为新模板",
     "renamed": "已重命名",
@@ -385,12 +385,12 @@
   "areas": {
     "app": "应用",
     "editor": "编辑器",
-    "public": "共享报告"
+    "public": "共享文档"
   },
   "auth": {
     "tagline": "套用模板创建文档，与群组共享",
     "continueWithGoogle": "使用 Google 继续",
-    "privacyNote": "登录后，您的 Google 账户邮箱和姓名将由认证服务器处理，您的报告会按账户安全存储。"
+    "privacyNote": "登录后，您的 Google 账户邮箱和姓名将由认证服务器处理，您的文档会按账户安全存储。"
   },
   "starter": {
     "title": "标题",
@@ -398,10 +398,10 @@
     "body": "在此撰写您的内容。"
   },
   "publicView": {
-    "report": "报告",
+    "report": "文档",
     "invalidLink": "链接无效。",
-    "notFound": "此报告未共享或已不可访问。",
-    "loadError": "加载报告时出现问题。",
+    "notFound": "此文档未共享或已不可访问。",
+    "loadError": "加载文档时出现问题。",
     "homeLink": "suseona"
   },
   "settings": {
@@ -432,7 +432,7 @@
     "title": "群组",
     "create": "创建群组",
     "createTitle": "创建群组",
-    "createDesc": "群组成员可共享模板和报告。",
+    "createDesc": "群组成员可共享模板和文档。",
     "createButton": "创建",
     "created": "群组已创建",
     "createFailed": "创建群组失败",
@@ -440,7 +440,7 @@
     "namePlaceholder": "例如：市场团队",
     "descLabel": "描述（可选）",
     "descPlaceholder": "群组描述",
-    "empty": "您尚未加入任何群组。创建一个群组，与团队共享模板和报告。",
+    "empty": "您尚未加入任何群组。创建一个群组，与团队共享模板和文档。",
     "memberCount": "{{count}} 名成员"
   },
   "groupDetail": {
@@ -482,7 +482,7 @@
     "nameLabel": "名称",
     "descLabel": "描述",
     "deleteTitle": "删除此群组？",
-    "deleteDesc": "此操作无法撤销。成员、邀请和报告共享将被移除，共享模板将变为私有。"
+    "deleteDesc": "此操作无法撤销。成员、邀请和文档共享将被移除，共享模板将变为私有。"
   },
   "landing": {
     "metaTitle": "Suseona Docs — 基于模板的文档写作工具",

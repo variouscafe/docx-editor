@@ -86,7 +86,7 @@ export async function getPublicReport(token: string): Promise<PublicReportView> 
   const res = await fetch(`${API_URL}/api/public/reports/${encodeURIComponent(token)}`);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    const err = new Error(body?.error?.message ?? "보고서를 불러올 수 없습니다.") as Error & {
+    const err = new Error(body?.error?.message ?? "문서를 불러올 수 없습니다.") as Error & {
       status: number;
     };
     err.status = res.status;
